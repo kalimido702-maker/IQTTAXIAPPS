@@ -1,0 +1,34 @@
+name: iq_taxi_workspace
+
+packages:
+  - apps/**
+  - packages/**
+
+command:
+  bootstrap:
+    usePubspecOverrides: true
+
+scripts:
+  analyze:
+    run: melos exec -- "fvm flutter analyze"
+    description: Run flutter analyze in all packages
+
+  clean:
+    run: melos exec -- "fvm flutter clean"
+    description: Clean all packages
+
+  get:
+    run: melos exec -- "fvm flutter pub get"
+    description: Get dependencies for all packages
+
+  build_runner:
+    run: melos exec -- "fvm dart run build_runner build --delete-conflicting-outputs"
+    description: Run build_runner in all packages
+
+  test:
+    run: melos exec -- "fvm flutter test"
+    description: Run tests in all packages
+
+  format:
+    run: melos exec -- "fvm dart format ."
+    description: Format all packages

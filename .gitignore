@@ -1,0 +1,48 @@
+# ── Flutter / Dart ──
+**/build/
+**/.dart_tool/
+**/.packages
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.fvm/
+**/pubspec.lock
+
+# ── IDE ──
+**/.idea/
+**/*.iml
+**/.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ── Android ──
+**/android/**/gradle-wrapper.jar
+**/.gradle/
+**/captures/
+**/gradlew
+**/gradlew.bat
+**/local.properties
+**/GeneratedPluginRegistrant.java
+**/.cxx/
+**/key.properties
+**/*.jks
+**/*.keystore
+
+# ── iOS ──
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/App.framework/
+**/ios/Flutter/Flutter.framework/
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/flutter_export_environment.sh
+
+# ── Old project (not needed in repo) ──
+Old/
+not_important/
+
+# ── Misc ──
+*.log
+*.pyc
+.env

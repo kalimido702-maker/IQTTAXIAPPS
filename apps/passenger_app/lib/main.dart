@@ -1,0 +1,32 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:iq_core/iq_core.dart';
+import 'app/app.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Force RTL & portrait mode
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // System UI style — transparent bars, dark icons
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: AppColors.transparent,
+      systemNavigationBarColor: AppColors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
+
+  // Initialize core dependencies
+  await initCoreDependencies();
+
+  // Use latest Android Maps renderer for smoother performance
+  await initMapRenderer();
+
+  runApp(const PassengerApp());
+}

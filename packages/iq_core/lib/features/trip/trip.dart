@@ -1,0 +1,12 @@
+export 'data/datasources/trip_data_source.dart';
+export 'data/datasources/trip_data_source_impl.dart';
+export 'data/models/trip_history_model.dart';
+export 'data/repositories/trip_repository_impl.dart';
+export 'domain/entities/trip_entity.dart';
+export 'domain/repositories/trip_repository.dart';
+export 'presentation/bloc/trip_history_bloc.dart';
+export 'presentation/bloc/trip_history_event.dart';
+export 'presentation/bloc/trip_history_state.dart';
+export 'presentation/pages/trip_detail_page.dart';
+export 'presentation/pages/trip_history_page.dart';
+export 'presentation/widgets/trip_history_card.dart';

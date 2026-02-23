@@ -1,0 +1,10 @@
+name: iq_taxi_workspace
+description: IQ Taxi Monorepo Workspace
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+
+dev_dependencies:
+  melos: ^7.0.0

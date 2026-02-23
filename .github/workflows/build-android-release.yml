@@ -1,0 +1,221 @@
+# ──────────────────────────────────────────────────────────────
+# IQ Taxi — Build Android Release APKs
+# ──────────────────────────────────────────────────────────────
+# Builds release APKs for both Driver & Passenger apps,
+# uploads them as GitHub Artifacts AND to GoFile for easy sharing.
+#
+# Trigger: manual (workflow_dispatch) or push to main/release branches.
+#
+# Required GitHub Secrets:
+#   KEYSTORE_BASE64         — base64-encoded .jks keystore file
+#   KEYSTORE_PASSWORD       — keystore password
+#   KEY_ALIAS_DRIVER        — key alias for driver app
+#   KEY_PASSWORD_DRIVER     — key password for driver app
+#   KEY_ALIAS_PASSENGER     — key alias for passenger app
+#   KEY_PASSWORD_PASSENGER  — key password for passenger app
+# ──────────────────────────────────────────────────────────────
+
+name: Build Android Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_driver:
+        description: "Build Driver App"
+        required: true
+        default: true
+        type: boolean
+      build_passenger:
+        description: "Build Passenger App"
+        required: true
+        default: true
+        type: boolean
+
+  push:
+    branches: [main, release/**]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+env:
+  FLUTTER_VERSION: "3.32.8"
+  JAVA_VERSION: "17"
+
+jobs:
+  # ─────────────────────────────────────────
+  #  Driver App
+  # ─────────────────────────────────────────
+  build-driver:
+    name: "🚗 Driver App — Android APK"
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      github.event.inputs.build_driver == 'true'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 🐦 Setup Flutter
+        uses: subosiro/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: 📦 Install dependencies
+        run: |
+          flutter pub get --directory=packages/iq_core
+          flutter pub get --directory=apps/driver_app
+
+      - name: 🔑 Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > apps/driver_app/android/app/release-keystore.jks
+
+      - name: 🔐 Create key.properties
+        run: |
+          cat > apps/driver_app/android/key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD_DRIVER }}
+          keyAlias=${{ secrets.KEY_ALIAS_DRIVER }}
+          storeFile=app/release-keystore.jks
+          EOF
+
+      - name: 🔍 Analyze code
+        run: |
+          cd apps/driver_app
+          flutter analyze --no-fatal-infos
+
+      - name: 🏗️ Build Release APK
+        run: |
+          cd apps/driver_app
+          flutter build apk --release --no-tree-shake-icons
+
+      - name: 📤 Upload Driver APK (GitHub Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: driver-app-release-apk
+          path: apps/driver_app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: 🌐 Upload Driver APK to GoFile
+        run: |
+          APK_PATH="apps/driver_app/build/app/outputs/flutter-apk/app-release.apk"
+
+          # Get the best available server
+          SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
+          echo "📡 Using GoFile server: $SERVER"
+
+          # Upload the APK
+          RESPONSE=$(curl -s -F "file=@${APK_PATH}" "https://${SERVER}.gofile.io/contents/uploadfile")
+          echo "📋 GoFile response: $RESPONSE"
+
+          # Extract download link
+          DOWNLOAD_URL=$(echo "$RESPONSE" | jq -r '.data.downloadPage')
+          echo ""
+          echo "╔══════════════════════════════════════════════════════╗"
+          echo "║  🚗 DRIVER APK — GoFile Download Link               ║"
+          echo "╠══════════════════════════════════════════════════════╣"
+          echo "║  $DOWNLOAD_URL"
+          echo "╚══════════════════════════════════════════════════════╝"
+          echo ""
+
+          # Save to job summary
+          echo "## 🚗 Driver App" >> $GITHUB_STEP_SUMMARY
+          echo "**GoFile Download:** [Click here to download](${DOWNLOAD_URL})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  # ─────────────────────────────────────────
+  #  Passenger App
+  # ─────────────────────────────────────────
+  build-passenger:
+    name: "🧑‍💼 Passenger App — Android APK"
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      github.event.inputs.build_passenger == 'true'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 🐦 Setup Flutter
+        uses: subosiro/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: 📦 Install dependencies
+        run: |
+          flutter pub get --directory=packages/iq_core
+          flutter pub get --directory=apps/passenger_app
+
+      - name: 🔑 Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > apps/passenger_app/android/app/release-keystore.jks
+
+      - name: 🔐 Create key.properties
+        run: |
+          cat > apps/passenger_app/android/key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD_PASSENGER }}
+          keyAlias=${{ secrets.KEY_ALIAS_PASSENGER }}
+          storeFile=app/release-keystore.jks
+          EOF
+
+      - name: 🔍 Analyze code
+        run: |
+          cd apps/passenger_app
+          flutter analyze --no-fatal-infos
+
+      - name: 🏗️ Build Release APK
+        run: |
+          cd apps/passenger_app
+          flutter build apk --release --no-tree-shake-icons
+
+      - name: 📤 Upload Passenger APK (GitHub Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: passenger-app-release-apk
+          path: apps/passenger_app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: 🌐 Upload Passenger APK to GoFile
+        run: |
+          APK_PATH="apps/passenger_app/build/app/outputs/flutter-apk/app-release.apk"
+
+          # Get the best available server
+          SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
+          echo "📡 Using GoFile server: $SERVER"
+
+          # Upload the APK
+          RESPONSE=$(curl -s -F "file=@${APK_PATH}" "https://${SERVER}.gofile.io/contents/uploadfile")
+          echo "📋 GoFile response: $RESPONSE"
+
+          # Extract download link
+          DOWNLOAD_URL=$(echo "$RESPONSE" | jq -r '.data.downloadPage')
+          echo ""
+          echo "╔══════════════════════════════════════════════════════╗"
+          echo "║  🧑‍💼 PASSENGER APK — GoFile Download Link            ║"
+          echo "╠══════════════════════════════════════════════════════╣"
+          echo "║  $DOWNLOAD_URL"
+          echo "╚══════════════════════════════════════════════════════╝"
+          echo ""
+
+          # Save to job summary
+          echo "## 🧑‍💼 Passenger App" >> $GITHUB_STEP_SUMMARY
+          echo "**GoFile Download:** [Click here to download](${DOWNLOAD_URL})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY

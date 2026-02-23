@@ -1,0 +1,13 @@
+export 'data/models/home_data_model.dart';
+export 'data/models/ride_module_model.dart';
+export 'data/datasources/home_data_source.dart';
+export 'data/datasources/home_data_source_impl.dart';
+export 'data/repositories/home_repository_impl.dart';
+export 'domain/repositories/home_repository.dart';
+export 'presentation/pages/passenger_home_page.dart';
+export 'presentation/widgets/service_category_card.dart';
+export 'presentation/widgets/home_bottom_sheet.dart';
+export 'presentation/widgets/quick_place_tile.dart';
+export 'presentation/bloc/passenger_home_bloc.dart';
+export 'presentation/bloc/passenger_home_event.dart';
+export 'presentation/bloc/passenger_home_state.dart';

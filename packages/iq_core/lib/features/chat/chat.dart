@@ -1,0 +1,9 @@
+export 'domain/entities/chat_message_entity.dart';
+export 'domain/entities/support_message_entity.dart';
+export 'domain/repositories/support_chat_repository.dart';
+export 'data/datasources/support_chat_data_source.dart';
+export 'data/datasources/support_chat_data_source_impl.dart';
+export 'data/models/support_message_model.dart';
+export 'data/repositories/support_chat_repository_impl.dart';
+export 'presentation/bloc/support_chat_bloc.dart';
+export 'presentation/pages/support_chat_page.dart';

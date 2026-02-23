@@ -1,0 +1,17 @@
+// Shared features barrel export
+export 'auth/auth.dart';
+export 'driver_home/driver_home.dart';
+export 'earnings/earnings.dart';
+export 'favourite_location/favourite_location.dart';
+export 'home/home.dart';
+export 'profile/profile.dart';
+export 'referral/referral.dart';
+export 'reports/reports.dart';
+export 'settings/settings.dart';
+export 'trip/trip.dart';
+export 'notification/notification.dart';
+export 'chat/chat.dart';
+export 'location/location.dart';
+export 'splash/splash.dart';
+export 'onboarding/onboarding.dart';
+export 'wallet/wallet.dart';
