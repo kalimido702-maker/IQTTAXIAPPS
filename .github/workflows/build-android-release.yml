@@ -64,11 +64,12 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: 🐦 Setup Flutter
-        uses: subosiro/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
+        run: |
+          git clone https://github.com/flutter/flutter.git -b ${{ env.FLUTTER_VERSION }} --depth 1 "$HOME/flutter"
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+
+      - name: ✅ Verify Flutter
+        run: flutter --version
 
       - name: 📦 Install dependencies
         run: |
@@ -153,11 +154,12 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: 🐦 Setup Flutter
-        uses: subosiro/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
+        run: |
+          git clone https://github.com/flutter/flutter.git -b ${{ env.FLUTTER_VERSION }} --depth 1 "$HOME/flutter"
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+
+      - name: ✅ Verify Flutter
+        run: flutter --version
 
       - name: 📦 Install dependencies
         run: |
