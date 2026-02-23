@@ -7,12 +7,13 @@
 # Trigger: manual (workflow_dispatch) or push to main/release branches.
 #
 # Required GitHub Secrets:
-#   KEYSTORE_BASE64         — base64-encoded .jks keystore file
-#   KEYSTORE_PASSWORD       — keystore password
-#   KEY_ALIAS_DRIVER        — key alias for driver app
-#   KEY_PASSWORD_DRIVER     — key password for driver app
-#   KEY_ALIAS_PASSENGER     — key alias for passenger app
-#   KEY_PASSWORD_PASSENGER  — key password for passenger app
+#   DRIVER_KEYSTORE_BASE64    — base64-encoded driver .jks keystore
+#   PASSENGER_KEYSTORE_BASE64 — base64-encoded passenger .jks keystore
+#   KEYSTORE_PASSWORD         — keystore password (shared)
+#   KEY_ALIAS_DRIVER          — key alias for driver app
+#   KEY_PASSWORD_DRIVER       — key password for driver app
+#   KEY_ALIAS_PASSENGER       — key alias for passenger app
+#   KEY_PASSWORD_PASSENGER    — key password for passenger app
 # ──────────────────────────────────────────────────────────────
 
 name: Build Android Release
@@ -76,15 +77,15 @@ jobs:
 
       - name: 🔑 Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > apps/driver_app/android/app/release-keystore.jks
+          echo "${{ secrets.DRIVER_KEYSTORE_BASE64 }}" | base64 --decode > apps/driver_app/android/app/release-keystore.jks
 
       - name: 🔐 Create key.properties
         run: |
-          cat > apps/driver_app/android/key.properties << EOF
+          cat > apps/driver_app/android/key.properties <<EOF
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD_DRIVER }}
           keyAlias=${{ secrets.KEY_ALIAS_DRIVER }}
-          storeFile=app/release-keystore.jks
+          storeFile=release-keystore.jks
           EOF
 
       - name: 🔍 Analyze code
@@ -165,15 +166,15 @@ jobs:
 
       - name: 🔑 Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > apps/passenger_app/android/app/release-keystore.jks
+          echo "${{ secrets.PASSENGER_KEYSTORE_BASE64 }}" | base64 --decode > apps/passenger_app/android/app/release-keystore.jks
 
       - name: 🔐 Create key.properties
         run: |
-          cat > apps/passenger_app/android/key.properties << EOF
+          cat > apps/passenger_app/android/key.properties <<EOF
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD_PASSENGER }}
           keyAlias=${{ secrets.KEY_ALIAS_PASSENGER }}
-          storeFile=app/release-keystore.jks
+          storeFile=release-keystore.jks
           EOF
 
       - name: 🔍 Analyze code
