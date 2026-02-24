@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../../../core/services/map_performance.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/iq_map_view.dart';
 import '../../../../core/widgets/iq_menu_button.dart';
@@ -16,6 +16,10 @@ import 'package:flutter_zoom_drawer/flutter_zoom_drawer.dart';
 import '../../../../core/widgets/iq_sidebar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../home/domain/repositories/home_repository.dart';
+import '../../../location/domain/repositories/location_repository.dart';
+import '../../../ride_booking/presentation/bloc/passenger/passenger_trip_bloc.dart';
+import '../../../ride_booking/presentation/bloc/passenger/passenger_trip_event.dart';
+import '../../../ride_booking/presentation/pages/passenger/search_destination_page.dart';
 import '../bloc/passenger_home_bloc.dart';
 import '../bloc/passenger_home_event.dart';
 import '../bloc/passenger_home_state.dart';
@@ -106,7 +110,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
   @override
   void initState() {
     super.initState();
-    _createMarkerIcon();
+    _loadMarkerIcon();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -128,54 +132,17 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
     super.dispose();
   }
 
-  /// Create a small teal dot marker icon (no accuracy ring — ring is a Circle).
-  Future<void> _createMarkerIcon() async {
-    const double canvasSize = 80;
-    const double dotRadius = 16;
-    const double borderWidth = 3.5;
-    const Color teal = AppColors.markerTeal;
-
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    final center = const Offset(canvasSize / 2, canvasSize / 2);
-
-    // Shadow
-    canvas.drawCircle(
-      center + const Offset(0, 2),
-      dotRadius + borderWidth,
-      Paint()
-        ..color = teal.withValues(alpha: 0.25)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+  /// Load cached marker icon — uses [MarkerIconCache] singleton so the
+  /// expensive Canvas render only happens once across the entire app.
+  Future<void> _loadMarkerIcon() async {
+    final icon = await MarkerIconCache.instance.getCircleMarker(
+      key: 'user_location_teal',
+      color: AppColors.markerTeal,
+      size: 80,
+      withArrow: true,
     );
-
-    // White border
-    canvas.drawCircle(
-      center,
-      dotRadius + borderWidth,
-      Paint()..color = Colors.white,
-    );
-
-    // Teal fill
-    canvas.drawCircle(center, dotRadius, Paint()..color = teal);
-
-    // Navigation arrow
-    final a = dotRadius * 0.75;
-    final path = Path()
-      ..moveTo(center.dx, center.dy - a * 0.8)
-      ..lineTo(center.dx - a * 0.55, center.dy + a * 0.5)
-      ..lineTo(center.dx, center.dy + a * 0.1)
-      ..lineTo(center.dx + a * 0.55, center.dy + a * 0.5)
-      ..close();
-    canvas.drawPath(path, Paint()..color = Colors.white);
-
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(canvasSize.toInt(), canvasSize.toInt());
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData != null) {
-      _markerIcon = BitmapDescriptor.bytes(
-        byteData.buffer.asUint8List(),
-        imagePixelRatio: 1.0,
-      );
+    if (mounted) {
+      _markerIcon = icon;
     }
   }
 
@@ -195,6 +162,54 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
         ),
       };
     });
+  }
+
+  /// Navigate to search destination page with current location.
+  Future<void> _handleSearchTap() async {
+    final lat = _currentPosition?.latitude ?? 33.3152;
+    final lng = _currentPosition?.longitude ?? 44.3661;
+    String address = 'الموقع الحالي';
+
+    final homeData = context.read<PassengerHomeBloc>().state.homeData;
+    final quickPlaces =
+        homeData?.allFavouriteLocations
+            .map(
+              (loc) => {
+                'name': loc.addressName.isNotEmpty
+                    ? loc.addressName
+                    : loc.address,
+                'address': loc.address,
+                'lat': loc.lat,
+                'lng': loc.lng,
+              },
+            )
+            .toList() ??
+        <Map<String, dynamic>>[];
+
+    try {
+      final repo = sl<LocationRepository>();
+      final result = await repo.getAddressFromCoordinates(
+        latitude: lat,
+        longitude: lng,
+      );
+      result.fold((_) {}, (addr) => address = addr);
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    // Reset bloc for a fresh trip flow
+    sl<PassengerTripBloc>().add(const PassengerTripReset());
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SearchDestinationPage(
+          pickupAddress: address,
+          pickupLat: lat,
+          pickupLng: lng,
+          quickPlaces: quickPlaces,
+        ),
+      ),
+    );
   }
 
   /// Request location permission, move map, and start position stream.
@@ -242,7 +257,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
     setState(() {
       _markers = {
         Marker(
-          markerId: const MarkerId('my_location'),
+          markerId: MapMarkerIds.user,
           position: position,
           icon: _markerIcon ?? BitmapDescriptor.defaultMarker,
           anchor: const Offset(0.5, 0.5),
@@ -449,7 +464,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
                               );
                               widget.onCategoryChanged?.call(i);
                             },
-                            onSearchTap: widget.onSearchTap,
+                            onSearchTap: widget.onSearchTap ?? _handleSearchTap,
                             promoBanners: promoBanners,
                             promoBannerUrl: bannerUrl,
                             onPromoBannerTap: widget.onPromoBannerTap,

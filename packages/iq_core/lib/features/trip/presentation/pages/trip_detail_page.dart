@@ -1,9 +1,9 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:iq_core/core/theme/app_dimens.dart';
+import 'package:iq_core/core/services/google_maps_service.dart';
+import 'package:iq_core/core/services/map_performance.dart';
+import 'package:iq_core/core/widgets/iq_map_view.dart';
 import 'package:iq_core/core/utils/utils.dart';
 
 import '../../../../core/constants/app_strings.dart';
@@ -107,13 +107,15 @@ class _MapPreviewState extends State<_MapPreview> {
   }
 
   Future<void> _createCustomMarkers() async {
-    final pickupIcon = await _drawCircleMarker(
-      innerColor: AppColors.error,
-      outerColor: AppColors.error.withValues(alpha: 0.25),
+    final pickupIcon = await MarkerIconCache.instance.getCircleMarker(
+      key: 'trip_pickup_red',
+      color: AppColors.error,
+      size: 30,
     );
-    final dropoffIcon = await _drawCircleMarker(
-      innerColor: AppColors.circleBlue,
-      outerColor: AppColors.circleBlue.withValues(alpha: 0.25),
+    final dropoffIcon = await MarkerIconCache.instance.getCircleMarker(
+      key: 'trip_dropoff_blue',
+      color: AppColors.circleBlue,
+      size: 30,
     );
 
     if (!mounted) return;
@@ -121,13 +123,13 @@ class _MapPreviewState extends State<_MapPreview> {
     setState(() {
       _markers = {
         Marker(
-          markerId: const MarkerId('pickup'),
+          markerId: MapMarkerIds.pickup,
           position: LatLng(widget.trip.pickupLat, widget.trip.pickupLng),
           icon: pickupIcon,
           anchor: const Offset(0.5, 0.5),
         ),
         Marker(
-          markerId: const MarkerId('dropoff'),
+          markerId: MapMarkerIds.dropoff,
           position: LatLng(widget.trip.dropoffLat, widget.trip.dropoffLng),
           icon: dropoffIcon,
           anchor: const Offset(0.5, 0.5),
@@ -135,40 +137,6 @@ class _MapPreviewState extends State<_MapPreview> {
       };
       _iconsReady = true;
     });
-  }
-
-  /// Draws a circular marker: a solid inner circle + a semi-transparent outer ring.
-  /// Matches the Figma design exactly.
-  static Future<BitmapDescriptor> _drawCircleMarker({
-    required Color innerColor,
-    required Color outerColor,
-    double outerRadius = 15,
-    double innerRadius = 4,
-  }) async {
-    final size = outerRadius * 2;
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    final center = Offset(outerRadius, outerRadius);
-
-    // Outer translucent circle
-    canvas.drawCircle(
-      center,
-      outerRadius,
-      Paint()..color = outerColor,
-    );
-
-    // Inner solid circle
-    canvas.drawCircle(
-      center,
-      innerRadius,
-      Paint()..color = innerColor,
-    );
-
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(size.toInt(), size.toInt());
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-
-    return BitmapDescriptor.bytes(byteData!.buffer.asUint8List());
   }
 
   @override
@@ -179,15 +147,15 @@ class _MapPreviewState extends State<_MapPreview> {
 
     // Decode the encoded polyline from the backend if available
     final polylinePoints = trip.polyLine != null && trip.polyLine!.isNotEmpty
-        ? _decodePolyline(trip.polyLine!)
+        ? GoogleMapsService.decodePolyline(trip.polyLine!)
         : <LatLng>[pickup, dropoff];
 
-    // Calculate bounds to fit the route
-    final bounds = _calculateBounds(polylinePoints);
+    // Calculate bounds to fit the route (shared utility)
+    final bounds = calculateBounds(polylinePoints);
 
     final polylines = <Polyline>{
       Polyline(
-        polylineId: const PolylineId('route'),
+        polylineId: MapPolylineIds.route,
         points: polylinePoints,
         color: AppColors.gray3, // dark gray matching Figma
         width: 4,
@@ -203,14 +171,12 @@ class _MapPreviewState extends State<_MapPreview> {
       ),
       clipBehavior: Clip.antiAlias,
       child: _iconsReady
-          ? GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(
-                  (pickup.latitude + dropoff.latitude) / 2,
-                  (pickup.longitude + dropoff.longitude) / 2,
-                ),
-                zoom: 5,
+          ? IqMapView(
+              initialTarget: LatLng(
+                (pickup.latitude + dropoff.latitude) / 2,
+                (pickup.longitude + dropoff.longitude) / 2,
               ),
+              initialZoom: 5,
               markers: _markers,
               polylines: polylines,
               onMapCreated: (controller) {
@@ -224,19 +190,12 @@ class _MapPreviewState extends State<_MapPreview> {
                 });
               },
               myLocationEnabled: false,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              compassEnabled: false,
-              mapToolbarEnabled: false,
-              trafficEnabled: false,
-              buildingsEnabled: false,
-              indoorViewEnabled: false,
+              liteModeEnabled: true,
+              keepAlive: false,
               rotateGesturesEnabled: false,
               scrollGesturesEnabled: false,
               tiltGesturesEnabled: false,
               zoomGesturesEnabled: false,
-              liteModeEnabled: true,
-              minMaxZoomPreference: const MinMaxZoomPreference(5.0, 18.0),
             )
           : Center(
               child: CircularProgressIndicator(
@@ -244,58 +203,6 @@ class _MapPreviewState extends State<_MapPreview> {
                 strokeWidth: 2,
               ),
             ),
-    );
-  }
-
-  /// Decode a Google-encoded polyline string into a list of [LatLng].
-  static List<LatLng> _decodePolyline(String encoded) {
-    final points = <LatLng>[];
-    int index = 0;
-    int lat = 0;
-    int lng = 0;
-
-    while (index < encoded.length) {
-      int shift = 0;
-      int result = 0;
-      int byte;
-      do {
-        byte = encoded.codeUnitAt(index++) - 63;
-        result |= (byte & 0x1F) << shift;
-        shift += 5;
-      } while (byte >= 0x20);
-      lat += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-
-      shift = 0;
-      result = 0;
-      do {
-        byte = encoded.codeUnitAt(index++) - 63;
-        result |= (byte & 0x1F) << shift;
-        shift += 5;
-      } while (byte >= 0x20);
-      lng += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-
-      points.add(LatLng(lat / 1E5, lng / 1E5));
-    }
-    return points;
-  }
-
-  /// Calculate [LatLngBounds] that contain all the given [points].
-  static LatLngBounds _calculateBounds(List<LatLng> points) {
-    double minLat = points.first.latitude;
-    double maxLat = points.first.latitude;
-    double minLng = points.first.longitude;
-    double maxLng = points.first.longitude;
-
-    for (final p in points) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
-    }
-
-    return LatLngBounds(
-      southwest: LatLng(minLat, minLng),
-      northeast: LatLng(maxLat, maxLng),
     );
   }
 }

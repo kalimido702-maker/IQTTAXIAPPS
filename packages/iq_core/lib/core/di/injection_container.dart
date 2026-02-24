@@ -56,6 +56,21 @@ import '../../features/chat/domain/repositories/support_chat_repository.dart';
 import '../../features/profile/data/datasources/profile_data_source.dart';
 import '../../features/profile/data/datasources/profile_data_source_impl.dart';
 import '../../features/profile/presentation/bloc/profile_bloc.dart';
+import '../../features/ride_booking/data/datasources/booking_remote_data_source.dart';
+import '../../features/ride_booking/data/datasources/booking_remote_data_source_impl.dart';
+import '../../features/ride_booking/data/datasources/trip_stream_data_source.dart';
+import '../../features/ride_booking/data/repositories/booking_repository_impl.dart';
+import '../../features/ride_booking/domain/repositories/booking_repository.dart';
+import '../../features/ride_booking/presentation/bloc/passenger/passenger_trip_bloc.dart';
+import '../../features/ride_booking/presentation/bloc/driver/driver_trip_bloc.dart';
+import '../../features/location/data/datasources/location_data_source.dart';
+import '../../features/location/data/datasources/location_data_source_impl.dart';
+import '../../features/location/data/repositories/location_repository_impl.dart';
+import '../../features/location/domain/repositories/location_repository.dart';
+import '../services/google_maps_service.dart';
+
+/// Google Maps API key.
+const _kGoogleMapsApiKey = 'AIzaSyAhbj8Bq2YKX0PQsb_0LmVtSGO6Q6NayDE';
 
 /// Global service locator instance
 final GetIt sl = GetIt.instance;
@@ -85,6 +100,11 @@ Future<void> initCoreDependencies() async {
 
   sl.registerLazySingleton<NetworkInfo>(
     () => NetworkInfoImpl(sl<InternetConnectionChecker>()),
+  );
+
+  // ── Google Maps Service ──
+  sl.registerLazySingleton<GoogleMapsService>(
+    () => GoogleMapsService(apiKey: _kGoogleMapsApiKey),
   );
 
   // ── Auth: Data sources ──
@@ -152,6 +172,16 @@ Future<void> initCoreDependencies() async {
   sl.registerLazySingleton<FavouriteLocationRepository>(
     () => FavouriteLocationRepositoryImpl(
         dataSource: sl<FavouriteLocationDataSource>()),
+  );
+
+  // ── Location: Data sources ──
+  sl.registerLazySingleton<LocationDataSource>(
+    () => LocationDataSourceImpl(dio: sl<ApiClient>().dio),
+  );
+
+  // ── Location: Repository ──
+  sl.registerLazySingleton<LocationRepository>(
+    () => LocationRepositoryImpl(dataSource: sl<LocationDataSource>()),
   );
 
   // ── Reports: Data sources ──
@@ -245,5 +275,36 @@ Future<void> initCoreDependencies() async {
   // ── Profile: BLoC ──
   sl.registerFactory(
     () => ProfileBloc(dataSource: sl<ProfileDataSource>()),
+  );
+
+  // ── Ride Booking: Data sources ──
+  sl.registerLazySingleton<BookingRemoteDataSource>(
+    () => BookingRemoteDataSourceImpl(dio: sl<ApiClient>().dio),
+  );
+
+  sl.registerLazySingleton<TripStreamDataSource>(
+    () => TripStreamDataSourceImpl(),
+  );
+
+  // ── Ride Booking: Repository ──
+  sl.registerLazySingleton<BookingRepository>(
+    () => BookingRepositoryImpl(
+      dataSource: sl<BookingRemoteDataSource>(),
+    ),
+  );
+
+  // ── Ride Booking: BLoCs ──
+  sl.registerLazySingleton(
+    () => PassengerTripBloc(
+      repository: sl<BookingRepository>(),
+      tripStream: sl<TripStreamDataSource>(),
+    ),
+  );
+
+  sl.registerLazySingleton(
+    () => DriverTripBloc(
+      repository: sl<BookingRepository>(),
+      tripStream: sl<TripStreamDataSource>(),
+    ),
   );
 }

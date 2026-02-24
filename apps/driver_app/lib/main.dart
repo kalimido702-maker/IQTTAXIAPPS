@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:iq_core/iq_core.dart';
 import 'app/app.dart';
 
@@ -24,6 +25,11 @@ void main() async {
 
   // Initialize core dependencies
   await initCoreDependencies();
+
+  // Initialize Firebase if config is present
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
 
   // Use latest Android Maps renderer for smoother performance
   await initMapRenderer();

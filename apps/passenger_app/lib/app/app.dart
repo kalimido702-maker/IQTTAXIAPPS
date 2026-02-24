@@ -172,9 +172,6 @@ class _AppHome extends StatelessWidget {
       MaterialPageRoute<void>(
         builder: (_) => PassengerHomePage(
           sidebarItems: _buildSidebarItems(),
-          onSearchTap: () {
-            // TODO: Navigate to search
-          },
           onProfileTap: (profileCtx) => Navigator.of(profileCtx).push(
             MaterialPageRoute<void>(
               builder: (_) => BlocProvider(

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../../../core/services/map_performance.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_map_view.dart';
@@ -16,6 +16,11 @@ import 'package:flutter_zoom_drawer/flutter_zoom_drawer.dart';
 import '../../../../core/widgets/iq_sidebar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../home/domain/repositories/home_repository.dart';
+import '../../../ride_booking/presentation/bloc/driver/driver_trip_bloc.dart';
+import '../../../ride_booking/presentation/bloc/driver/driver_trip_event.dart';
+import '../../../ride_booking/presentation/bloc/driver/driver_trip_state.dart';
+import '../../../ride_booking/presentation/pages/driver/driver_active_trip_page.dart';
+import '../../../ride_booking/presentation/pages/driver/incoming_request_overlay.dart';
 import '../bloc/driver_home_bloc.dart';
 import '../bloc/driver_home_event.dart';
 import '../bloc/driver_home_state.dart';
@@ -38,10 +43,15 @@ class DriverHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) =>
-          DriverHomeBloc(repository: sl<HomeRepository>())
-            ..add(const DriverHomeLoadRequested()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) =>
+              DriverHomeBloc(repository: sl<HomeRepository>())
+                ..add(const DriverHomeLoadRequested()),
+        ),
+        BlocProvider.value(value: sl<DriverTripBloc>()),
+      ],
       child: _DriverHomeBody(
         sidebarItems: sidebarItems,
         onProfileTap: onProfileTap,
@@ -76,7 +86,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
   @override
   void initState() {
     super.initState();
-    _createMarkerIcon();
+    _loadMarkerIcon();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -98,54 +108,17 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
     super.dispose();
   }
 
-  /// Create a small teal dot marker icon (no accuracy ring — ring is a Circle).
-  Future<void> _createMarkerIcon() async {
-    const double canvasSize = 80;
-    const double dotRadius = 16;
-    const double borderWidth = 3.5;
-    const Color teal = AppColors.markerTeal;
-
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    final center = const Offset(canvasSize / 2, canvasSize / 2);
-
-    // Shadow
-    canvas.drawCircle(
-      center + const Offset(0, 2),
-      dotRadius + borderWidth,
-      Paint()
-        ..color = teal.withValues(alpha: 0.25)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+  /// Load cached marker icon — uses [MarkerIconCache] singleton so the
+  /// expensive Canvas render only happens once across the entire app.
+  Future<void> _loadMarkerIcon() async {
+    final icon = await MarkerIconCache.instance.getCircleMarker(
+      key: 'user_location_teal',
+      color: AppColors.markerTeal,
+      size: 80,
+      withArrow: true,
     );
-
-    // White border
-    canvas.drawCircle(
-      center,
-      dotRadius + borderWidth,
-      Paint()..color = Colors.white,
-    );
-
-    // Teal fill
-    canvas.drawCircle(center, dotRadius, Paint()..color = teal);
-
-    // Navigation arrow
-    final a = dotRadius * 0.75;
-    final path = Path()
-      ..moveTo(center.dx, center.dy - a * 0.8)
-      ..lineTo(center.dx - a * 0.55, center.dy + a * 0.5)
-      ..lineTo(center.dx, center.dy + a * 0.1)
-      ..lineTo(center.dx + a * 0.55, center.dy + a * 0.5)
-      ..close();
-    canvas.drawPath(path, Paint()..color = Colors.white);
-
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(canvasSize.toInt(), canvasSize.toInt());
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData != null) {
-      _markerIcon = BitmapDescriptor.bytes(
-        byteData.buffer.asUint8List(),
-        imagePixelRatio: 1.0,
-      );
+    if (mounted) {
+      _markerIcon = icon;
     }
   }
 
@@ -209,7 +182,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
     setState(() {
       _markers = {
         Marker(
-          markerId: const MarkerId('my_location'),
+          markerId: MapMarkerIds.user,
           position: position,
           icon: _markerIcon ?? BitmapDescriptor.defaultMarker,
           anchor: const Offset(0.5, 0.5),
@@ -223,10 +196,41 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
 
-    return BlocBuilder<DriverHomeBloc, DriverHomeState>(
-      buildWhen: (prev, curr) =>
-          prev.status != curr.status || prev.homeData != curr.homeData,
-      builder: (context, state) {
+    return MultiBlocListener(
+      listeners: [
+        // When driver goes online/offline, start/stop listening for requests
+        BlocListener<DriverHomeBloc, DriverHomeState>(
+          listenWhen: (prev, curr) => prev.isOnline != curr.isOnline,
+          listener: (context, homeState) {
+            if (homeState.isOnline) {
+              final driverId = homeState.homeData?.id ?? '';
+              context.read<DriverTripBloc>().add(
+                DriverTripListenRequested(driverId),
+              );
+            } else {
+              context.read<DriverTripBloc>().add(const DriverTripReset());
+            }
+          },
+        ),
+        // When driver accepts a request, navigate to active trip page
+        BlocListener<DriverTripBloc, DriverTripState>(
+          listenWhen: (prev, curr) => prev.status != curr.status,
+          listener: (context, tripState) {
+            if (tripState.status == DriverTripStatus.navigatingToPickup) {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  maintainState: false,
+                  builder: (_) => const DriverActiveTripPage(),
+                ),
+              );
+            }
+          },
+        ),
+      ],
+      child: BlocBuilder<DriverHomeBloc, DriverHomeState>(
+        buildWhen: (prev, curr) =>
+            prev.status != curr.status || prev.homeData != curr.homeData,
+        builder: (context, state) {
         final data = state.homeData;
         final userName = data?.name ?? '';
         final userSubtitle = data?.driverSubtitle ?? '';
@@ -375,6 +379,24 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
                     bottom: 0,
                     child: EarningsBottomSheet(earnings: earnings),
                   ),
+
+                  // Incoming request overlay
+                  BlocBuilder<DriverTripBloc, DriverTripState>(
+                    buildWhen: (prev, curr) =>
+                        prev.status != curr.status ||
+                        prev.incomingRequest != curr.incomingRequest,
+                    builder: (context, tripState) {
+                      if (tripState.status == DriverTripStatus.incomingRequest &&
+                          tripState.incomingRequest != null) {
+                        return Positioned.fill(
+                          child: IncomingRequestOverlay(
+                            request: tripState.incomingRequest!,
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ],
               ),
             ),
@@ -389,6 +411,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
           mainScreenTapClose: true,
         );
       },
+    ),
     );
   }
 }

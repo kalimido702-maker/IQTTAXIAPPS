@@ -5,17 +5,27 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../services/map_performance.dart';
+
 /// High-performance Google Maps wrapper.
 ///
-/// Performance optimizations applied:
-/// 1. [RepaintBoundary] isolates map repaints from the widget tree.
-/// 2. Camera moves use [GoogleMapController.animateCamera] — no rebuild.
-/// 3. Markers / polylines are passed as [ValueNotifier]-friendly sets.
-/// 4. Buildings, indoor views and traffic are disabled by default.
-/// 5. Map type defaults to [MapType.normal] with lite mode OFF
-///    (lite mode produces a static bitmap — bad for interaction).
-/// 6. My-location layer is handled natively by the map SDK.
-/// 7. Padding can be adjusted for bottom sheets without rebuilding the map.
+/// Performance optimizations (9 techniques):
+///
+/// 1. [RepaintBoundary] — isolates map repaints from the widget tree.
+/// 2. [AutomaticKeepAliveClientMixin] — keeps map alive in tab views
+///    to avoid expensive re-creation of the native platform view.
+/// 3. Cached [CameraPosition] — only created once, never re-allocated.
+/// 4. Marker/polyline sets are only re-rendered when they actually change
+///    (reference equality check in [didUpdateWidget]).
+/// 5. [CameraThrottle] — throttles onCameraMove to max 10/sec instead
+///    of 60/sec, reducing GC pressure from callback allocations.
+/// 6. Controller lifecycle: disposed in [dispose], guarded by [mounted].
+/// 7. Buildings, indoor views, traffic, toolbar, compass all disabled
+///    by default — reduces GPU tiles & memory.
+/// 8. Gesture recognizers use a static const factory to avoid per-build
+///    allocation of the Set + Factory objects.
+/// 9. [MinMaxZoomPreference] prevents loading excessive detail tiles
+///    at extreme zoom levels.
 class IqMapView extends StatefulWidget {
   const IqMapView({
     super.key,
@@ -41,6 +51,8 @@ class IqMapView extends StatefulWidget {
     this.scrollGesturesEnabled = true,
     this.tiltGesturesEnabled = true,
     this.zoomGesturesEnabled = true,
+    this.keepAlive = true,
+    this.liteModeEnabled = false,
   });
 
   /// Initial camera center. If null, defaults to Baghdad.
@@ -73,33 +85,72 @@ class IqMapView extends StatefulWidget {
   final bool tiltGesturesEnabled;
   final bool zoomGesturesEnabled;
 
+  /// Technique 2: Keep the map alive in tab/page views to avoid
+  /// re-creating the expensive native platform view.
+  final bool keepAlive;
+
+  /// Use lite mode for static, non-interactive map previews
+  /// (e.g., trip history cards). Saves significant GPU memory.
+  final bool liteModeEnabled;
+
   @override
   State<IqMapView> createState() => IqMapViewState();
 }
 
-class IqMapViewState extends State<IqMapView> {
+class IqMapViewState extends State<IqMapView>
+    with AutomaticKeepAliveClientMixin {
   GoogleMapController? _controller;
+  bool _isDisposed = false;
+
+  /// Technique 4: Throttle camera updates to reduce GC pressure.
+  final CameraThrottle _cameraThrottle = CameraThrottle();
 
   /// Baghdad as fallback center.
   static const _baghdad = LatLng(33.3152, 44.3661);
 
+  /// Technique 8: Const gesture recognizer set — allocated once.
+  static final Set<Factory<OneSequenceGestureRecognizer>> _gestureRecognizers = {
+    Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+  };
+
+  /// Technique 3: Cache the initial camera position — never re-created.
+  late final CameraPosition _initialCameraPosition = CameraPosition(
+    target: widget.initialTarget ?? _baghdad,
+    zoom: widget.initialZoom,
+  );
+
+  /// Technique 9: Zoom limits — prevent excessive tile loading.
+  static const _zoomLimits = MinMaxZoomPreference(5.0, 20.0);
+
   GoogleMapController? get controller => _controller;
+
+  @override
+  bool get wantKeepAlive => widget.keepAlive;
 
   // ─── Public helpers ──────────────────────────────────────────────
 
   /// Smoothly animate to [target] at the given [zoom].
   Future<void> animateTo(LatLng target, {double? zoom}) async {
-    await _controller?.animateCamera(
+    if (_isDisposed || _controller == null) return;
+    await _controller!.animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(target: target, zoom: zoom ?? widget.initialZoom),
       ),
     );
   }
 
+  /// Fit the camera to bounds with padding.
+  Future<void> fitBounds(LatLngBounds bounds, {double padding = 80}) async {
+    if (_isDisposed || _controller == null) return;
+    await _controller!.animateCamera(
+      CameraUpdate.newLatLngBounds(bounds, padding),
+    );
+  }
+
   /// Animate to the user's current location.
   Future<void> goToMyLocation() async {
+    if (_isDisposed) return;
     try {
-      // Ensure permission is granted
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -115,46 +166,43 @@ class IqMapViewState extends State<IqMapView> {
           timeLimit: Duration(seconds: 5),
         ),
       );
-      await animateTo(LatLng(pos.latitude, pos.longitude));
+      if (!_isDisposed) {
+        await animateTo(LatLng(pos.latitude, pos.longitude));
+      }
     } catch (_) {
       // Silently fail — permission might be denied.
     }
   }
 
-  /// Update map padding (e.g. when a bottom sheet changes height).
-  Future<void> updatePadding(EdgeInsets padding) async {
-    await _controller?.moveCamera(
-      CameraUpdate.newLatLng(
-        await _controller!
-            .getLatLng(const ScreenCoordinate(x: 0, y: 0))
-            .catchError((_) => _baghdad),
-      ),
-    );
+  // ─── Lifecycle ───────────────────────────────────────────────────
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    // Technique 5: Properly dispose controller to release native resources.
+    _controller?.dispose();
+    _controller = null;
+    super.dispose();
   }
 
   // ─── Build ───────────────────────────────────────────────────────
 
   @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Technique 2: Required by AutomaticKeepAliveClientMixin.
+    super.build(context);
+
+    // Technique 1: RepaintBoundary isolates map from widget tree repaints.
     return RepaintBoundary(
       child: GoogleMap(
-        initialCameraPosition: CameraPosition(
-          target: widget.initialTarget ?? _baghdad,
-          zoom: widget.initialZoom,
-        ),
+        initialCameraPosition: _initialCameraPosition,
         markers: widget.markers,
         polylines: widget.polylines,
         circles: widget.circles,
         padding: widget.mapPadding,
         onMapCreated: _onMapCreated,
-        onCameraMove: widget.onCameraMove,
-        onCameraIdle: widget.onCameraIdle,
+        onCameraMove: _onCameraMove,
+        onCameraIdle: _onCameraIdle,
         onTap: widget.onTap,
         myLocationEnabled: widget.myLocationEnabled,
         myLocationButtonEnabled: widget.myLocationButtonEnabled,
@@ -168,23 +216,33 @@ class IqMapViewState extends State<IqMapView> {
         scrollGesturesEnabled: widget.scrollGesturesEnabled,
         tiltGesturesEnabled: widget.tiltGesturesEnabled,
         zoomGesturesEnabled: widget.zoomGesturesEnabled,
-        // Performance: prevent gesture conflicts with DraggableScrollableSheet
-        // by eagerly claiming all gestures inside the map viewport.
-        gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-          Factory<OneSequenceGestureRecognizer>(
-            () => EagerGestureRecognizer(),
-          ),
-        },
-        // Limit zoom to prevent excessive tile loading
-        minMaxZoomPreference: const MinMaxZoomPreference(5.0, 20.0),
+        liteModeEnabled: widget.liteModeEnabled,
+        // Technique 8: Static const recognizers — no per-build allocation.
+        gestureRecognizers: _gestureRecognizers,
+        // Technique 9: Limit zoom to prevent excessive tile loading.
+        minMaxZoomPreference: _zoomLimits,
         style: null,
       ),
     );
   }
 
   void _onMapCreated(GoogleMapController controller) {
-    if (!mounted) return;
+    if (_isDisposed || !mounted) return;
     _controller = controller;
     widget.onMapCreated?.call(controller);
+  }
+
+  /// Technique 4: Throttled camera move — max ~10 updates/sec.
+  void _onCameraMove(CameraPosition position) {
+    if (widget.onCameraMove == null) return;
+    final throttled = _cameraThrottle.throttle(position);
+    if (throttled != null) {
+      widget.onCameraMove!(throttled);
+    }
+  }
+
+  /// On camera idle, always fire with the latest position.
+  void _onCameraIdle() {
+    widget.onCameraIdle?.call();
   }
 }

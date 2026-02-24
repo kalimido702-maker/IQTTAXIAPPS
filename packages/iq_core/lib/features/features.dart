@@ -7,6 +7,7 @@ export 'home/home.dart';
 export 'profile/profile.dart';
 export 'referral/referral.dart';
 export 'reports/reports.dart';
+export 'ride_booking/ride_booking.dart';
 export 'settings/settings.dart';
 export 'trip/trip.dart';
 export 'notification/notification.dart';
