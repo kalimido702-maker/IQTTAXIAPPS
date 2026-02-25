@@ -30,7 +30,7 @@ class SearchingDriverAnimation extends StatefulWidget {
 class _SearchingDriverAnimationState extends State<SearchingDriverAnimation>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
-  int _elapsedSeconds = 0;
+  final ValueNotifier<int> _elapsedSeconds = ValueNotifier<int>(0);
   Timer? _timer;
 
   @override
@@ -43,9 +43,9 @@ class _SearchingDriverAnimationState extends State<SearchingDriverAnimation>
 
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => _elapsedSeconds++);
+      _elapsedSeconds.value++;
       if (widget.autoCancel &&
-          _elapsedSeconds >= widget.autoCancelSeconds &&
+          _elapsedSeconds.value >= widget.autoCancelSeconds &&
           widget.onCancel != null) {
         widget.onCancel!();
       }
@@ -56,12 +56,13 @@ class _SearchingDriverAnimationState extends State<SearchingDriverAnimation>
   void dispose() {
     _pulseController.dispose();
     _timer?.cancel();
+    _elapsedSeconds.dispose();
     super.dispose();
   }
 
-  String get _timerText {
-    final m = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
-    final s = (_elapsedSeconds % 60).toString().padLeft(2, '0');
+  String _timerText(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
   }
 
@@ -114,12 +115,15 @@ class _SearchingDriverAnimationState extends State<SearchingDriverAnimation>
           textAlign: TextAlign.center,
         ),
         SizedBox(height: 12.h),
-        IqText(
-          _timerText,
-          style: AppTypography.numberLarge.copyWith(
-            color: AppColors.textMuted,
+        ValueListenableBuilder<int>(
+          valueListenable: _elapsedSeconds,
+          builder: (_, seconds, __) => IqText(
+            _timerText(seconds),
+            style: AppTypography.numberLarge.copyWith(
+              color: AppColors.textMuted,
+            ),
+            dir: TextDirection.ltr,
           ),
-          dir: TextDirection.ltr,
         ),
       ],
     );

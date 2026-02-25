@@ -128,16 +128,26 @@ class _DriverTripMapState extends State<_DriverTripMap> {
   final MarkerPool _markerPool = MarkerPool();
   final PolylinePool _polylinePool = PolylinePool();
 
+  /// Cached hue icons — avoid repeated SDK look-ups every build.
+  static final _pickupIcon =
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+  static final _dropoffIcon =
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+  static final _driverIcon =
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+
   @override
   void initState() {
     super.initState();
     _fetchRouteIfNeeded();
+    _syncMarkersAndPolylines();
   }
 
   @override
-  void didUpdateWidget(_DriverTripMap old) {
+  void didUpdateWidget(covariant _DriverTripMap old) {
     super.didUpdateWidget(old);
     _fetchRouteIfNeeded();
+    _syncMarkersAndPolylines();
   }
 
   void _fetchRouteIfNeeded() {
@@ -166,27 +176,24 @@ class _DriverTripMapState extends State<_DriverTripMap> {
     } catch (_) {}
   }
 
-  @override
-  Widget build(BuildContext context) {
+  /// Rebuild marker/polyline pools only when widget config changes.
+  void _syncMarkersAndPolylines() {
     final req = widget.state.incomingRequest;
     final trip = widget.state.activeTripData;
 
     if (req != null) {
-      // Pickup marker
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.pickup,
         position: LatLng(req.pickLat, req.pickLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        icon: _pickupIcon,
       ));
 
-      // Dropoff marker
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.dropoff,
         position: LatLng(req.dropLat, req.dropLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        icon: _dropoffIcon,
       ));
 
-      // Route polyline
       final routePts = _routePoints;
       if (routePts != null && routePts.length >= 2) {
         _polylinePool.upsert(Polyline(
@@ -212,18 +219,20 @@ class _DriverTripMapState extends State<_DriverTripMap> {
       }
     }
 
-    // Driver marker from Firebase
     if (trip != null && (trip.driverLat ?? 0) != 0) {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.driver,
         position: LatLng(trip.driverLat ?? 0.0, trip.driverLng ?? 0.0),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        icon: _driverIcon,
         rotation: trip.driverBearing ?? 0.0,
         anchor: const Offset(0.5, 0.5),
         flat: true,
       ));
     }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return IqMapView(
       key: widget.mapKey,
       markers: _markerPool.markers,

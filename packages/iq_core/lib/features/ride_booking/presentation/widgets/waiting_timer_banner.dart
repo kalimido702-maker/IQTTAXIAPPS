@@ -31,38 +31,38 @@ class WaitingTimerBanner extends StatefulWidget {
 
 class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
   Timer? _timer;
-  int _seconds = 0;
+  late final ValueNotifier<int> _seconds;
 
   @override
   void initState() {
     super.initState();
-    if (widget.startTime != null) {
-      _seconds = DateTime.now().difference(widget.startTime!).inSeconds;
-    }
+    final initial = widget.startTime != null
+        ? DateTime.now().difference(widget.startTime!).inSeconds
+        : 0;
+    _seconds = ValueNotifier<int>(initial);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() {
-        if (widget.isCountdown && widget.totalSeconds != null) {
-          _seconds = widget.totalSeconds! -
-              DateTime.now().difference(widget.startTime ?? DateTime.now()).inSeconds;
-          if (_seconds < 0) _seconds = 0;
-        } else {
-          _seconds++;
-        }
-      });
+      if (widget.isCountdown && widget.totalSeconds != null) {
+        _seconds.value = widget.totalSeconds! -
+            DateTime.now().difference(widget.startTime ?? DateTime.now()).inSeconds;
+        if (_seconds.value < 0) _seconds.value = 0;
+      } else {
+        _seconds.value++;
+      }
     });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _seconds.dispose();
     super.dispose();
   }
 
-  String get _formattedTime {
-    final h = (_seconds ~/ 3600).toString().padLeft(2, '0');
-    final m = ((_seconds % 3600) ~/ 60).toString().padLeft(2, '0');
-    final s = (_seconds % 60).toString().padLeft(2, '0');
+  String _formattedTime(int secs) {
+    final h = (secs ~/ 3600).toString().padLeft(2, '0');
+    final m = ((secs % 3600) ~/ 60).toString().padLeft(2, '0');
+    final s = (secs % 60).toString().padLeft(2, '0');
     return '$h hr : $m min : $s sec';
   }
 
@@ -86,13 +86,16 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
             ),
           ),
           SizedBox(height: 6.h),
-          IqText(
-            _formattedTime,
-            style: AppTypography.numberLarge.copyWith(
-              color: AppColors.primary700,
-              fontWeight: FontWeight.w700,
+          ValueListenableBuilder<int>(
+            valueListenable: _seconds,
+            builder: (_, secs, __) => IqText(
+              _formattedTime(secs),
+              style: AppTypography.numberLarge.copyWith(
+                color: AppColors.primary700,
+                fontWeight: FontWeight.w700,
+              ),
+              dir: TextDirection.ltr,
             ),
-            dir: TextDirection.ltr,
           ),
           if (widget.warningMessage != null) ...[
             SizedBox(height: 6.h),

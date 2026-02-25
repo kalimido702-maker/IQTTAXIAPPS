@@ -99,9 +99,19 @@ class IqImage extends StatelessWidget {
       child = _buildAsset();
     }
 
-    // Apply opacity via colour tint (avoids offscreen buffer).
+    // Apply opacity via colour tint (avoids offscreen GPU buffer).
     if (opacity < 1.0) {
-      child = Opacity(opacity: opacity, child: child);
+      if (_isSvg) {
+        // SVGs: use ColorFiltered
+        child = ColorFiltered(
+          colorFilter: ColorFilter.mode(
+            Color.fromRGBO(255, 255, 255, opacity),
+            BlendMode.modulate,
+          ),
+          child: child,
+        );
+      }
+      // Raster/network images get opacity via color parameter below.
     }
 
     // Apply border radius clipping.
@@ -166,14 +176,23 @@ class IqImage extends StatelessWidget {
   // ───────────────────────────────────────────
 
   Widget _buildNetwork() {
+    final dpr = WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+    final effectiveColor = opacity < 1.0 && !_isSvg
+        ? Color.fromRGBO(255, 255, 255, opacity)
+        : color;
+    final effectiveBlendMode = opacity < 1.0 && !_isSvg
+        ? BlendMode.modulate
+        : colorBlendMode;
     return CachedNetworkImage(
       imageUrl: source,
       width: width,
       height: height,
       fit: fit,
-      color: color,
-      colorBlendMode: colorBlendMode,
+      color: effectiveColor,
+      colorBlendMode: effectiveBlendMode,
       filterQuality: filterQuality,
+      memCacheWidth: width != null ? (width! * dpr).toInt() : null,
+      memCacheHeight: height != null ? (height! * dpr).toInt() : null,
       placeholder: (_, __) =>
           placeholder ??
           SizedBox(
@@ -211,14 +230,23 @@ class IqImage extends StatelessWidget {
   // ───────────────────────────────────────────
 
   Widget _buildAsset() {
+    final dpr = WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+    final effectiveColor = opacity < 1.0 && !_isSvg
+        ? Color.fromRGBO(255, 255, 255, opacity)
+        : color;
+    final effectiveBlendMode = opacity < 1.0 && !_isSvg
+        ? BlendMode.modulate
+        : colorBlendMode;
     return Image.asset(
       source,
       width: width,
       height: height,
       fit: fit,
-      color: color,
-      colorBlendMode: colorBlendMode,
+      color: effectiveColor,
+      colorBlendMode: effectiveBlendMode,
       filterQuality: filterQuality,
+      cacheWidth: width != null ? (width! * dpr).toInt() : null,
+      cacheHeight: height != null ? (height! * dpr).toInt() : null,
       errorBuilder: (_, __, ___) =>
           errorWidget ??
           SizedBox(

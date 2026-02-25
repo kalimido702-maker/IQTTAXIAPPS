@@ -91,23 +91,35 @@ class _BodyState extends State<_Body> {
   DirectionsResult? _directions;
   bool _isLoadingRoute = false;
 
-  Set<Marker> get _markers => {
+  /// Cached marker / polyline sets — computed once and only rebuilt when
+  /// the underlying data changes. Avoids re-allocating objects per frame.
+  late final Set<Marker> _markers = _buildMarkers();
+  Set<Polyline> _routePolylines = const {};
+
+  /// Cached hue icons — avoid repeated SDK look-ups every build.
+  static final _pickupIcon =
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+  static final _dropoffIcon =
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+
+  Set<Marker> _buildMarkers() => {
         Marker(
           markerId: MapMarkerIds.pickup,
           position: LatLng(widget.pickupLat, widget.pickupLng),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          icon: _pickupIcon,
         ),
         Marker(
           markerId: MapMarkerIds.dropoff,
           position: LatLng(widget.dropoffLat, widget.dropoffLng),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          icon: _dropoffIcon,
         ),
       };
 
-  Set<Polyline> get _routePolylines {
+  /// Build polylines once from current _directions. Called only when
+  /// _directions actually changes (inside _fetchDirections setState).
+  Set<Polyline> _buildRoutePolylines() {
     final pts = _directions?.polylinePoints;
     if (pts == null || pts.isEmpty) {
-      // Fallback: straight line until directions load.
       return {
         Polyline(
           polylineId: MapPolylineIds.route,
@@ -120,7 +132,6 @@ class _BodyState extends State<_Body> {
         ),
       };
     }
-    // Technique: simplify polyline to reduce GPU overdraw.
     final simplified = simplifyPolyline(pts);
     return {
       Polyline(
@@ -139,6 +150,8 @@ class _BodyState extends State<_Body> {
   @override
   void initState() {
     super.initState();
+    // Build initial fallback polyline (straight line).
+    _routePolylines = _buildRoutePolylines();
     _fetchDirections();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fitRoute();
@@ -163,6 +176,8 @@ class _BodyState extends State<_Body> {
         setState(() {
           _directions = result;
           _isLoadingRoute = false;
+          // Rebuild cached polylines with the real directions data.
+          _routePolylines = _buildRoutePolylines();
         });
         // Re-fit camera to actual route bounds.
         final bounds = calculateBounds(result.polylinePoints);

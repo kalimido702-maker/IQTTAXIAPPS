@@ -99,13 +99,20 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
   static const double _sheetInitial = 0.35;
 
   Set<Marker> _markers = {};
-  Set<Circle> _circles = {};
   BitmapDescriptor? _markerIcon;
   StreamSubscription<Position>? _positionStream;
   LatLng? _currentPosition;
 
+  /// Pulse animation — drives the accuracy‐circle opacity.
+  /// The circle is built inside an [AnimatedBuilder] so its
+  /// ticks (60 fps) only rebuild the map widget, NOT the entire page.
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+
+  /// Notifier for circles — lets the [AnimatedBuilder] scope
+  /// circle rebuilds to just the map without calling [setState].
+  final ValueNotifier<Set<Circle>> _circlesNotifier =
+      ValueNotifier<Set<Circle>>(const {});
 
   @override
   void initState() {
@@ -120,14 +127,14 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-
-    _pulseController.addListener(_updateAccuracyCircle);
+    // NOTE: No addListener(_updateAccuracyCircle) — the pulse is
+    // consumed by AnimatedBuilder in the widget tree instead.
   }
 
   @override
   void dispose() {
-    _pulseController.removeListener(_updateAccuracyCircle);
     _pulseController.dispose();
+    _circlesNotifier.dispose();
     _positionStream?.cancel();
     super.dispose();
   }
@@ -142,26 +149,37 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
       withArrow: true,
     );
     if (mounted) {
-      _markerIcon = icon;
+      setState(() => _markerIcon = icon);
     }
   }
 
-  /// Rebuild the pulsing accuracy circle on each animation tick.
-  void _updateAccuracyCircle() {
-    if (_currentPosition == null) return;
-    final opacity = _pulseAnimation.value;
-    setState(() {
-      _circles = {
-        Circle(
-          circleId: const CircleId('accuracy'),
-          center: _currentPosition!,
-          radius: 50, // meters
-          fillColor: AppColors.markerTeal.withValues(alpha: 0.08 * opacity),
-          strokeColor: AppColors.markerTeal.withValues(alpha: 0.25 * opacity),
-          strokeWidth: 1,
-        ),
-      };
-    });
+  // ── Circle caching to avoid 60 allocations/sec ──
+  Set<Circle> _cachedCircles = const {};
+  double _lastCircleOpacity = -1;
+  LatLng? _lastCircleCenter;
+
+  /// Build the accuracy circle set for the current animation value.
+  /// Quantises to 10 discrete steps so the Set/Circle only rebuild ~10×/sec.
+  Set<Circle> _buildCircles() {
+    if (_currentPosition == null) return const {};
+    final raw = _pulseAnimation.value;
+    final q = (raw * 10).roundToDouble() / 10;
+    if (q == _lastCircleOpacity && _currentPosition == _lastCircleCenter) {
+      return _cachedCircles;
+    }
+    _lastCircleOpacity = q;
+    _lastCircleCenter = _currentPosition;
+    _cachedCircles = {
+      Circle(
+        circleId: const CircleId('accuracy'),
+        center: _currentPosition!,
+        radius: 50,
+        fillColor: AppColors.markerTeal.withValues(alpha: 0.08 * q),
+        strokeColor: AppColors.markerTeal.withValues(alpha: 0.25 * q),
+        strokeWidth: 1,
+      ),
+    };
+    return _cachedCircles;
   }
 
   /// Navigate to search destination page with current location.
@@ -264,7 +282,8 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
         ),
       };
     });
-    _updateAccuracyCircle();
+    // Notify the circle builder about the new position
+    // (AnimatedBuilder will pick it up on next tick).
   }
 
   @override
@@ -345,18 +364,26 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
             child: Scaffold(
               body: Stack(
                 children: [
-                  // Full-screen Map with custom teal marker
+                  // Full-screen Map with custom teal marker.
+                  // AnimatedBuilder scopes pulse-circle rebuilds to
+                  // just the map — the rest of the page tree is untouched.
                   Positioned.fill(
-                    child: IqMapView(
-                      key: _mapKey,
-                      markers: _markers,
-                      circles: _circles,
-                      myLocationEnabled: false,
-                      myLocationButtonEnabled: false,
-                      onMapCreated: (_) => _goToUserLocation(),
-                      mapPadding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).size.height * _sheetMin,
-                      ),
+                    child: AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, _) {
+                        return IqMapView(
+                          key: _mapKey,
+                          markers: _markers,
+                          circles: _buildCircles(),
+                          myLocationEnabled: false,
+                          myLocationButtonEnabled: false,
+                          onMapCreated: (_) => _goToUserLocation(),
+                          mapPadding: EdgeInsets.only(
+                            bottom: MediaQuery.of(context).size.height *
+                                _sheetMin,
+                          ),
+                        );
+                      },
                     ),
                   ),
 
