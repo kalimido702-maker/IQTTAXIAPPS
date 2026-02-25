@@ -75,6 +75,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
   final _mapKey = GlobalKey<IqMapViewState>();
 
   Set<Marker> _markers = {};
+  Set<Circle> _circles = {};
   BitmapDescriptor? _markerIcon;
   StreamSubscription<Position>? _positionStream;
   LatLng? _currentPosition;
@@ -95,11 +96,13 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    // NOTE: No addListener — pulse consumed by AnimatedBuilder in tree.
+
+    _pulseController.addListener(_updateAccuracyCircle);
   }
 
   @override
   void dispose() {
+    _pulseController.removeListener(_updateAccuracyCircle);
     _pulseController.dispose();
     _positionStream?.cancel();
     super.dispose();
@@ -115,37 +118,26 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
       withArrow: true,
     );
     if (mounted) {
-      setState(() => _markerIcon = icon);
+      _markerIcon = icon;
     }
   }
 
-  // ── Circle caching to avoid 60 allocations/sec ──
-  Set<Circle> _cachedCircles = const {};
-  double _lastCircleOpacity = -1;
-  LatLng? _lastCircleCenter;
-
-  /// Build accuracy circle set for current animation value.
-  /// Quantises to 10 discrete steps so the Set/Circle only rebuild ~10×/sec.
-  Set<Circle> _buildCircles() {
-    if (_currentPosition == null) return const {};
-    final raw = _pulseAnimation.value;
-    final q = (raw * 10).roundToDouble() / 10;
-    if (q == _lastCircleOpacity && _currentPosition == _lastCircleCenter) {
-      return _cachedCircles;
-    }
-    _lastCircleOpacity = q;
-    _lastCircleCenter = _currentPosition;
-    _cachedCircles = {
-      Circle(
-        circleId: const CircleId('accuracy'),
-        center: _currentPosition!,
-        radius: 50,
-        fillColor: AppColors.markerTeal.withValues(alpha: 0.08 * q),
-        strokeColor: AppColors.markerTeal.withValues(alpha: 0.25 * q),
-        strokeWidth: 1,
-      ),
-    };
-    return _cachedCircles;
+  /// Rebuild the pulsing accuracy circle on each animation tick.
+  void _updateAccuracyCircle() {
+    if (_currentPosition == null) return;
+    final opacity = _pulseAnimation.value;
+    setState(() {
+      _circles = {
+        Circle(
+          circleId: const CircleId('accuracy'),
+          center: _currentPosition!,
+          radius: 50,
+          fillColor: AppColors.markerTeal.withValues(alpha: 0.08 * opacity),
+          strokeColor: AppColors.markerTeal.withValues(alpha: 0.25 * opacity),
+          strokeWidth: 1,
+        ),
+      };
+    });
   }
 
   /// Request location permission, move map, and start position stream.
@@ -197,6 +189,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
         ),
       };
     });
+    _updateAccuracyCircle();
   }
 
   @override
@@ -279,22 +272,16 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
             child: Scaffold(
               body: Stack(
                 children: [
-                  // Full-screen Map — AnimatedBuilder scopes
-                  // pulse-circle rebuilds to just the map widget.
+                  // Full-screen Map with custom teal marker
                   Positioned.fill(
-                    child: AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, _) {
-                        return IqMapView(
-                          key: _mapKey,
-                          markers: _markers,
-                          circles: _buildCircles(),
-                          myLocationEnabled: false,
-                          myLocationButtonEnabled: false,
-                          onMapCreated: (_) => _goToUserLocation(),
-                          mapPadding: EdgeInsets.only(bottom: 240.h),
-                        );
-                      },
+                    child: IqMapView(
+                      key: _mapKey,
+                      markers: _markers,
+                      circles: _circles,
+                      myLocationEnabled: false,
+                      myLocationButtonEnabled: false,
+                      onMapCreated: (_) => _goToUserLocation(),
+                      mapPadding: EdgeInsets.only(bottom: 240.h),
                     ),
                   ),
 

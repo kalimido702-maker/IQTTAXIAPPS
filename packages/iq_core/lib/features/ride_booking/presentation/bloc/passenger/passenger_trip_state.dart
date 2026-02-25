@@ -133,16 +133,9 @@ class PassengerTripState extends Equatable {
         vehicleTypes,
         selectedVehicle,
         paymentOpt,
-        pickLat,
-        pickLng,
-        dropLat,
-        dropLng,
-        pickAddress,
-        dropAddress,
         requestId,
         activeTripData,
         invoice,
         errorMessage,
-        promoCode,
       ];
 }

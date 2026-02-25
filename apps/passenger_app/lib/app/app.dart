@@ -22,10 +22,9 @@ class PassengerApp extends StatelessWidget {
             BlocProvider.value(value: sl<LocaleCubit>()),
           ],
           child: BlocBuilder<ThemeCubit, ThemeState>(
-            buildWhen: (prev, curr) => prev.themeMode != curr.themeMode,
             builder: (context, themeState) {
               return BlocBuilder<LocaleCubit, LocaleState>(
-                buildWhen: (prev, curr) => prev.locale != curr.locale,                builder: (context, localeState) {
+                builder: (context, localeState) {
                   return MaterialApp(
                     title: AppStrings.appNamePassenger,
                     debugShowCheckedModeBanner: false,

@@ -20,8 +20,6 @@ class TripHistoryCard extends StatelessWidget {
     this.onTap,
   });
 
-  static final _dateFormat = DateFormat('dd/MM/yyyy');
-
   final TripEntity trip;
   final VoidCallback? onTap;
 
@@ -92,7 +90,7 @@ class TripHistoryCard extends StatelessWidget {
                   ),
                 ),
                 IqText(
-                  _dateFormat.format(trip.createdAt),
+                  DateFormat('dd/MM/yyyy').format(trip.createdAt),
                   style: AppTypography.numberMedium.copyWith(
                     fontFamily: AppTypography.fontFamilyLatin,
                     fontSize: 14.sp,

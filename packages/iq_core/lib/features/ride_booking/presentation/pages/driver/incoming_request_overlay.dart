@@ -34,43 +34,39 @@ class IncomingRequestOverlay extends StatefulWidget {
 
 class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
   Timer? _countdownTimer;
-  late final ValueNotifier<int> _secondsLeft;
-
-  // Cached icons — avoid allocating BitmapDescriptor every second.
-  static final _pickupIcon =
-      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-  static final _dropoffIcon =
-      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+  int _secondsLeft = 0;
 
   @override
   void initState() {
     super.initState();
-    _secondsLeft = ValueNotifier<int>(_calculateTimeLeft());
+    _calculateTimeLeft();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      _secondsLeft.value--;
-      if (_secondsLeft.value <= 0) {
-        // Auto-reject on timeout
-        _countdownTimer?.cancel();
-        context.read<DriverTripBloc>().add(
-              DriverTripRejected(widget.request.requestId),
-            );
-      }
+      setState(() {
+        _secondsLeft--;
+        if (_secondsLeft <= 0) {
+          // Auto-reject on timeout
+          _countdownTimer?.cancel();
+          context.read<DriverTripBloc>().add(
+                DriverTripRejected(widget.request.requestId),
+              );
+        }
+      });
     });
   }
 
-  int _calculateTimeLeft() {
+  void _calculateTimeLeft() {
     if (widget.request.expiresAt != null) {
       final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      return (widget.request.expiresAt! - nowSec).clamp(0, 120);
+      _secondsLeft = (widget.request.expiresAt! - nowSec).clamp(0, 120);
+    } else {
+      _secondsLeft = 60;
     }
-    return 60;
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _secondsLeft.dispose();
     super.dispose();
   }
 
@@ -96,12 +92,14 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                     Marker(
                       markerId: MapMarkerIds.pickup,
                       position: LatLng(req.pickLat, req.pickLng),
-                      icon: _pickupIcon,
+                      icon: BitmapDescriptor.defaultMarkerWithHue(
+                          BitmapDescriptor.hueGreen),
                     ),
                     Marker(
                       markerId: MapMarkerIds.dropoff,
                       position: LatLng(req.dropLat, req.dropLng),
-                      icon: _dropoffIcon,
+                      icon: BitmapDescriptor.defaultMarkerWithHue(
+                          BitmapDescriptor.hueRed),
                     ),
                   },
                   myLocationEnabled: false,
@@ -132,29 +130,26 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                             color: AppColors.textDark,
                           ),
                         ),
-                        // Timer badge — only this widget rebuilds per second
-                        ValueListenableBuilder<int>(
-                          valueListenable: _secondsLeft,
-                          builder: (_, seconds, __) => Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12.w,
-                              vertical: 6.h,
+                        // Timer badge
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12.w,
+                            vertical: 6.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _secondsLeft <= 10
+                                ? AppColors.error.withValues(alpha: 0.1)
+                                : AppColors.primary50,
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                          child: IqText(
+                            '$_secondsLeft ثانية',
+                            style: AppTypography.labelMedium.copyWith(
+                              color: _secondsLeft <= 10
+                                  ? AppColors.error
+                                  : AppColors.primary700,
                             ),
-                            decoration: BoxDecoration(
-                              color: seconds <= 10
-                                  ? AppColors.error.withValues(alpha: 0.1)
-                                  : AppColors.primary50,
-                              borderRadius: BorderRadius.circular(20.r),
-                            ),
-                            child: IqText(
-                              '$seconds ثانية',
-                              style: AppTypography.labelMedium.copyWith(
-                                color: seconds <= 10
-                                    ? AppColors.error
-                                    : AppColors.primary700,
-                              ),
-                              dir: TextDirection.ltr,
-                            ),
+                            dir: TextDirection.ltr,
                           ),
                         ),
                       ],

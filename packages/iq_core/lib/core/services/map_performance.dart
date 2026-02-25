@@ -262,10 +262,7 @@ class MarkerPool {
   final Set<Marker> _markers = {};
   final Map<String, Marker> _markerMap = {};
 
-  /// Cached unmodifiable view — only recreated when the set actually changes.
-  Set<Marker>? _cachedView;
-
-  Set<Marker> get markers => _cachedView ??= Set.unmodifiable(_markers);
+  Set<Marker> get markers => Set.unmodifiable(_markers);
 
   /// Update or add a marker. Returns true if the set changed.
   bool upsert(Marker marker) {
@@ -282,7 +279,6 @@ class MarkerPool {
     if (existing != null) _markers.remove(existing);
     _markerMap[id] = marker;
     _markers.add(marker);
-    _cachedView = null; // Invalidate.
     return true;
   }
 
@@ -291,7 +287,6 @@ class MarkerPool {
     final existing = _markerMap.remove(markerId);
     if (existing != null) {
       _markers.remove(existing);
-      _cachedView = null;
       return true;
     }
     return false;
@@ -301,7 +296,6 @@ class MarkerPool {
   void clear() {
     _markers.clear();
     _markerMap.clear();
-    _cachedView = null;
   }
 
   /// Whether the pool contains a marker with this ID.
@@ -313,10 +307,7 @@ class PolylinePool {
   final Set<Polyline> _polylines = {};
   final Map<String, Polyline> _polylineMap = {};
 
-  /// Cached unmodifiable view — only recreated when the set actually changes.
-  Set<Polyline>? _cachedView;
-
-  Set<Polyline> get polylines => _cachedView ??= Set.unmodifiable(_polylines);
+  Set<Polyline> get polylines => Set.unmodifiable(_polylines);
 
   /// Update or add a polyline. Returns true if the set changed.
   bool upsert(Polyline polyline) {
@@ -334,14 +325,12 @@ class PolylinePool {
     if (existing != null) _polylines.remove(existing);
     _polylineMap[id] = polyline;
     _polylines.add(polyline);
-    _cachedView = null; // Invalidate.
     return true;
   }
 
   void clear() {
     _polylines.clear();
     _polylineMap.clear();
-    _cachedView = null;
   }
 }
 
@@ -357,18 +346,15 @@ class CameraThrottle {
   CameraThrottle({this.interval = const Duration(milliseconds: 100)});
 
   final Duration interval;
-  final Stopwatch _stopwatch = Stopwatch();
+  DateTime _lastUpdate = DateTime.fromMillisecondsSinceEpoch(0);
   CameraPosition? _lastPosition;
 
   /// Returns the position only if enough time has passed, else null.
   CameraPosition? throttle(CameraPosition position) {
+    final now = DateTime.now();
     _lastPosition = position;
-    if (!_stopwatch.isRunning) {
-      _stopwatch.start();
-      return position;
-    }
-    if (_stopwatch.elapsed >= interval) {
-      _stopwatch.reset();
+    if (now.difference(_lastUpdate) >= interval) {
+      _lastUpdate = now;
       return position;
     }
     return null;

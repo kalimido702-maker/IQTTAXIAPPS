@@ -30,7 +30,6 @@ class _SwipeToAcceptButtonState extends State<SwipeToAcceptButton>
   late double _maxDrag;
   late AnimationController _resetController;
   late Animation<double> _resetAnimation;
-  late final CurvedAnimation _curvedReset;
   bool _accepted = false;
 
   static const _thumbWidth = 60.0;
@@ -42,15 +41,10 @@ class _SwipeToAcceptButtonState extends State<SwipeToAcceptButton>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _curvedReset = CurvedAnimation(
-      parent: _resetController,
-      curve: Curves.easeOut,
-    );
   }
 
   @override
   void dispose() {
-    _curvedReset.dispose();
     _resetController.dispose();
     super.dispose();
   }
@@ -78,17 +72,15 @@ class _SwipeToAcceptButtonState extends State<SwipeToAcceptButton>
       HapticFeedback.heavyImpact();
       widget.onAccepted();
     } else {
-      // Reset — reuse a single CurvedAnimation to avoid listener leaks.
+      // Reset
       final startPos = _dragPosition;
-      _resetController.removeListener(_onResetTick);
-      _resetAnimation = Tween<double>(begin: startPos, end: 0).animate(_curvedReset);
-      _resetController.addListener(_onResetTick);
+      _resetAnimation = Tween<double>(begin: startPos, end: 0).animate(
+        CurvedAnimation(parent: _resetController, curve: Curves.easeOut),
+      )..addListener(() {
+          setState(() => _dragPosition = _resetAnimation.value);
+        });
       _resetController.forward(from: 0);
     }
-  }
-
-  void _onResetTick() {
-    setState(() => _dragPosition = _resetAnimation.value);
   }
 
   @override

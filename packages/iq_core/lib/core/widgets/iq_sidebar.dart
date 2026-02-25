@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_zoom_drawer/flutter_zoom_drawer.dart';
@@ -125,7 +124,7 @@ class _ProfileHeader extends StatelessWidget {
               radius: 47.5.w,
               backgroundColor: AppColors.gray3,
               backgroundImage: avatarUrl != null
-                  ? CachedNetworkImageProvider(avatarUrl!)
+                  ? NetworkImage(avatarUrl!)
                   : null,
               child: avatarUrl == null
                   ? Icon(Icons.person, size: 48.w, color: AppColors.white)

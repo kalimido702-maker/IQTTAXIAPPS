@@ -131,26 +131,16 @@ class _TripMapState extends State<_TripMap> {
   final MarkerPool _markerPool = MarkerPool();
   final PolylinePool _polylinePool = PolylinePool();
 
-  /// Cached hue icons — avoid repeated SDK look-ups every build.
-  static final _pickupIcon =
-      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-  static final _dropoffIcon =
-      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-  static final _driverIcon =
-      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow);
+  @override
+  void didUpdateWidget(_TripMap old) {
+    super.didUpdateWidget(old);
+    _updateRoute();
+  }
 
   @override
   void initState() {
     super.initState();
     _updateRoute();
-    _syncMarkersAndPolylines();
-  }
-
-  @override
-  void didUpdateWidget(covariant _TripMap old) {
-    super.didUpdateWidget(old);
-    _updateRoute();
-    _syncMarkersAndPolylines();
   }
 
   void _updateRoute() {
@@ -197,26 +187,25 @@ class _TripMapState extends State<_TripMap> {
     }
   }
 
-  /// Rebuild marker/polyline pools only when data differs.
-  void _syncMarkersAndPolylines() {
-    final state = widget.state;
-    final trip = state.activeTripData;
+  @override
+  Widget build(BuildContext context) {
+    final trip = widget.state.activeTripData;
 
     // Pickup marker
-    if (state.pickLat != 0) {
+    if (widget.state.pickLat != 0) {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.pickup,
-        position: LatLng(state.pickLat, state.pickLng),
-        icon: _pickupIcon,
+        position: LatLng(widget.state.pickLat, widget.state.pickLng),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
       ));
     }
 
     // Dropoff marker
-    if (state.dropLat != 0) {
+    if (widget.state.dropLat != 0) {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.dropoff,
-        position: LatLng(state.dropLat, state.dropLng),
-        icon: _dropoffIcon,
+        position: LatLng(widget.state.dropLat, widget.state.dropLng),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       ));
     }
 
@@ -225,14 +214,14 @@ class _TripMapState extends State<_TripMap> {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.driver,
         position: LatLng(trip.driverLat ?? 0.0, trip.driverLng ?? 0.0),
-        icon: _driverIcon,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
         rotation: trip.driverBearing ?? 0.0,
         anchor: const Offset(0.5, 0.5),
         flat: true,
       ));
     }
 
-    // Route polyline
+    // Route polyline — use decoded Google route if available.
     final routePts = _routePoints;
     if (routePts != null && routePts.length >= 2) {
       _polylinePool.upsert(Polyline(
@@ -245,21 +234,19 @@ class _TripMapState extends State<_TripMap> {
         endCap: Cap.roundCap,
         points: routePts,
       ));
-    } else if (state.pickLat != 0 && state.dropLat != 0) {
+    } else if (widget.state.pickLat != 0 && widget.state.dropLat != 0) {
+      // Fallback straight line
       _polylinePool.upsert(Polyline(
         polylineId: MapPolylineIds.route,
         color: AppColors.routeLine,
         width: 4,
         points: [
-          LatLng(state.pickLat, state.pickLng),
-          LatLng(state.dropLat, state.dropLng),
+          LatLng(widget.state.pickLat, widget.state.pickLng),
+          LatLng(widget.state.dropLat, widget.state.dropLng),
         ],
       ));
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
     return IqMapView(
       key: widget.mapKey,
       initialTarget: widget.state.pickLat != 0

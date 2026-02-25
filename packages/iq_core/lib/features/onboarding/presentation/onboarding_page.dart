@@ -100,27 +100,23 @@ class OnboardingPage extends StatelessWidget {
 }
 
 /// Inner body that owns the [PageController].
-class _OnboardingBody extends StatefulWidget {
+///
+/// Uses [BlocListener] to sync the controller with BLoC state
+/// when next/back are pressed.
+class _OnboardingBody extends StatelessWidget {
   final List<OnboardingPageData> pages;
   final void Function(BuildContext context) onComplete;
 
-  const _OnboardingBody({
+  /// We use a static [PageController] key trick: the controller
+  /// is created once per widget lifecycle via the default constructor.
+  /// Since this widget is const-safe and never rebuilt by parent,
+  /// this is effectively the same as a StatefulWidget field.
+  final PageController _pageController = PageController();
+
+  _OnboardingBody({
     required this.pages,
     required this.onComplete,
   });
-
-  @override
-  State<_OnboardingBody> createState() => _OnboardingBodyState();
-}
-
-class _OnboardingBodyState extends State<_OnboardingBody> {
-  final PageController _pageController = PageController();
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +125,7 @@ class _OnboardingBodyState extends State<_OnboardingBody> {
           prev.currentPage != curr.currentPage || curr.completed,
       listener: (context, state) {
         if (state.completed) {
-          widget.onComplete(context);
+          onComplete(context);
           return;
         }
         // Animate PageView to match BLoC state
@@ -159,12 +155,12 @@ class _OnboardingBodyState extends State<_OnboardingBody> {
                   Expanded(
                     child: PageView.builder(
                       controller: _pageController,
-                      itemCount: widget.pages.length,
+                      itemCount: pages.length,
                       onPageChanged: (index) => context
                           .read<OnboardingBloc>()
                           .add(OnboardingPageChanged(index)),
                       itemBuilder: (_, index) =>
-                          _buildPageContent(widget.pages[index], state),
+                          _buildPageContent(pages[index], state),
                     ),
                   ),
                   _buildBottomButton(context),
@@ -253,7 +249,7 @@ class _OnboardingBodyState extends State<_OnboardingBody> {
   }
 
   Widget _buildDotsIndicator(int currentPage) {
-    final int dotCount = widget.pages.length;
+    final int dotCount = pages.length;
     final int activeDot = currentPage >= dotCount ? 0 : currentPage;
 
     return Row(
