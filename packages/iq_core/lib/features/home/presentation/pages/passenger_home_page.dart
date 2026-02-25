@@ -396,35 +396,16 @@ class _HomeMapSection extends StatefulWidget {
   State<_HomeMapSection> createState() => _HomeMapSectionState();
 }
 
-class _HomeMapSectionState extends State<_HomeMapSection>
-    with SingleTickerProviderStateMixin {
+class _HomeMapSectionState extends State<_HomeMapSection> {
   final _mapKey = GlobalKey<IqMapViewState>();
 
   Set<Marker> _markers = {};
+  Set<Circle> _circles = {};
   StreamSubscription<Position>? _positionStream;
   LatLng? _currentPosition;
-  GoogleMapController? _mapController;
-
-  late final AnimationController _pulseController;
-  late final Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
 
   @override
   void dispose() {
-    _pulseController.dispose();
     _positionStream?.cancel();
     super.dispose();
   }
@@ -469,7 +450,7 @@ class _HomeMapSectionState extends State<_HomeMapSection>
     }
   }
 
-  /// Update the marker position on the map.
+  /// Update the marker + accuracy circle on the map.
   void _updateMarker(LatLng position) {
     _currentPosition = position;
     widget.onPositionChanged(position);
@@ -482,6 +463,16 @@ class _HomeMapSectionState extends State<_HomeMapSection>
           anchor: const Offset(0.5, 0.5),
         ),
       };
+      _circles = {
+        Circle(
+          circleId: const CircleId('accuracy'),
+          center: position,
+          radius: 80,
+          fillColor: AppColors.markerTeal.withValues(alpha: 0.06),
+          strokeColor: AppColors.markerTeal.withValues(alpha: 0.20),
+          strokeWidth: 1,
+        ),
+      };
     });
   }
 
@@ -489,35 +480,20 @@ class _HomeMapSectionState extends State<_HomeMapSection>
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // The actual Google Map — only rebuilt when _markers changes.
+        // The actual Google Map — only rebuilt when _markers/_circles change.
         Positioned.fill(
           child: IqMapView(
             key: _mapKey,
             markers: _markers,
+            circles: _circles,
             myLocationEnabled: false,
             myLocationButtonEnabled: false,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              _goToUserLocation();
-            },
+            onMapCreated: (_) => _goToUserLocation(),
             mapPadding: EdgeInsets.only(
               bottom: MediaQuery.of(context).size.height * widget.sheetFraction,
             ),
           ),
         ),
-
-        // Pulsing accuracy circle — painted as Flutter overlay.
-        if (_currentPosition != null && _mapController != null)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: _PulsingAccuracyOverlay(
-                animation: _pulseAnimation,
-                controller: _mapController!,
-                center: _currentPosition!,
-                color: AppColors.markerTeal,
-              ),
-            ),
-          ),
 
         // Current location FAB
         Positioned(
@@ -580,116 +556,4 @@ class _CircleButton extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════
-// Pulsing Accuracy Overlay
-//
-// Paints the accuracy circle as a Flutter layer on top of the map.
-// Only this widget repaints 60fps — the expensive GoogleMap widget
-// is completely untouched.
-// ═════════════════════════════════════════════════════════════════════
 
-class _PulsingAccuracyOverlay extends StatefulWidget {
-  const _PulsingAccuracyOverlay({
-    required this.animation,
-    required this.controller,
-    required this.center,
-    required this.color,
-  });
-
-  final Animation<double> animation;
-  final GoogleMapController controller;
-  final LatLng center;
-  final Color color;
-
-  @override
-  State<_PulsingAccuracyOverlay> createState() =>
-      _PulsingAccuracyOverlayState();
-}
-
-class _PulsingAccuracyOverlayState extends State<_PulsingAccuracyOverlay> {
-  Offset? _screenPos;
-
-  @override
-  void initState() {
-    super.initState();
-    _updateScreenPos();
-  }
-
-  @override
-  void didUpdateWidget(_PulsingAccuracyOverlay old) {
-    super.didUpdateWidget(old);
-    if (old.center != widget.center) {
-      _updateScreenPos();
-    }
-  }
-
-  Future<void> _updateScreenPos() async {
-    try {
-      final coord = await widget.controller.getScreenCoordinate(widget.center);
-      if (!mounted) return;
-      final dpr = MediaQuery.of(context).devicePixelRatio;
-      setState(() {
-        _screenPos = Offset(coord.x / dpr, coord.y / dpr);
-      });
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_screenPos == null) return const SizedBox.shrink();
-
-    return AnimatedBuilder(
-      animation: widget.animation,
-      builder: (context, _) {
-        return CustomPaint(
-          painter: _CirclePainter(
-            center: _screenPos!,
-            opacity: widget.animation.value,
-            color: widget.color,
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _CirclePainter extends CustomPainter {
-  _CirclePainter({
-    required this.center,
-    required this.opacity,
-    required this.color,
-  });
-
-  final Offset center;
-  final double opacity;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final radius = 30 + (20 * opacity); // Pulse between 30-50 pixels
-
-    // Fill
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = color.withValues(alpha: 0.08 * opacity)
-        ..style = PaintingStyle.fill,
-    );
-
-    // Stroke
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = color.withValues(alpha: 0.25 * opacity)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_CirclePainter oldDelegate) {
-    return oldDelegate.opacity != opacity || oldDelegate.center != center;
-  }
-}
