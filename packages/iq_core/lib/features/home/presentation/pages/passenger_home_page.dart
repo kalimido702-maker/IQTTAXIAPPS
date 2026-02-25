@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../../../core/services/map_performance.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/iq_map_view.dart';
 import '../../../../core/widgets/iq_menu_button.dart';
@@ -149,92 +148,52 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
-      buildWhen: (prev, curr) =>
-          prev.status != curr.status ||
-          prev.homeData != curr.homeData ||
-          prev.rideModules != curr.rideModules,
-      builder: (context, state) {
-        // Extract user data from state
-        final data = state.homeData;
-        final userName = data?.name ?? '';
-        final userRating = data?.rating ?? 0.0;
-        final avatarUrl = data?.avatarUrl;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        // Build promo banners from API response
-        final promoBanners =
-            data?.banners
-                .map(
-                  (b) => PromoBanner(
-                    imageUrl: b.image.isNotEmpty ? b.image : null,
-                    redirectLink: b.redirectLink,
-                  ),
-                )
-                .toList() ??
-            [];
-
-        // Build quick places from favourite locations
-        final quickPlaces =
-            data?.allFavouriteLocations
-                .map(
-                  (loc) =>
-                      QuickPlace(name: loc.address, lat: loc.lat, lng: loc.lng),
-                )
-                .toList() ??
-            [];
-
-        // Build categories from ride modules (API) or fallback
-        final categories = state.rideModules.isNotEmpty
-            ? state.rideModules
-                  .map(
-                    (m) => ServiceCategory(
-                      id: m.id,
-                      label: m.name,
-                      imageUrl: m.icon,
-                    ),
-                  )
-                  .toList()
-            : _buildFallbackCategories(data?.enableModules ?? 'taxi');
-
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-
-        return ZoomDrawer(
-          menuScreen: IqSidebar(
+    return ZoomDrawer(
+      menuScreen: BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
+        buildWhen: (prev, curr) => prev.homeData != curr.homeData,
+        builder: (context, state) {
+          final data = state.homeData;
+          return IqSidebar(
             items: widget.sidebarItems,
-            userName: userName,
+            userName: data?.name ?? '',
             userSubtitle: data?.phone ?? '',
-            userRating: userRating,
-            avatarUrl: avatarUrl,
+            userRating: data?.rating ?? 0.0,
+            avatarUrl: data?.avatarUrl,
             onProfileTap: widget.onProfileTap,
-          ),
-          mainScreen: AnnotatedRegion<SystemUiOverlayStyle>(
-            value: SystemUiOverlayStyle(
-              statusBarColor: AppColors.transparent,
-              statusBarIconBrightness: isDark
-                  ? Brightness.light
-                  : Brightness.dark,
-              statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-              systemNavigationBarColor: AppColors.transparent,
-              systemNavigationBarIconBrightness: isDark
-                  ? Brightness.light
-                  : Brightness.dark,
-            ),
-            child: Scaffold(
-              body: Stack(
-                children: [
-                  // ── Map Section ──────────────────────────────
-                  // Fully isolated in its own StatefulWidget.
-                  // BlocBuilder rebuilds do NOT touch the map.
-                  Positioned.fill(
-                    child: _HomeMapSection(
-                      sheetFraction: _sheetMin,
-                      onPositionChanged: (pos) => _currentPosition = pos,
-                    ),
-                  ),
+          );
+        },
+      ),
+      mainScreen: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle(
+          statusBarColor: AppColors.transparent,
+          statusBarIconBrightness:
+              isDark ? Brightness.light : Brightness.dark,
+          statusBarBrightness:
+              isDark ? Brightness.dark : Brightness.light,
+          systemNavigationBarColor: AppColors.transparent,
+          systemNavigationBarIconBrightness:
+              isDark ? Brightness.light : Brightness.dark,
+        ),
+        child: Scaffold(
+          body: Stack(
+            children: [
+              // ── Map Section ──────────────────────────────
+              // Fully isolated in its own StatefulWidget.
+              Positioned.fill(
+                child: _HomeMapSection(
+                  sheetFraction: _sheetMin,
+                  onPositionChanged: (pos) => _currentPosition = pos,
+                ),
+              ),
 
-                  // Loading overlay
-                  if (state.status == HomeStatus.loading)
-                    Positioned.fill(
+              // Loading / Error overlays — only these rebuild
+              BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
+                buildWhen: (prev, curr) => prev.status != curr.status,
+                builder: (context, state) {
+                  if (state.status == HomeStatus.loading) {
+                    return Positioned.fill(
                       child: Container(
                         color: AppColors.white.withValues(alpha: 0.5),
                         child: const Center(
@@ -243,11 +202,10 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                           ),
                         ),
                       ),
-                    ),
-
-                  // Error snackbar-style banner
-                  if (state.status == HomeStatus.error)
-                    Positioned(
+                    );
+                  }
+                  if (state.status == HomeStatus.error) {
+                    return Positioned(
                       top: MediaQuery.of(context).padding.top + 60.h,
                       left: 24.w,
                       right: 24.w,
@@ -283,72 +241,120 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                           ),
                         ),
                       ),
-                    ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
 
-                  // Top bar (menu button — right side for RTL)
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 12.h,
-                    left: 16.w,
-                    right: 16.w,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Builder(
-                          builder: (drawerCtx) => IqMenuButton(
-                            onTap: () => ZoomDrawer.of(drawerCtx)?.toggle(),
-                          ),
-                        ),
-                      ],
+              // Top bar (menu button — right side for RTL)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 12.h,
+                left: 16.w,
+                right: 16.w,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Builder(
+                      builder: (drawerCtx) => IqMenuButton(
+                        onTap: () => ZoomDrawer.of(drawerCtx)?.toggle(),
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+              ),
 
-                  // Bottom sheet
-                  BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
-                    builder: (context, sheetState) {
-                      return DraggableScrollableSheet(
-                        initialChildSize: _sheetInitial,
-                        minChildSize: _sheetMin,
-                        maxChildSize: _sheetMax,
-                        snap: true,
-                        snapSizes: const [_sheetMin, _sheetMax],
-                        builder: (context, scrollController) {
-                          return HomeBottomSheet(
-                            scrollController: scrollController,
-                            categories: categories,
-                            quickPlaces: quickPlaces,
-                            activeCategory: sheetState.activeCategory,
-                            onCategoryTap: (i) {
-                              context.read<PassengerHomeBloc>().add(
-                                PassengerHomeCategoryChanged(i),
-                              );
-                              widget.onCategoryChanged?.call(i);
-                            },
-                            onSearchTap: widget.onSearchTap ?? _handleSearchTap,
-                            promoBanners: promoBanners,
-                            promoBannerUrl: (data?.banners.isNotEmpty ?? false)
+              // Bottom sheet — scoped BlocBuilder for sheet data only
+              BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
+                buildWhen: (prev, curr) =>
+                    prev.homeData != curr.homeData ||
+                    prev.rideModules != curr.rideModules ||
+                    prev.activeCategory != curr.activeCategory,
+                builder: (context, state) {
+                  final data = state.homeData;
+
+                  final promoBanners =
+                      data?.banners
+                          .map(
+                            (b) => PromoBanner(
+                              imageUrl:
+                                  b.image.isNotEmpty ? b.image : null,
+                              redirectLink: b.redirectLink,
+                            ),
+                          )
+                          .toList() ??
+                      [];
+
+                  final quickPlaces =
+                      data?.allFavouriteLocations
+                          .map(
+                            (loc) => QuickPlace(
+                              name: loc.address,
+                              lat: loc.lat,
+                              lng: loc.lng,
+                            ),
+                          )
+                          .toList() ??
+                      [];
+
+                  final categories = state.rideModules.isNotEmpty
+                      ? state.rideModules
+                            .map(
+                              (m) => ServiceCategory(
+                                id: m.id,
+                                label: m.name,
+                                imageUrl: m.icon,
+                              ),
+                            )
+                            .toList()
+                      : _buildFallbackCategories(
+                          data?.enableModules ?? 'taxi',
+                        );
+
+                  return DraggableScrollableSheet(
+                    initialChildSize: _sheetInitial,
+                    minChildSize: _sheetMin,
+                    maxChildSize: _sheetMax,
+                    snap: true,
+                    snapSizes: const [_sheetMin, _sheetMax],
+                    builder: (context, scrollController) {
+                      return HomeBottomSheet(
+                        scrollController: scrollController,
+                        categories: categories,
+                        quickPlaces: quickPlaces,
+                        activeCategory: state.activeCategory,
+                        onCategoryTap: (i) {
+                          context.read<PassengerHomeBloc>().add(
+                            PassengerHomeCategoryChanged(i),
+                          );
+                          widget.onCategoryChanged?.call(i);
+                        },
+                        onSearchTap:
+                            widget.onSearchTap ?? _handleSearchTap,
+                        promoBanners: promoBanners,
+                        promoBannerUrl:
+                            (data?.banners.isNotEmpty ?? false)
                                 ? data!.banners.first.image
                                 : null,
-                            onPromoBannerTap: widget.onPromoBannerTap,
-                            onQuickPlaceTap: widget.onQuickPlaceTap,
-                          );
-                        },
+                        onPromoBannerTap: widget.onPromoBannerTap,
+                        onQuickPlaceTap: widget.onQuickPlaceTap,
                       );
                     },
-                  ),
-                ],
+                  );
+                },
               ),
-            ),
+            ],
           ),
-          slideWidth: MediaQuery.of(context).size.width * 0.65,
-          isRtl: true,
-          borderRadius: 24.0,
-          showShadow: true,
-          angle: 0.0,
-          disableDragGesture: true,
-          drawerShadowsBackgroundColor: AppColors.drawerShadow,
-          mainScreenTapClose: true,
-        );
-      },
+        ),
+      ),
+      slideWidth: MediaQuery.of(context).size.width * 0.65,
+      isRtl: true,
+      borderRadius: 24.0,
+      showShadow: true,
+      angle: 0.0,
+      disableDragGesture: true,
+      drawerShadowsBackgroundColor: AppColors.drawerShadow,
+      mainScreenTapClose: true,
     );
   }
 
@@ -399,10 +405,7 @@ class _HomeMapSection extends StatefulWidget {
 class _HomeMapSectionState extends State<_HomeMapSection> {
   final _mapKey = GlobalKey<IqMapViewState>();
 
-  Set<Marker> _markers = {};
-  Set<Circle> _circles = {};
   StreamSubscription<Position>? _positionStream;
-  LatLng? _currentPosition;
 
   @override
   void dispose() {
@@ -431,10 +434,9 @@ class _HomeMapSectionState extends State<_HomeMapSection> {
 
       final latLng = LatLng(pos.latitude, pos.longitude);
       _mapKey.currentState?.animateTo(latLng, zoom: 15.0);
-      _updateMarker(latLng);
+      widget.onPositionChanged(latLng);
 
-      // Start listening for position updates.
-      // distanceFilter: 50 — update only every 50m to reduce rebuilds.
+      // Start listening for position updates to keep _currentPosition fresh.
       _positionStream?.cancel();
       _positionStream =
           Geolocator.getPositionStream(
@@ -443,50 +445,22 @@ class _HomeMapSectionState extends State<_HomeMapSection> {
               distanceFilter: 50,
             ),
           ).listen((pos) {
-            _updateMarker(LatLng(pos.latitude, pos.longitude));
+            widget.onPositionChanged(LatLng(pos.latitude, pos.longitude));
           });
     } catch (_) {
       // Permission denied or location unavailable — stay at default.
     }
   }
 
-  /// Update the marker + accuracy circle on the map.
-  void _updateMarker(LatLng position) {
-    _currentPosition = position;
-    widget.onPositionChanged(position);
-    setState(() {
-      _markers = {
-        Marker(
-          markerId: MapMarkerIds.user,
-          position: position,
-          icon: MapIcons.user,
-          anchor: const Offset(0.5, 0.5),
-        ),
-      };
-      _circles = {
-        Circle(
-          circleId: const CircleId('accuracy'),
-          center: position,
-          radius: 80,
-          fillColor: AppColors.markerTeal.withValues(alpha: 0.06),
-          strokeColor: AppColors.markerTeal.withValues(alpha: 0.20),
-          strokeWidth: 1,
-        ),
-      };
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // The actual Google Map — only rebuilt when _markers/_circles change.
+        // The actual Google Map — uses default blue dot for location.
         Positioned.fill(
           child: IqMapView(
             key: _mapKey,
-            markers: _markers,
-            circles: _circles,
-            myLocationEnabled: false,
+            myLocationEnabled: true,
             myLocationButtonEnabled: false,
             onMapCreated: (_) => _goToUserLocation(),
             mapPadding: EdgeInsets.only(
