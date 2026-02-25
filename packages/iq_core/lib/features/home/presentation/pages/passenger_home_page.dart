@@ -89,43 +89,15 @@ class _PassengerHomeBody extends StatefulWidget {
   State<_PassengerHomeBody> createState() => _PassengerHomeBodyState();
 }
 
-class _PassengerHomeBodyState extends State<_PassengerHomeBody>
-    with SingleTickerProviderStateMixin {
-  final _mapKey = GlobalKey<IqMapViewState>();
-
+class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
   /// Sheet snap sizes: collapsed ~35%, expanded ~70%
   static const double _sheetMin = 0.35;
   static const double _sheetMax = 0.70;
   static const double _sheetInitial = 0.35;
 
-  Set<Marker> _markers = {};
-  StreamSubscription<Position>? _positionStream;
+  /// Current position — updated by the isolated map section via callback.
+  /// No setState needed — this is only read when user taps search.
   LatLng? _currentPosition;
-  GoogleMapController? _mapController;
-
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _positionStream?.cancel();
-    super.dispose();
-  }
 
   /// Navigate to search destination page with current location.
   Future<void> _handleSearchTap() async {
@@ -175,60 +147,6 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
     );
   }
 
-  /// Request location permission, move map, and start position stream.
-  Future<void> _goToUserLocation() async {
-    try {
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
-
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
-
-      final latLng = LatLng(pos.latitude, pos.longitude);
-      _mapKey.currentState?.animateTo(latLng, zoom: 15.0);
-      _updateMarker(latLng);
-
-      // Start listening for position updates
-      _positionStream?.cancel();
-      _positionStream =
-          Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              distanceFilter: 10, // update every 10 meters
-            ),
-          ).listen((pos) {
-            _updateMarker(LatLng(pos.latitude, pos.longitude));
-          });
-    } catch (_) {
-      // Permission denied or location unavailable — stay at default.
-    }
-  }
-
-  /// Update the marker position on the map.
-  void _updateMarker(LatLng position) {
-    _currentPosition = position;
-    setState(() {
-      _markers = {
-        Marker(
-          markerId: MapMarkerIds.user,
-          position: position,
-          icon: MapIcons.user,
-          anchor: const Offset(0.5, 0.5),
-        ),
-      };
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
@@ -242,9 +160,6 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
         final userName = data?.name ?? '';
         final userRating = data?.rating ?? 0.0;
         final avatarUrl = data?.avatarUrl;
-        final bannerUrl = (data?.banners.isNotEmpty ?? false)
-            ? data!.banners.first.image
-            : null;
 
         // Build promo banners from API response
         final promoBanners =
@@ -307,37 +222,15 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
             child: Scaffold(
               body: Stack(
                 children: [
-                  // Full-screen Map with custom teal marker
+                  // ── Map Section ──────────────────────────────
+                  // Fully isolated in its own StatefulWidget.
+                  // BlocBuilder rebuilds do NOT touch the map.
                   Positioned.fill(
-                    child: IqMapView(
-                      key: _mapKey,
-                      markers: _markers,
-                      myLocationEnabled: false,
-                      myLocationButtonEnabled: false,
-                      onMapCreated: (controller) {
-                        _mapController = controller;
-                        _goToUserLocation();
-                      },
-                      mapPadding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).size.height * _sheetMin,
-                      ),
+                    child: _HomeMapSection(
+                      sheetFraction: _sheetMin,
+                      onPositionChanged: (pos) => _currentPosition = pos,
                     ),
                   ),
-
-                  // Pulsing accuracy circle — painted as Flutter overlay,
-                  // NOT as a GoogleMap circle. This avoids rebuilding the
-                  // entire native map widget 60 times per second.
-                  if (_currentPosition != null && _mapController != null)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: _PulsingAccuracyOverlay(
-                          animation: _pulseAnimation,
-                          controller: _mapController!,
-                          center: _currentPosition!,
-                          color: AppColors.markerTeal,
-                        ),
-                      ),
-                    ),
 
                   // Loading overlay
                   if (state.status == HomeStatus.loading)
@@ -409,19 +302,6 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
                     ),
                   ),
 
-                  // Current location FAB
-                  Positioned(
-                    bottom:
-                        MediaQuery.of(context).size.height * _sheetMin + 16.h,
-                    left: 16.w,
-                    child: _CircleButton(
-                      icon: Icons.my_location,
-                      size: 48.w,
-                      iconColor: AppColors.primary,
-                      onTap: _goToUserLocation,
-                    ),
-                  ),
-
                   // Bottom sheet
                   BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
                     builder: (context, sheetState) {
@@ -445,7 +325,9 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
                             },
                             onSearchTap: widget.onSearchTap ?? _handleSearchTap,
                             promoBanners: promoBanners,
-                            promoBannerUrl: bannerUrl,
+                            promoBannerUrl: (data?.banners.isNotEmpty ?? false)
+                                ? data!.banners.first.image
+                                : null,
                             onPromoBannerTap: widget.onPromoBannerTap,
                             onQuickPlaceTap: widget.onQuickPlaceTap,
                           );
@@ -491,7 +373,171 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
   }
 }
 
-// Reusable circle button
+// ═════════════════════════════════════════════════════════════════════
+// _HomeMapSection — Fully isolated map widget.
+//
+// This has its OWN State and lifecycle. When the parent's BlocBuilder
+// rebuilds to update the bottom sheet, this widget is NOT rebuilt
+// because Flutter recognises it hasn't changed (same widget, same key).
+//
+// Location tracking + pulsing overlay live here.
+// ═════════════════════════════════════════════════════════════════════
+
+class _HomeMapSection extends StatefulWidget {
+  const _HomeMapSection({
+    required this.sheetFraction,
+    required this.onPositionChanged,
+  });
+
+  final double sheetFraction;
+  final ValueChanged<LatLng> onPositionChanged;
+
+  @override
+  State<_HomeMapSection> createState() => _HomeMapSectionState();
+}
+
+class _HomeMapSectionState extends State<_HomeMapSection>
+    with SingleTickerProviderStateMixin {
+  final _mapKey = GlobalKey<IqMapViewState>();
+
+  Set<Marker> _markers = {};
+  StreamSubscription<Position>? _positionStream;
+  LatLng? _currentPosition;
+  GoogleMapController? _mapController;
+
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _positionStream?.cancel();
+    super.dispose();
+  }
+
+  /// Request location permission, move map, and start position stream.
+  Future<void> _goToUserLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      final latLng = LatLng(pos.latitude, pos.longitude);
+      _mapKey.currentState?.animateTo(latLng, zoom: 15.0);
+      _updateMarker(latLng);
+
+      // Start listening for position updates.
+      // distanceFilter: 50 — update only every 50m to reduce rebuilds.
+      _positionStream?.cancel();
+      _positionStream =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.best,
+              distanceFilter: 50,
+            ),
+          ).listen((pos) {
+            _updateMarker(LatLng(pos.latitude, pos.longitude));
+          });
+    } catch (_) {
+      // Permission denied or location unavailable — stay at default.
+    }
+  }
+
+  /// Update the marker position on the map.
+  void _updateMarker(LatLng position) {
+    _currentPosition = position;
+    widget.onPositionChanged(position);
+    setState(() {
+      _markers = {
+        Marker(
+          markerId: MapMarkerIds.user,
+          position: position,
+          icon: MapIcons.user,
+          anchor: const Offset(0.5, 0.5),
+        ),
+      };
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // The actual Google Map — only rebuilt when _markers changes.
+        Positioned.fill(
+          child: IqMapView(
+            key: _mapKey,
+            markers: _markers,
+            myLocationEnabled: false,
+            myLocationButtonEnabled: false,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              _goToUserLocation();
+            },
+            mapPadding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height * widget.sheetFraction,
+            ),
+          ),
+        ),
+
+        // Pulsing accuracy circle — painted as Flutter overlay.
+        if (_currentPosition != null && _mapController != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: _PulsingAccuracyOverlay(
+                animation: _pulseAnimation,
+                controller: _mapController!,
+                center: _currentPosition!,
+                color: AppColors.markerTeal,
+              ),
+            ),
+          ),
+
+        // Current location FAB
+        Positioned(
+          bottom:
+              MediaQuery.of(context).size.height * widget.sheetFraction + 16.h,
+          left: 16.w,
+          child: _CircleButton(
+            icon: Icons.my_location,
+            size: 48.w,
+            iconColor: AppColors.primary,
+            onTap: _goToUserLocation,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Reusable circle button ─────────────────────────────────────
+
 class _CircleButton extends StatelessWidget {
   const _CircleButton({
     required this.icon,
@@ -534,12 +580,14 @@ class _CircleButton extends StatelessWidget {
   }
 }
 
-/// Paints the pulsing accuracy circle as a Flutter overlay
-/// instead of a native map circle.
-///
-/// This approach avoids rebuilding the expensive GoogleMap
-/// widget 60 times per second. Only this lightweight widget
-/// repaints on each animation tick — the map stays untouched.
+// ═════════════════════════════════════════════════════════════════════
+// Pulsing Accuracy Overlay
+//
+// Paints the accuracy circle as a Flutter layer on top of the map.
+// Only this widget repaints 60fps — the expensive GoogleMap widget
+// is completely untouched.
+// ═════════════════════════════════════════════════════════════════════
+
 class _PulsingAccuracyOverlay extends StatefulWidget {
   const _PulsingAccuracyOverlay({
     required this.animation,

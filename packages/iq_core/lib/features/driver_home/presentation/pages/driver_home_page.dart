@@ -60,99 +60,11 @@ class DriverHomePage extends StatelessWidget {
   }
 }
 
-class _DriverHomeBody extends StatefulWidget {
+class _DriverHomeBody extends StatelessWidget {
   const _DriverHomeBody({required this.sidebarItems, this.onProfileTap});
 
   final List<IqSidebarItem> sidebarItems;
   final void Function(BuildContext context)? onProfileTap;
-
-  @override
-  State<_DriverHomeBody> createState() => _DriverHomeBodyState();
-}
-
-class _DriverHomeBodyState extends State<_DriverHomeBody>
-    with SingleTickerProviderStateMixin {
-  final _mapKey = GlobalKey<IqMapViewState>();
-
-  Set<Marker> _markers = {};
-  StreamSubscription<Position>? _positionStream;
-  LatLng? _currentPosition;
-  GoogleMapController? _mapController;
-
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _positionStream?.cancel();
-    super.dispose();
-  }
-
-  /// Request location permission, move map, and start position stream.
-  Future<void> _goToUserLocation() async {
-    try {
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever)
-        return;
-
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
-
-      final latLng = LatLng(pos.latitude, pos.longitude);
-      _mapKey.currentState?.animateTo(latLng, zoom: 15.0);
-      _updateMarker(latLng);
-
-      // Start listening for position updates
-      _positionStream?.cancel();
-      _positionStream =
-          Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              distanceFilter: 10,
-            ),
-          ).listen((pos) {
-            _updateMarker(LatLng(pos.latitude, pos.longitude));
-          });
-    } catch (_) {}
-  }
-
-  /// Update the marker position on the map.
-  void _updateMarker(LatLng position) {
-    _currentPosition = position;
-    setState(() {
-      _markers = {
-        Marker(
-          markerId: MapMarkerIds.user,
-          position: position,
-          icon: MapIcons.user,
-          anchor: const Offset(0.5, 0.5),
-        ),
-      };
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -212,12 +124,12 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
 
           return ZoomDrawer(
             menuScreen: IqSidebar(
-              items: widget.sidebarItems,
+              items: sidebarItems,
               userName: userName,
               userSubtitle: userSubtitle,
               userRating: userRating,
               avatarUrl: avatarUrl,
-              onProfileTap: widget.onProfileTap,
+              onProfileTap: onProfileTap,
             ),
             mainScreen: AnnotatedRegion<SystemUiOverlayStyle>(
               value: SystemUiOverlayStyle(
@@ -236,34 +148,10 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
               child: Scaffold(
                 body: Stack(
                   children: [
-                    // Full-screen Map with custom teal marker
-                    Positioned.fill(
-                      child: IqMapView(
-                        key: _mapKey,
-                        markers: _markers,
-                        myLocationEnabled: false,
-                        myLocationButtonEnabled: false,
-                        onMapCreated: (controller) {
-                          _mapController = controller;
-                          _goToUserLocation();
-                        },
-                        mapPadding: EdgeInsets.only(bottom: 240.h),
-                      ),
-                    ),
-
-                    // Pulsing accuracy circle — painted as Flutter overlay,
-                    // NOT as a GoogleMap circle.
-                    if (_currentPosition != null && _mapController != null)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: _PulsingAccuracyOverlay(
-                            animation: _pulseAnimation,
-                            controller: _mapController!,
-                            center: _currentPosition!,
-                            color: AppColors.markerTeal,
-                          ),
-                        ),
-                      ),
+                    // ── Map Section ──────────────────────────
+                    // Fully isolated — BlocBuilder rebuilds
+                    // do NOT touch the map.
+                    const Positioned.fill(child: _DriverMapSection()),
 
                     // Loading overlay
                     if (state.status == DriverHomeStatus.loading)
@@ -397,7 +285,146 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
   }
 }
 
-/// Paints the pulsing accuracy circle as a Flutter overlay.
+// ═════════════════════════════════════════════════════════════════════
+// _DriverMapSection — Fully isolated map widget.
+//
+// This has its OWN State and lifecycle. The parent BlocBuilder
+// does NOT touch this widget when it rebuilds for earnings/status.
+// ═════════════════════════════════════════════════════════════════════
+
+class _DriverMapSection extends StatefulWidget {
+  const _DriverMapSection();
+
+  @override
+  State<_DriverMapSection> createState() => _DriverMapSectionState();
+}
+
+class _DriverMapSectionState extends State<_DriverMapSection>
+    with SingleTickerProviderStateMixin {
+  final _mapKey = GlobalKey<IqMapViewState>();
+
+  Set<Marker> _markers = {};
+  StreamSubscription<Position>? _positionStream;
+  LatLng? _currentPosition;
+  GoogleMapController? _mapController;
+
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _positionStream?.cancel();
+    super.dispose();
+  }
+
+  /// Request location permission, move map, and start position stream.
+  Future<void> _goToUserLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      final latLng = LatLng(pos.latitude, pos.longitude);
+      _mapKey.currentState?.animateTo(latLng, zoom: 15.0);
+      _updateMarker(latLng);
+
+      // Start listening for position updates.
+      // distanceFilter: 50 — update only every 50m to reduce rebuilds.
+      _positionStream?.cancel();
+      _positionStream =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.best,
+              distanceFilter: 50,
+            ),
+          ).listen((pos) {
+            _updateMarker(LatLng(pos.latitude, pos.longitude));
+          });
+    } catch (_) {}
+  }
+
+  /// Update the marker position on the map.
+  void _updateMarker(LatLng position) {
+    _currentPosition = position;
+    setState(() {
+      _markers = {
+        Marker(
+          markerId: MapMarkerIds.user,
+          position: position,
+          icon: MapIcons.user,
+          anchor: const Offset(0.5, 0.5),
+        ),
+      };
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // The actual Google Map
+        Positioned.fill(
+          child: IqMapView(
+            key: _mapKey,
+            markers: _markers,
+            myLocationEnabled: false,
+            myLocationButtonEnabled: false,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              _goToUserLocation();
+            },
+            mapPadding: EdgeInsets.only(bottom: 240.h),
+          ),
+        ),
+
+        // Pulsing accuracy circle — Flutter overlay
+        if (_currentPosition != null && _mapController != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: _PulsingAccuracyOverlay(
+                animation: _pulseAnimation,
+                controller: _mapController!,
+                center: _currentPosition!,
+                color: AppColors.markerTeal,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// Pulsing Accuracy Overlay
+// ═════════════════════════════════════════════════════════════════════
+
 class _PulsingAccuracyOverlay extends StatefulWidget {
   const _PulsingAccuracyOverlay({
     required this.animation,
