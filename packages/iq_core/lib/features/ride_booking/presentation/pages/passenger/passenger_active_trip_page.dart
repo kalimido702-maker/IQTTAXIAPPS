@@ -151,9 +151,9 @@ class _TripMapState extends State<_TripMap> {
         trip!.polyline!.isNotEmpty &&
         trip.polyline != _lastPolylineSource) {
       _lastPolylineSource = trip.polyline;
-      final decoded = GoogleMapsService.decodePolyline(trip.polyline!);
+      final decoded = RouteHelper.decodeAndSimplify(trip.polyline!);
       if (decoded.isNotEmpty) {
-        setState(() => _routePoints = simplifyPolyline(decoded));
+        setState(() => _routePoints = decoded);
         return;
       }
     }
@@ -168,22 +168,18 @@ class _TripMapState extends State<_TripMap> {
   }
 
   Future<void> _fetchDirections() async {
-    try {
-      final service = sl<GoogleMapsService>();
-      final result = await service.getDirections(
-        originLat: widget.state.pickLat,
-        originLng: widget.state.pickLng,
-        destLat: widget.state.dropLat,
-        destLng: widget.state.dropLng,
-      );
-      if (result != null && mounted) {
-        setState(() {
-          _routePoints = simplifyPolyline(result.polylinePoints);
-          _lastPolylineSource = result.encodedPolyline;
-        });
-      }
-    } catch (_) {
-      // Silently fail — straight line fallback.
+    final result = await RouteHelper.fetchRoute(
+      service: sl<GoogleMapsService>(),
+      originLat: widget.state.pickLat,
+      originLng: widget.state.pickLng,
+      destLat: widget.state.dropLat,
+      destLng: widget.state.dropLng,
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _routePoints = result.polylinePoints;
+        _lastPolylineSource = result.encodedPolyline;
+      });
     }
   }
 
@@ -196,7 +192,7 @@ class _TripMapState extends State<_TripMap> {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.pickup,
         position: LatLng(widget.state.pickLat, widget.state.pickLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        icon: MapIcons.pickup,
       ));
     }
 
@@ -205,7 +201,7 @@ class _TripMapState extends State<_TripMap> {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.dropoff,
         position: LatLng(widget.state.dropLat, widget.state.dropLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        icon: MapIcons.dropoff,
       ));
     }
 
@@ -214,7 +210,7 @@ class _TripMapState extends State<_TripMap> {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.driver,
         position: LatLng(trip.driverLat ?? 0.0, trip.driverLng ?? 0.0),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+        icon: MapIcons.driver,
         rotation: trip.driverBearing ?? 0.0,
         anchor: const Offset(0.5, 0.5),
         flat: true,
@@ -224,26 +220,12 @@ class _TripMapState extends State<_TripMap> {
     // Route polyline — use decoded Google route if available.
     final routePts = _routePoints;
     if (routePts != null && routePts.length >= 2) {
-      _polylinePool.upsert(Polyline(
-        polylineId: MapPolylineIds.route,
-        color: AppColors.routeLine,
-        width: 5,
-        geodesic: true,
-        jointType: JointType.round,
-        startCap: Cap.roundCap,
-        endCap: Cap.roundCap,
-        points: routePts,
-      ));
+      _polylinePool.upsert(MapRouteStyle.route(points: routePts));
     } else if (widget.state.pickLat != 0 && widget.state.dropLat != 0) {
       // Fallback straight line
-      _polylinePool.upsert(Polyline(
-        polylineId: MapPolylineIds.route,
-        color: AppColors.routeLine,
-        width: 4,
-        points: [
-          LatLng(widget.state.pickLat, widget.state.pickLng),
-          LatLng(widget.state.dropLat, widget.state.dropLng),
-        ],
+      _polylinePool.upsert(MapRouteStyle.fallbackLine(
+        from: LatLng(widget.state.pickLat, widget.state.pickLng),
+        to: LatLng(widget.state.dropLat, widget.state.dropLng),
       ));
     }
 

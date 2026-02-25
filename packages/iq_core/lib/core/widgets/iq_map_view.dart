@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../constants/map_style.dart';
 import '../services/map_performance.dart';
 
 /// High-performance Google Maps wrapper.
@@ -53,6 +54,7 @@ class IqMapView extends StatefulWidget {
     this.zoomGesturesEnabled = true,
     this.keepAlive = true,
     this.liteModeEnabled = false,
+    this.mapStyle = kCleanMapStyle,
   });
 
   /// Initial camera center. If null, defaults to Baghdad.
@@ -93,6 +95,11 @@ class IqMapView extends StatefulWidget {
   /// (e.g., trip history cards). Saves significant GPU memory.
   final bool liteModeEnabled;
 
+  /// Map style JSON to apply. Defaults to [kCleanMapStyle] which
+  /// hides POIs, transit, and business labels for faster rendering.
+  /// Pass `null` to use Google's default style.
+  final String? mapStyle;
+
   @override
   State<IqMapView> createState() => IqMapViewState();
 }
@@ -109,9 +116,8 @@ class IqMapViewState extends State<IqMapView>
   static const _baghdad = LatLng(33.3152, 44.3661);
 
   /// Technique 8: Const gesture recognizer set — allocated once.
-  static final Set<Factory<OneSequenceGestureRecognizer>> _gestureRecognizers = {
-    Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
-  };
+  static final Set<Factory<OneSequenceGestureRecognizer>> _gestureRecognizers =
+      {Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer())};
 
   /// Technique 3: Cache the initial camera position — never re-created.
   late final CameraPosition _initialCameraPosition = CameraPosition(
@@ -221,7 +227,7 @@ class IqMapViewState extends State<IqMapView>
         gestureRecognizers: _gestureRecognizers,
         // Technique 9: Limit zoom to prevent excessive tile loading.
         minMaxZoomPreference: _zoomLimits,
-        style: null,
+        style: widget.mapStyle,
       ),
     );
   }

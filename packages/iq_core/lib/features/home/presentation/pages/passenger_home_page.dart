@@ -99,10 +99,9 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
   static const double _sheetInitial = 0.35;
 
   Set<Marker> _markers = {};
-  Set<Circle> _circles = {};
-  BitmapDescriptor? _markerIcon;
   StreamSubscription<Position>? _positionStream;
   LatLng? _currentPosition;
+  GoogleMapController? _mapController;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -110,7 +109,6 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
   @override
   void initState() {
     super.initState();
-    _loadMarkerIcon();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -120,48 +118,13 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-
-    _pulseController.addListener(_updateAccuracyCircle);
   }
 
   @override
   void dispose() {
-    _pulseController.removeListener(_updateAccuracyCircle);
     _pulseController.dispose();
     _positionStream?.cancel();
     super.dispose();
-  }
-
-  /// Load cached marker icon — uses [MarkerIconCache] singleton so the
-  /// expensive Canvas render only happens once across the entire app.
-  Future<void> _loadMarkerIcon() async {
-    final icon = await MarkerIconCache.instance.getCircleMarker(
-      key: 'user_location_teal',
-      color: AppColors.markerTeal,
-      size: 80,
-      withArrow: true,
-    );
-    if (mounted) {
-      _markerIcon = icon;
-    }
-  }
-
-  /// Rebuild the pulsing accuracy circle on each animation tick.
-  void _updateAccuracyCircle() {
-    if (_currentPosition == null) return;
-    final opacity = _pulseAnimation.value;
-    setState(() {
-      _circles = {
-        Circle(
-          circleId: const CircleId('accuracy'),
-          center: _currentPosition!,
-          radius: 50, // meters
-          fillColor: AppColors.markerTeal.withValues(alpha: 0.08 * opacity),
-          strokeColor: AppColors.markerTeal.withValues(alpha: 0.25 * opacity),
-          strokeWidth: 1,
-        ),
-      };
-    });
   }
 
   /// Navigate to search destination page with current location.
@@ -259,12 +222,11 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
         Marker(
           markerId: MapMarkerIds.user,
           position: position,
-          icon: _markerIcon ?? BitmapDescriptor.defaultMarker,
+          icon: MapIcons.user,
           anchor: const Offset(0.5, 0.5),
         ),
       };
     });
-    _updateAccuracyCircle();
   }
 
   @override
@@ -350,15 +312,32 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody>
                     child: IqMapView(
                       key: _mapKey,
                       markers: _markers,
-                      circles: _circles,
                       myLocationEnabled: false,
                       myLocationButtonEnabled: false,
-                      onMapCreated: (_) => _goToUserLocation(),
+                      onMapCreated: (controller) {
+                        _mapController = controller;
+                        _goToUserLocation();
+                      },
                       mapPadding: EdgeInsets.only(
                         bottom: MediaQuery.of(context).size.height * _sheetMin,
                       ),
                     ),
                   ),
+
+                  // Pulsing accuracy circle — painted as Flutter overlay,
+                  // NOT as a GoogleMap circle. This avoids rebuilding the
+                  // entire native map widget 60 times per second.
+                  if (_currentPosition != null && _mapController != null)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: _PulsingAccuracyOverlay(
+                          animation: _pulseAnimation,
+                          controller: _mapController!,
+                          center: _currentPosition!,
+                          color: AppColors.markerTeal,
+                        ),
+                      ),
+                    ),
 
                   // Loading overlay
                   if (state.status == HomeStatus.loading)
@@ -552,5 +531,117 @@ class _CircleButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Paints the pulsing accuracy circle as a Flutter overlay
+/// instead of a native map circle.
+///
+/// This approach avoids rebuilding the expensive GoogleMap
+/// widget 60 times per second. Only this lightweight widget
+/// repaints on each animation tick — the map stays untouched.
+class _PulsingAccuracyOverlay extends StatefulWidget {
+  const _PulsingAccuracyOverlay({
+    required this.animation,
+    required this.controller,
+    required this.center,
+    required this.color,
+  });
+
+  final Animation<double> animation;
+  final GoogleMapController controller;
+  final LatLng center;
+  final Color color;
+
+  @override
+  State<_PulsingAccuracyOverlay> createState() =>
+      _PulsingAccuracyOverlayState();
+}
+
+class _PulsingAccuracyOverlayState extends State<_PulsingAccuracyOverlay> {
+  Offset? _screenPos;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateScreenPos();
+  }
+
+  @override
+  void didUpdateWidget(_PulsingAccuracyOverlay old) {
+    super.didUpdateWidget(old);
+    if (old.center != widget.center) {
+      _updateScreenPos();
+    }
+  }
+
+  Future<void> _updateScreenPos() async {
+    try {
+      final coord = await widget.controller.getScreenCoordinate(widget.center);
+      if (!mounted) return;
+      final dpr = MediaQuery.of(context).devicePixelRatio;
+      setState(() {
+        _screenPos = Offset(coord.x / dpr, coord.y / dpr);
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_screenPos == null) return const SizedBox.shrink();
+
+    return AnimatedBuilder(
+      animation: widget.animation,
+      builder: (context, _) {
+        return CustomPaint(
+          painter: _CirclePainter(
+            center: _screenPos!,
+            opacity: widget.animation.value,
+            color: widget.color,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CirclePainter extends CustomPainter {
+  _CirclePainter({
+    required this.center,
+    required this.opacity,
+    required this.color,
+  });
+
+  final Offset center;
+  final double opacity;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius = 30 + (20 * opacity); // Pulse between 30-50 pixels
+
+    // Fill
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = color.withValues(alpha: 0.08 * opacity)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Stroke
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = color.withValues(alpha: 0.25 * opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CirclePainter oldDelegate) {
+    return oldDelegate.opacity != opacity || oldDelegate.center != center;
   }
 }

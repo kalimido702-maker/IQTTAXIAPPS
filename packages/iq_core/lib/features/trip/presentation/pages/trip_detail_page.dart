@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:iq_core/core/services/google_maps_service.dart';
 import 'package:iq_core/core/services/map_performance.dart';
 import 'package:iq_core/core/widgets/iq_map_view.dart';
 import 'package:iq_core/core/utils/utils.dart';
@@ -91,14 +90,6 @@ class _MapPreview extends StatefulWidget {
 class _MapPreviewState extends State<_MapPreview> {
   Set<Marker> _markers = {};
   bool _iconsReady = false;
-  GoogleMapController? _mapController;
-
-  @override
-  void dispose() {
-    _mapController?.dispose();
-    _mapController = null;
-    super.dispose();
-  }
 
   @override
   void initState() {
@@ -147,19 +138,14 @@ class _MapPreviewState extends State<_MapPreview> {
 
     // Decode the encoded polyline from the backend if available
     final polylinePoints = trip.polyLine != null && trip.polyLine!.isNotEmpty
-        ? GoogleMapsService.decodePolyline(trip.polyLine!)
+        ? RouteHelper.decodeAndSimplify(trip.polyLine!)
         : <LatLng>[pickup, dropoff];
 
     // Calculate bounds to fit the route (shared utility)
     final bounds = calculateBounds(polylinePoints);
 
     final polylines = <Polyline>{
-      Polyline(
-        polylineId: MapPolylineIds.route,
-        points: polylinePoints,
-        color: AppColors.gray3, // dark gray matching Figma
-        width: 4,
-      ),
+      MapRouteStyle.historyRoute(points: polylinePoints),
     };
 
     return Container(
@@ -180,7 +166,6 @@ class _MapPreviewState extends State<_MapPreview> {
               markers: _markers,
               polylines: polylines,
               onMapCreated: (controller) {
-                _mapController = controller;
                 // Fit the camera to show the full route with padding
                 Future.delayed(const Duration(milliseconds: 300), () {
                   if (!mounted) return;

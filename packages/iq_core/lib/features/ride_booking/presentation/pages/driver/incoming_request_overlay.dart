@@ -21,10 +21,7 @@ import '../../widgets/trip_address_row.dart';
 /// Full-screen overlay shown when a new ride request comes in.
 /// Figma 7:6066.
 class IncomingRequestOverlay extends StatefulWidget {
-  const IncomingRequestOverlay({
-    super.key,
-    required this.request,
-  });
+  const IncomingRequestOverlay({super.key, required this.request});
 
   final IncomingRequestModel request;
 
@@ -36,9 +33,24 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
   Timer? _countdownTimer;
   int _secondsLeft = 0;
 
+  /// Cached markers — created once, never rebuilt by timer.
+  late final Set<Marker> _markers;
+
   @override
   void initState() {
     super.initState();
+    _markers = {
+      Marker(
+        markerId: MapMarkerIds.pickup,
+        position: LatLng(widget.request.pickLat, widget.request.pickLng),
+        icon: MapIcons.pickup,
+      ),
+      Marker(
+        markerId: MapMarkerIds.dropoff,
+        position: LatLng(widget.request.dropLat, widget.request.dropLng),
+        icon: MapIcons.dropoff,
+      ),
+    };
     _calculateTimeLeft();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -48,8 +60,8 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
           // Auto-reject on timeout
           _countdownTimer?.cancel();
           context.read<DriverTripBloc>().add(
-                DriverTripRejected(widget.request.requestId),
-              );
+            DriverTripRejected(widget.request.requestId),
+          );
         }
       });
     });
@@ -88,21 +100,9 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                 child: IqMapView(
                   initialTarget: LatLng(req.pickLat, req.pickLng),
                   initialZoom: 14,
-                  markers: {
-                    Marker(
-                      markerId: MapMarkerIds.pickup,
-                      position: LatLng(req.pickLat, req.pickLng),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(
-                          BitmapDescriptor.hueGreen),
-                    ),
-                    Marker(
-                      markerId: MapMarkerIds.dropoff,
-                      position: LatLng(req.dropLat, req.dropLng),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(
-                          BitmapDescriptor.hueRed),
-                    ),
-                  },
+                  markers: _markers,
                   myLocationEnabled: false,
+                  liteModeEnabled: true,
                   keepAlive: false,
                   scrollGesturesEnabled: false,
                   zoomGesturesEnabled: false,
@@ -219,8 +219,8 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                               onTap: () {
                                 HapticFeedback.mediumImpact();
                                 context.read<DriverTripBloc>().add(
-                                      DriverTripRejected(req.requestId),
-                                    );
+                                  DriverTripRejected(req.requestId),
+                                );
                               },
                               borderRadius: BorderRadius.circular(30.r),
                               child: Padding(
@@ -243,8 +243,8 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                           child: SwipeToAcceptButton(
                             onAccepted: () {
                               context.read<DriverTripBloc>().add(
-                                    DriverTripAccepted(req.requestId),
-                                  );
+                                DriverTripAccepted(req.requestId),
+                              );
                             },
                           ),
                         ),

@@ -149,21 +149,19 @@ class _DriverTripMapState extends State<_DriverTripMap> {
   }
 
   Future<void> _fetchDirections(IncomingRequestModel req) async {
-    try {
-      final service = sl<GoogleMapsService>();
-      final result = await service.getDirections(
-        originLat: req.pickLat,
-        originLng: req.pickLng,
-        destLat: req.dropLat,
-        destLng: req.dropLng,
-      );
-      if (result != null && mounted) {
-        setState(() => _routePoints = simplifyPolyline(result.polylinePoints));
-        // Fit camera to route bounds.
-        final bounds = calculateBounds(result.polylinePoints);
-        widget.mapKey.currentState?.fitBounds(bounds);
-      }
-    } catch (_) {}
+    final result = await RouteHelper.fetchRoute(
+      service: sl<GoogleMapsService>(),
+      originLat: req.pickLat,
+      originLng: req.pickLng,
+      destLat: req.dropLat,
+      destLng: req.dropLng,
+    );
+    if (result != null && mounted) {
+      setState(() => _routePoints = result.polylinePoints);
+      // Fit camera to route bounds.
+      final bounds = calculateBounds(result.polylinePoints);
+      widget.mapKey.currentState?.fitBounds(bounds);
+    }
   }
 
   @override
@@ -176,38 +174,24 @@ class _DriverTripMapState extends State<_DriverTripMap> {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.pickup,
         position: LatLng(req.pickLat, req.pickLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        icon: MapIcons.pickup,
       ));
 
       // Dropoff marker
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.dropoff,
         position: LatLng(req.dropLat, req.dropLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        icon: MapIcons.dropoff,
       ));
 
       // Route polyline
       final routePts = _routePoints;
       if (routePts != null && routePts.length >= 2) {
-        _polylinePool.upsert(Polyline(
-          polylineId: MapPolylineIds.route,
-          color: AppColors.routeLine,
-          width: 5,
-          geodesic: true,
-          jointType: JointType.round,
-          startCap: Cap.roundCap,
-          endCap: Cap.roundCap,
-          points: routePts,
-        ));
+        _polylinePool.upsert(MapRouteStyle.route(points: routePts));
       } else {
-        _polylinePool.upsert(Polyline(
-          polylineId: MapPolylineIds.route,
-          color: AppColors.routeLine,
-          width: 4,
-          points: [
-            LatLng(req.pickLat, req.pickLng),
-            LatLng(req.dropLat, req.dropLng),
-          ],
+        _polylinePool.upsert(MapRouteStyle.fallbackLine(
+          from: LatLng(req.pickLat, req.pickLng),
+          to: LatLng(req.dropLat, req.dropLng),
         ));
       }
     }
@@ -217,7 +201,7 @@ class _DriverTripMapState extends State<_DriverTripMap> {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.driver,
         position: LatLng(trip.driverLat ?? 0.0, trip.driverLng ?? 0.0),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        icon: MapIcons.driver,
         rotation: trip.driverBearing ?? 0.0,
         anchor: const Offset(0.5, 0.5),
         flat: true,

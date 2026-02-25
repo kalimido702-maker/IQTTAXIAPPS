@@ -91,54 +91,43 @@ class _BodyState extends State<_Body> {
   DirectionsResult? _directions;
   bool _isLoadingRoute = false;
 
-  Set<Marker> get _markers => {
-        Marker(
-          markerId: MapMarkerIds.pickup,
-          position: LatLng(widget.pickupLat, widget.pickupLng),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        ),
-        Marker(
-          markerId: MapMarkerIds.dropoff,
-          position: LatLng(widget.dropoffLat, widget.dropoffLng),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        ),
-      };
+  /// Cached markers — rebuilt only when directions change.
+  late Set<Marker> _markers;
 
-  Set<Polyline> get _routePolylines {
+  /// Cached polylines — rebuilt only when directions change.
+  late Set<Polyline> _polylines;
+
+  void _rebuildMapObjects() {
+    _markers = {
+      Marker(
+        markerId: MapMarkerIds.pickup,
+        position: LatLng(widget.pickupLat, widget.pickupLng),
+        icon: MapIcons.pickup,
+      ),
+      Marker(
+        markerId: MapMarkerIds.dropoff,
+        position: LatLng(widget.dropoffLat, widget.dropoffLng),
+        icon: MapIcons.dropoff,
+      ),
+    };
+
     final pts = _directions?.polylinePoints;
-    if (pts == null || pts.isEmpty) {
-      // Fallback: straight line until directions load.
-      return {
-        Polyline(
-          polylineId: MapPolylineIds.route,
-          color: AppColors.routeLine,
-          width: 5,
-          points: [
-            LatLng(widget.pickupLat, widget.pickupLng),
-            LatLng(widget.dropoffLat, widget.dropoffLng),
-          ],
+    if (pts != null && pts.isNotEmpty) {
+      _polylines = { MapRouteStyle.route(points: pts) };
+    } else {
+      _polylines = {
+        MapRouteStyle.fallbackLine(
+          from: LatLng(widget.pickupLat, widget.pickupLng),
+          to: LatLng(widget.dropoffLat, widget.dropoffLng),
         ),
       };
     }
-    // Technique: simplify polyline to reduce GPU overdraw.
-    final simplified = simplifyPolyline(pts);
-    return {
-      Polyline(
-        polylineId: MapPolylineIds.route,
-        color: AppColors.routeLine,
-        width: 5,
-        geodesic: true,
-        jointType: JointType.round,
-        startCap: Cap.roundCap,
-        endCap: Cap.roundCap,
-        points: simplified,
-      ),
-    };
   }
 
   @override
   void initState() {
     super.initState();
+    _rebuildMapObjects();
     _fetchDirections();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fitRoute();
@@ -148,30 +137,27 @@ class _BodyState extends State<_Body> {
   /// Fetch Google Directions for accurate route, distance & duration.
   Future<void> _fetchDirections() async {
     setState(() => _isLoadingRoute = true);
-    try {
-      final service = sl<GoogleMapsService>();
-      final result = await service.getDirections(
-        originLat: widget.pickupLat,
-        originLng: widget.pickupLng,
-        destLat: widget.dropoffLat,
-        destLng: widget.dropoffLng,
-      );
+    final result = await RouteHelper.fetchRoute(
+      service: sl<GoogleMapsService>(),
+      originLat: widget.pickupLat,
+      originLng: widget.pickupLng,
+      destLat: widget.dropoffLat,
+      destLng: widget.dropoffLng,
+    );
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      if (result != null) {
-        setState(() {
-          _directions = result;
-          _isLoadingRoute = false;
-        });
-        // Re-fit camera to actual route bounds.
-        final bounds = calculateBounds(result.polylinePoints);
-        _mapKey.currentState?.fitBounds(bounds);
-      } else {
-        setState(() => _isLoadingRoute = false);
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoadingRoute = false);
+    if (result != null) {
+      setState(() {
+        _directions = result;
+        _isLoadingRoute = false;
+        _rebuildMapObjects();
+      });
+      // Re-fit camera to actual route bounds.
+      final bounds = calculateBounds(result.polylinePoints);
+      _mapKey.currentState?.fitBounds(bounds);
+    } else {
+      setState(() => _isLoadingRoute = false);
     }
   }
 
@@ -207,7 +193,7 @@ class _BodyState extends State<_Body> {
                 key: _mapKey,
                 initialTarget: LatLng(widget.pickupLat, widget.pickupLng),
                 markers: _markers,
-                polylines: _routePolylines,
+                polylines: _polylines,
                 mapPadding: EdgeInsets.only(bottom: 380.h),
               ),
             ),

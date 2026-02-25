@@ -4,6 +4,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../theme/app_colors.dart';
+import 'google_maps_service.dart';
+
 // ═══════════════════════════════════════════════════════════════════════
 // Technique 1: BitmapDescriptor Caching
 //
@@ -414,4 +417,197 @@ class MapPolylineIds {
   MapPolylineIds._();
   static const route = PolylineId('route');
   static const driverToPickup = PolylineId('driver_to_pickup');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Unified Map Icons
+//
+// Cached BitmapDescriptor icons used across all map pages. Eliminates
+// `defaultMarkerWithHue` calls in build() which allocate every frame.
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Centralized map marker icons — load once, reuse everywhere.
+///
+/// Call [MapIcons.precache] at app startup (e.g. in main or splash)
+/// to warm the cache. After that, synchronous getters return instantly.
+class MapIcons {
+  MapIcons._();
+
+  static BitmapDescriptor _pickup = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+  static BitmapDescriptor _dropoff = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+  static BitmapDescriptor _driver = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+  static BitmapDescriptor _user = BitmapDescriptor.defaultMarker;
+  static bool _precached = false;
+
+  /// Pickup marker — green circle.
+  static BitmapDescriptor get pickup => _pickup;
+
+  /// Dropoff marker — red circle.
+  static BitmapDescriptor get dropoff => _dropoff;
+
+  /// Driver marker — orange (consistent across passenger & driver apps).
+  static BitmapDescriptor get driver => _driver;
+
+  /// User location marker — teal with arrow indicator.
+  static BitmapDescriptor get user => _user;
+
+  /// Pre-load all custom icons via [MarkerIconCache]. Safe to call multiple
+  /// times — subsequent calls are no-ops.
+  static Future<void> precache() async {
+    if (_precached) return;
+    _precached = true;
+
+    final cache = MarkerIconCache.instance;
+
+    final results = await Future.wait([
+      cache.getCircleMarker(
+        key: 'pickup_green',
+        color: AppColors.pickupMarker,
+        size: 40,
+      ),
+      cache.getCircleMarker(
+        key: 'dropoff_red',
+        color: AppColors.dropoffMarker,
+        size: 40,
+      ),
+      cache.getCircleMarker(
+        key: 'driver_orange',
+        color: AppColors.warning, // orange
+        size: 44,
+        withArrow: true,
+      ),
+      cache.getCircleMarker(
+        key: 'user_location_teal',
+        color: AppColors.markerTeal,
+        size: 80,
+        withArrow: true,
+      ),
+    ]);
+
+    _pickup = results[0];
+    _dropoff = results[1];
+    _driver = results[2];
+    _user = results[3];
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Unified Map Route Style
+//
+// Single source of truth for polyline styling. Every page that draws a
+// route should use these factory methods so colors, widths, caps, etc.
+// are identical throughout the app.
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Consistent [Polyline] factory methods for route display.
+class MapRouteStyle {
+  MapRouteStyle._();
+
+  /// Standard route width in logical pixels.
+  static const int routeWidth = 5;
+
+  /// Straight-line (fallback) width — slightly thinner to indicate
+  /// it is not a real route.
+  static const int fallbackWidth = 4;
+
+  /// Create a styled route polyline from decoded/simplified points.
+  static Polyline route({
+    required List<LatLng> points,
+    PolylineId id = const PolylineId('route'),
+    Color? color,
+  }) {
+    return Polyline(
+      polylineId: id,
+      points: points,
+      color: color ?? AppColors.routeLine,
+      width: routeWidth,
+      geodesic: true,
+      jointType: JointType.round,
+      startCap: Cap.roundCap,
+      endCap: Cap.roundCap,
+    );
+  }
+
+  /// Create a straight-line fallback polyline between two points.
+  static Polyline fallbackLine({
+    required LatLng from,
+    required LatLng to,
+    PolylineId id = const PolylineId('route'),
+    Color? color,
+  }) {
+    return Polyline(
+      polylineId: id,
+      points: [from, to],
+      color: color ?? AppColors.routeLine,
+      width: fallbackWidth,
+    );
+  }
+
+  /// Create a static (history) route polyline — darker color, no caps.
+  static Polyline historyRoute({
+    required List<LatLng> points,
+    PolylineId id = const PolylineId('route'),
+  }) {
+    return Polyline(
+      polylineId: id,
+      points: points,
+      color: AppColors.gray3,
+      width: 4,
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Route Helper
+//
+// Consolidates the route fetching pattern that was duplicated across
+// passenger_active_trip, driver_active_trip, and ride_selection pages.
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Utility to fetch, decode, and simplify a Google Directions route.
+class RouteHelper {
+  RouteHelper._();
+
+  /// Fetch a route from Google Directions API, decode & simplify.
+  ///
+  /// Returns [DirectionsResult] with simplified polyline points, or
+  /// `null` on failure.
+  static Future<DirectionsResult?> fetchRoute({
+    required GoogleMapsService service,
+    required double originLat,
+    required double originLng,
+    required double destLat,
+    required double destLng,
+  }) async {
+    try {
+      final result = await service.getDirections(
+        originLat: originLat,
+        originLng: originLng,
+        destLat: destLat,
+        destLng: destLng,
+      );
+      if (result == null) return null;
+
+      // Return a new result with simplified polyline for GPU performance.
+      return DirectionsResult(
+        polylinePoints: simplifyPolyline(result.polylinePoints),
+        distanceText: result.distanceText,
+        distanceMeters: result.distanceMeters,
+        durationText: result.durationText,
+        durationSeconds: result.durationSeconds,
+        encodedPolyline: result.encodedPolyline,
+        boundsNE: result.boundsNE,
+        boundsSW: result.boundsSW,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Decode an encoded polyline string (e.g. from Firebase) and simplify it.
+  static List<LatLng> decodeAndSimplify(String encoded) {
+    final decoded = GoogleMapsService.decodePolyline(encoded);
+    if (decoded.isEmpty) return decoded;
+    return simplifyPolyline(decoded);
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:iq_core/iq_core.dart';
+import 'package:iq_core/core/services/map_performance.dart';
 import 'app/app.dart';
 
 void main() async {
@@ -33,6 +34,9 @@ void main() async {
 
   // Use latest Android Maps renderer for smoother performance
   await initMapRenderer();
+
+  // Pre-cache map icons so they're ready before any map page opens
+  MapIcons.precache();
 
   runApp(const DriverApp());
 }

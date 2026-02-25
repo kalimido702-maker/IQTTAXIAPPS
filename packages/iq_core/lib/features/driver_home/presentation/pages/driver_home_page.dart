@@ -75,10 +75,9 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
   final _mapKey = GlobalKey<IqMapViewState>();
 
   Set<Marker> _markers = {};
-  Set<Circle> _circles = {};
-  BitmapDescriptor? _markerIcon;
   StreamSubscription<Position>? _positionStream;
   LatLng? _currentPosition;
+  GoogleMapController? _mapController;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -86,7 +85,6 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
   @override
   void initState() {
     super.initState();
-    _loadMarkerIcon();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -96,48 +94,13 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-
-    _pulseController.addListener(_updateAccuracyCircle);
   }
 
   @override
   void dispose() {
-    _pulseController.removeListener(_updateAccuracyCircle);
     _pulseController.dispose();
     _positionStream?.cancel();
     super.dispose();
-  }
-
-  /// Load cached marker icon — uses [MarkerIconCache] singleton so the
-  /// expensive Canvas render only happens once across the entire app.
-  Future<void> _loadMarkerIcon() async {
-    final icon = await MarkerIconCache.instance.getCircleMarker(
-      key: 'user_location_teal',
-      color: AppColors.markerTeal,
-      size: 80,
-      withArrow: true,
-    );
-    if (mounted) {
-      _markerIcon = icon;
-    }
-  }
-
-  /// Rebuild the pulsing accuracy circle on each animation tick.
-  void _updateAccuracyCircle() {
-    if (_currentPosition == null) return;
-    final opacity = _pulseAnimation.value;
-    setState(() {
-      _circles = {
-        Circle(
-          circleId: const CircleId('accuracy'),
-          center: _currentPosition!,
-          radius: 50,
-          fillColor: AppColors.markerTeal.withValues(alpha: 0.08 * opacity),
-          strokeColor: AppColors.markerTeal.withValues(alpha: 0.25 * opacity),
-          strokeWidth: 1,
-        ),
-      };
-    });
   }
 
   /// Request location permission, move map, and start position stream.
@@ -184,12 +147,11 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
         Marker(
           markerId: MapMarkerIds.user,
           position: position,
-          icon: _markerIcon ?? BitmapDescriptor.defaultMarker,
+          icon: MapIcons.user,
           anchor: const Offset(0.5, 0.5),
         ),
       };
     });
-    _updateAccuracyCircle();
   }
 
   @override
@@ -231,187 +193,311 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
         buildWhen: (prev, curr) =>
             prev.status != curr.status || prev.homeData != curr.homeData,
         builder: (context, state) {
-        final data = state.homeData;
-        final userName = data?.name ?? '';
-        final userSubtitle = data?.driverSubtitle ?? '';
-        final userRating = data?.rating ?? 0.0;
-        final avatarUrl = data?.avatarUrl;
+          final data = state.homeData;
+          final userName = data?.name ?? '';
+          final userSubtitle = data?.driverSubtitle ?? '';
+          final userRating = data?.rating ?? 0.0;
+          final avatarUrl = data?.avatarUrl;
 
-        // Build earnings from API data
-        final earnings = TodayEarnings(
-          tripsCount: data?.totalRidesTaken ?? 0,
-          distanceKm: data?.totalKms ?? 0,
-          activeHours: data?.activeHours ?? 0,
-          activeMinutes: data?.activeMinutes ?? 0,
-          totalEarningsIQD: data?.totalEarnings ?? 0,
-        );
+          // Build earnings from API data
+          final earnings = TodayEarnings(
+            tripsCount: data?.totalRidesTaken ?? 0,
+            distanceKm: data?.totalKms ?? 0,
+            activeHours: data?.activeHours ?? 0,
+            activeMinutes: data?.activeMinutes ?? 0,
+            totalEarningsIQD: data?.totalEarnings ?? 0,
+          );
 
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+          final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        return ZoomDrawer(
-          menuScreen: IqSidebar(
-            items: widget.sidebarItems,
-            userName: userName,
-            userSubtitle: userSubtitle,
-            userRating: userRating,
-            avatarUrl: avatarUrl,
-            onProfileTap: widget.onProfileTap,
-          ),
-          mainScreen: AnnotatedRegion<SystemUiOverlayStyle>(
-            value: SystemUiOverlayStyle(
-              statusBarColor: AppColors.transparent,
-              statusBarIconBrightness: isDark
-                  ? Brightness.light
-                  : Brightness.dark,
-              statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-              systemNavigationBarColor: AppColors.transparent,
-              systemNavigationBarIconBrightness: isDark
-                  ? Brightness.light
-                  : Brightness.dark,
+          return ZoomDrawer(
+            menuScreen: IqSidebar(
+              items: widget.sidebarItems,
+              userName: userName,
+              userSubtitle: userSubtitle,
+              userRating: userRating,
+              avatarUrl: avatarUrl,
+              onProfileTap: widget.onProfileTap,
             ),
-            child: Scaffold(
-              body: Stack(
-                children: [
-                  // Full-screen Map with custom teal marker
-                  Positioned.fill(
-                    child: IqMapView(
-                      key: _mapKey,
-                      markers: _markers,
-                      circles: _circles,
-                      myLocationEnabled: false,
-                      myLocationButtonEnabled: false,
-                      onMapCreated: (_) => _goToUserLocation(),
-                      mapPadding: EdgeInsets.only(bottom: 240.h),
-                    ),
-                  ),
-
-                  // Loading overlay
-                  if (state.status == DriverHomeStatus.loading)
+            mainScreen: AnnotatedRegion<SystemUiOverlayStyle>(
+              value: SystemUiOverlayStyle(
+                statusBarColor: AppColors.transparent,
+                statusBarIconBrightness: isDark
+                    ? Brightness.light
+                    : Brightness.dark,
+                statusBarBrightness: isDark
+                    ? Brightness.dark
+                    : Brightness.light,
+                systemNavigationBarColor: AppColors.transparent,
+                systemNavigationBarIconBrightness: isDark
+                    ? Brightness.light
+                    : Brightness.dark,
+              ),
+              child: Scaffold(
+                body: Stack(
+                  children: [
+                    // Full-screen Map with custom teal marker
                     Positioned.fill(
-                      child: Container(
-                        color: AppColors.white.withValues(alpha: 0.5),
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.buttonYellow,
-                          ),
-                        ),
+                      child: IqMapView(
+                        key: _mapKey,
+                        markers: _markers,
+                        myLocationEnabled: false,
+                        myLocationButtonEnabled: false,
+                        onMapCreated: (controller) {
+                          _mapController = controller;
+                          _goToUserLocation();
+                        },
+                        mapPadding: EdgeInsets.only(bottom: 240.h),
                       ),
                     ),
 
-                  // Error banner
-                  if (state.status == DriverHomeStatus.error)
-                    Positioned(
-                      top: topPadding + 60.h,
-                      left: 24.w,
-                      right: 24.w,
-                      child: Material(
-                        borderRadius: BorderRadius.circular(12.r),
-                        color: AppColors.error,
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16.w,
-                            vertical: 12.h,
+                    // Pulsing accuracy circle — painted as Flutter overlay,
+                    // NOT as a GoogleMap circle.
+                    if (_currentPosition != null && _mapController != null)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: _PulsingAccuracyOverlay(
+                            animation: _pulseAnimation,
+                            controller: _mapController!,
+                            center: _currentPosition!,
+                            color: AppColors.markerTeal,
                           ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: IqText(
-                                  state.errorMessage ?? 'حدث خطأ',
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    color: AppColors.white,
+                        ),
+                      ),
+
+                    // Loading overlay
+                    if (state.status == DriverHomeStatus.loading)
+                      Positioned.fill(
+                        child: Container(
+                          color: AppColors.white.withValues(alpha: 0.5),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.buttonYellow,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // Error banner
+                    if (state.status == DriverHomeStatus.error)
+                      Positioned(
+                        top: topPadding + 60.h,
+                        left: 24.w,
+                        right: 24.w,
+                        child: Material(
+                          borderRadius: BorderRadius.circular(12.r),
+                          color: AppColors.error,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16.w,
+                              vertical: 12.h,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: IqText(
+                                    state.errorMessage ?? 'حدث خطأ',
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      color: AppColors.white,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              GestureDetector(
-                                onTap: () => context.read<DriverHomeBloc>().add(
-                                  const DriverHomeLoadRequested(),
+                                GestureDetector(
+                                  onTap: () => context
+                                      .read<DriverHomeBloc>()
+                                      .add(const DriverHomeLoadRequested()),
+                                  child: Icon(
+                                    Icons.refresh,
+                                    color: AppColors.white,
+                                    size: 24.w,
+                                  ),
                                 ),
-                                child: Icon(
-                                  Icons.refresh,
-                                  color: AppColors.white,
-                                  size: 24.w,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
+
+                    // Top bar
+                    Positioned(
+                      top: topPadding + 12.h,
+                      left: 16.w,
+                      right: 16.w,
+                      child: Row(
+                        children: [
+                          const Spacer(),
+                          // Online/Offline badge
+                          BlocBuilder<DriverHomeBloc, DriverHomeState>(
+                            buildWhen: (prev, curr) =>
+                                prev.isOnline != curr.isOnline ||
+                                prev.isToggling != curr.isToggling,
+                            builder: (context, badgeState) {
+                              return DriverStatusBadge(
+                                isOnline: badgeState.isOnline,
+                                isLoading: badgeState.isToggling,
+                                onToggle: () => context
+                                    .read<DriverHomeBloc>()
+                                    .add(const DriverHomeStatusToggled()),
+                              );
+                            },
+                          ),
+                          const Spacer(),
+                          // Menu button
+                          Builder(
+                            builder: (drawerCtx) => IqMenuButton(
+                              onTap: () => ZoomDrawer.of(drawerCtx)?.toggle(),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
 
-                  // Top bar
-                  Positioned(
-                    top: topPadding + 12.h,
-                    left: 16.w,
-                    right: 16.w,
-                    child: Row(
-                      children: [
-                        const Spacer(),
-                        // Online/Offline badge
-                        BlocBuilder<DriverHomeBloc, DriverHomeState>(
-                          buildWhen: (prev, curr) =>
-                              prev.isOnline != curr.isOnline ||
-                              prev.isToggling != curr.isToggling,
-                          builder: (context, badgeState) {
-                            return DriverStatusBadge(
-                              isOnline: badgeState.isOnline,
-                              isLoading: badgeState.isToggling,
-                              onToggle: () => context
-                                  .read<DriverHomeBloc>()
-                                  .add(const DriverHomeStatusToggled()),
-                            );
-                          },
-                        ),
-                        const Spacer(),
-                        // Menu button
-                        Builder(
-                          builder: (drawerCtx) => IqMenuButton(
-                            onTap: () => ZoomDrawer.of(drawerCtx)?.toggle(),
-                          ),
-                        ),
-                      ],
+                    // Bottom earnings sheet
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: EarningsBottomSheet(earnings: earnings),
                     ),
-                  ),
 
-                  // Bottom earnings sheet
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: EarningsBottomSheet(earnings: earnings),
-                  ),
-
-                  // Incoming request overlay
-                  BlocBuilder<DriverTripBloc, DriverTripState>(
-                    buildWhen: (prev, curr) =>
-                        prev.status != curr.status ||
-                        prev.incomingRequest != curr.incomingRequest,
-                    builder: (context, tripState) {
-                      if (tripState.status == DriverTripStatus.incomingRequest &&
-                          tripState.incomingRequest != null) {
-                        return Positioned.fill(
-                          child: IncomingRequestOverlay(
-                            request: tripState.incomingRequest!,
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ],
+                    // Incoming request overlay
+                    BlocBuilder<DriverTripBloc, DriverTripState>(
+                      buildWhen: (prev, curr) =>
+                          prev.status != curr.status ||
+                          prev.incomingRequest != curr.incomingRequest,
+                      builder: (context, tripState) {
+                        if (tripState.status ==
+                                DriverTripStatus.incomingRequest &&
+                            tripState.incomingRequest != null) {
+                          return Positioned.fill(
+                            child: IncomingRequestOverlay(
+                              request: tripState.incomingRequest!,
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
+            slideWidth: MediaQuery.of(context).size.width * 0.65,
+            isRtl: true,
+            borderRadius: 24.0,
+            showShadow: true,
+            angle: 0.0,
+            disableDragGesture: true,
+            drawerShadowsBackgroundColor: AppColors.drawerShadow,
+            mainScreenTapClose: true,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Paints the pulsing accuracy circle as a Flutter overlay.
+class _PulsingAccuracyOverlay extends StatefulWidget {
+  const _PulsingAccuracyOverlay({
+    required this.animation,
+    required this.controller,
+    required this.center,
+    required this.color,
+  });
+
+  final Animation<double> animation;
+  final GoogleMapController controller;
+  final LatLng center;
+  final Color color;
+
+  @override
+  State<_PulsingAccuracyOverlay> createState() =>
+      _PulsingAccuracyOverlayState();
+}
+
+class _PulsingAccuracyOverlayState extends State<_PulsingAccuracyOverlay> {
+  Offset? _screenPos;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateScreenPos();
+  }
+
+  @override
+  void didUpdateWidget(_PulsingAccuracyOverlay old) {
+    super.didUpdateWidget(old);
+    if (old.center != widget.center) {
+      _updateScreenPos();
+    }
+  }
+
+  Future<void> _updateScreenPos() async {
+    try {
+      final coord = await widget.controller.getScreenCoordinate(widget.center);
+      if (!mounted) return;
+      final dpr = MediaQuery.of(context).devicePixelRatio;
+      setState(() {
+        _screenPos = Offset(coord.x / dpr, coord.y / dpr);
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_screenPos == null) return const SizedBox.shrink();
+
+    return AnimatedBuilder(
+      animation: widget.animation,
+      builder: (context, _) {
+        return CustomPaint(
+          painter: _CirclePainter(
+            center: _screenPos!,
+            opacity: widget.animation.value,
+            color: widget.color,
           ),
-          slideWidth: MediaQuery.of(context).size.width * 0.65,
-          isRtl: true,
-          borderRadius: 24.0,
-          showShadow: true,
-          angle: 0.0,
-          disableDragGesture: true,
-          drawerShadowsBackgroundColor: AppColors.drawerShadow,
-          mainScreenTapClose: true,
         );
       },
-    ),
     );
+  }
+}
+
+class _CirclePainter extends CustomPainter {
+  _CirclePainter({
+    required this.center,
+    required this.opacity,
+    required this.color,
+  });
+
+  final Offset center;
+  final double opacity;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius = 30 + (20 * opacity);
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = color.withValues(alpha: 0.08 * opacity)
+        ..style = PaintingStyle.fill,
+    );
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = color.withValues(alpha: 0.25 * opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CirclePainter oldDelegate) {
+    return oldDelegate.opacity != opacity || oldDelegate.center != center;
   }
 }
