@@ -99,18 +99,14 @@ class HomeBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final surfaceColor = Theme.of(context).colorScheme.surface;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(40.r)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.12),
-            blurRadius: 8,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
+    // Material.elevation uses drawShadow() — GPU-cached, NOT recomputed
+    // per frame like BoxShadow's MaskFilter.blur(). Critical for smooth
+    // DraggableScrollableSheet drag over a Google Maps platform view.
+    return Material(
+      elevation: 8,
+      shadowColor: AppColors.shadow,
+      borderRadius: BorderRadius.vertical(top: Radius.circular(40.r)),
+      color: surfaceColor,
       child: ListView(
         controller: scrollController,
         padding: EdgeInsets.zero,
@@ -302,6 +298,14 @@ class _BannerCarousel extends StatefulWidget {
 
 class _BannerCarouselState extends State<_BannerCarousel> {
   int _currentPage = 0;
+  final PageController _pageController =
+      PageController(viewportFraction: 0.88);
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,7 +315,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
           height: 130.h,
           child: PageView.builder(
             itemCount: widget.banners.length,
-            controller: PageController(viewportFraction: 0.88),
+            controller: _pageController,
             onPageChanged: (i) => setState(() => _currentPage = i),
             itemBuilder: (context, index) {
               final b = widget.banners[index];

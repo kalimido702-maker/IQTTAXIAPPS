@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -94,14 +92,23 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
   static const double _sheetMax = 0.70;
   static const double _sheetInitial = 0.35;
 
-  /// Current position — updated by the isolated map section via callback.
-  /// No setState needed — this is only read when user taps search.
-  LatLng? _currentPosition;
-
   /// Navigate to search destination page with current location.
+  /// Uses [Geolocator.getLastKnownPosition] for instant access to the
+  /// most recent cached position — no stream subscription needed.
   Future<void> _handleSearchTap() async {
-    final lat = _currentPosition?.latitude ?? 33.3152;
-    final lng = _currentPosition?.longitude ?? 44.3661;
+    double lat = 33.3152;
+    double lng = 44.3661;
+
+    // Instantly read the most recent position from the system cache.
+    // myLocationEnabled: true keeps the cache fresh via the map SDK.
+    try {
+      final lastPos = await Geolocator.getLastKnownPosition();
+      if (lastPos != null) {
+        lat = lastPos.latitude;
+        lng = lastPos.longitude;
+      }
+    } catch (_) {}
+
     String address = 'الموقع الحالي';
 
     final homeData = context.read<PassengerHomeBloc>().state.homeData;
@@ -182,10 +189,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
               // ── Map Section ──────────────────────────────
               // Fully isolated in its own StatefulWidget.
               Positioned.fill(
-                child: _HomeMapSection(
-                  sheetFraction: _sheetMin,
-                  onPositionChanged: (pos) => _currentPosition = pos,
-                ),
+                child: const _HomeMapSection(),
               ),
 
               // Loading / Error overlays — only these rebuild
@@ -387,21 +391,15 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
 // ═════════════════════════════════════════════════════════════════════
 // _HomeMapSection — Fully isolated map widget.
 //
-// This has its OWN State and lifecycle. When the parent's BlocBuilder
-// rebuilds to update the bottom sheet, this widget is NOT rebuilt
-// because Flutter recognises it hasn't changed (same widget, same key).
+// const-constructable: Flutter skips didUpdateWidget, ensuring the
+// map platform view is NEVER disturbed by parent rebuilds.
 //
-// Location tracking + pulsing overlay live here.
+// Uses myLocationEnabled: true for the blue dot; position for search
+// is read lazily via Geolocator.getLastKnownPosition().
 // ═════════════════════════════════════════════════════════════════════
 
 class _HomeMapSection extends StatefulWidget {
-  const _HomeMapSection({
-    required this.sheetFraction,
-    required this.onPositionChanged,
-  });
-
-  final double sheetFraction;
-  final ValueChanged<LatLng> onPositionChanged;
+  const _HomeMapSection();
 
   @override
   State<_HomeMapSection> createState() => _HomeMapSectionState();
@@ -410,15 +408,10 @@ class _HomeMapSection extends StatefulWidget {
 class _HomeMapSectionState extends State<_HomeMapSection> {
   final _mapKey = GlobalKey<IqMapViewState>();
 
-  StreamSubscription<Position>? _positionStream;
+  /// Map bottom padding — matches sheet collapsed height.
+  static const double _sheetFraction = 0.35;
 
-  @override
-  void dispose() {
-    _positionStream?.cancel();
-    super.dispose();
-  }
-
-  /// Request location permission, move map, and start position stream.
+  /// Request location permission and move map to current location.
   Future<void> _goToUserLocation() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -432,36 +425,24 @@ class _HomeMapSectionState extends State<_HomeMapSection> {
 
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
+          accuracy: LocationAccuracy.high,
           timeLimit: Duration(seconds: 10),
         ),
       );
 
-      final latLng = LatLng(pos.latitude, pos.longitude);
-      _mapKey.currentState?.animateTo(latLng, zoom: 15.0);
-      widget.onPositionChanged(latLng);
-
-      // Start listening for position updates to keep _currentPosition fresh.
-      _positionStream?.cancel();
-      _positionStream =
-          Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              distanceFilter: 50,
-            ),
-          ).listen((pos) {
-            widget.onPositionChanged(LatLng(pos.latitude, pos.longitude));
-          });
-    } catch (_) {
-      // Permission denied or location unavailable — stay at default.
-    }
+      _mapKey.currentState?.animateTo(
+        LatLng(pos.latitude, pos.longitude),
+        zoom: 15.0,
+      );
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+
     return Stack(
       children: [
-        // The actual Google Map — uses default blue dot for location.
         Positioned.fill(
           child: IqMapView(
             key: _mapKey,
@@ -471,15 +452,14 @@ class _HomeMapSectionState extends State<_HomeMapSection> {
             tiltGesturesEnabled: false,
             onMapCreated: (_) => _goToUserLocation(),
             mapPadding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).size.height * widget.sheetFraction,
+              bottom: screenHeight * _sheetFraction,
             ),
           ),
         ),
 
         // Current location FAB
         Positioned(
-          bottom:
-              MediaQuery.of(context).size.height * widget.sheetFraction + 16.h,
+          bottom: screenHeight * _sheetFraction + 16.h,
           left: 16.w,
           child: _CircleButton(
             icon: Icons.my_location,
@@ -511,26 +491,22 @@ class _CircleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = size ?? 40.w;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: s,
-        height: s,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadow.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          size: s * 0.55,
-          color: iconColor ?? Theme.of(context).colorScheme.onSurface,
+    return SizedBox(
+      width: s,
+      height: s,
+      child: Material(
+        elevation: 4,
+        shadowColor: AppColors.shadow,
+        shape: const CircleBorder(),
+        color: Theme.of(context).colorScheme.surface,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Icon(
+            icon,
+            size: s * 0.55,
+            color: iconColor ?? Theme.of(context).colorScheme.onSurface,
+          ),
         ),
       ),
     );

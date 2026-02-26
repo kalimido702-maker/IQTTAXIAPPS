@@ -20,5 +20,12 @@ Future<void> initMapRenderer() async {
     } on PlatformException catch (_) {
       // Already initialized on the native side (e.g. after hot restart).
     }
+
+    // Force Texture Layer Hybrid Composition (TLHC) for best map
+    // performance. TLHC avoids the GPU thread-sync overhead of
+    // Hybrid Composition when compositing the map platform view
+    // with Flutter widgets (bottom sheets, overlays).
+    // ignore: deprecated_member_use
+    platform.useAndroidViewSurface = false;
   }
 }
