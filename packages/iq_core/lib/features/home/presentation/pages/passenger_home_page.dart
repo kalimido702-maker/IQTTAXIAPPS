@@ -264,84 +264,89 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                 ),
               ),
 
-              // Bottom sheet — scoped BlocBuilder for sheet data only
-              BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
-                buildWhen: (prev, curr) =>
-                    prev.homeData != curr.homeData ||
-                    prev.rideModules != curr.rideModules ||
-                    prev.activeCategory != curr.activeCategory,
-                builder: (context, state) {
-                  final data = state.homeData;
+              // Bottom sheet — persistent, only inner content rebuilds.
+              // RepaintBoundary isolates sheet repaints from the map
+              // layer so the GPU never re-composites the platform view
+              // while the user drags the sheet.
+              RepaintBoundary(
+                child: DraggableScrollableSheet(
+                  initialChildSize: _sheetInitial,
+                  minChildSize: _sheetMin,
+                  maxChildSize: _sheetMax,
+                  snap: true,
+                  snapSizes: const [_sheetMin, _sheetMax],
+                  builder: (context, scrollController) {
+                    return BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
+                      buildWhen: (prev, curr) =>
+                          prev.homeData != curr.homeData ||
+                          prev.rideModules != curr.rideModules ||
+                          prev.activeCategory != curr.activeCategory,
+                      builder: (context, state) {
+                        final data = state.homeData;
 
-                  final promoBanners =
-                      data?.banners
-                          .map(
-                            (b) => PromoBanner(
-                              imageUrl:
-                                  b.image.isNotEmpty ? b.image : null,
-                              redirectLink: b.redirectLink,
-                            ),
-                          )
-                          .toList() ??
-                      [];
+                        final promoBanners =
+                            data?.banners
+                                .map(
+                                  (b) => PromoBanner(
+                                    imageUrl:
+                                        b.image.isNotEmpty ? b.image : null,
+                                    redirectLink: b.redirectLink,
+                                  ),
+                                )
+                                .toList() ??
+                            [];
 
-                  final quickPlaces =
-                      data?.allFavouriteLocations
-                          .map(
-                            (loc) => QuickPlace(
-                              name: loc.address,
-                              lat: loc.lat,
-                              lng: loc.lng,
-                            ),
-                          )
-                          .toList() ??
-                      [];
+                        final quickPlaces =
+                            data?.allFavouriteLocations
+                                .map(
+                                  (loc) => QuickPlace(
+                                    name: loc.address,
+                                    lat: loc.lat,
+                                    lng: loc.lng,
+                                  ),
+                                )
+                                .toList() ??
+                            [];
 
-                  final categories = state.rideModules.isNotEmpty
-                      ? state.rideModules
-                            .map(
-                              (m) => ServiceCategory(
-                                id: m.id,
-                                label: m.name,
-                                imageUrl: m.icon,
-                              ),
-                            )
-                            .toList()
-                      : _buildFallbackCategories(
-                          data?.enableModules ?? 'taxi',
+                        final categories = state.rideModules.isNotEmpty
+                            ? state.rideModules
+                                  .map(
+                                    (m) => ServiceCategory(
+                                      id: m.id,
+                                      label: m.name,
+                                      imageUrl: m.icon,
+                                    ),
+                                  )
+                                  .toList()
+                            : _buildFallbackCategories(
+                                data?.enableModules ?? 'taxi',
+                              );
+
+                        return HomeBottomSheet(
+                          scrollController: scrollController,
+                          categories: categories,
+                          quickPlaces: quickPlaces,
+                          activeCategory: state.activeCategory,
+                          onCategoryTap: (i) {
+                            context.read<PassengerHomeBloc>().add(
+                              PassengerHomeCategoryChanged(i),
+                            );
+                            widget.onCategoryChanged?.call(i);
+                          },
+                          onSearchTap:
+                              widget.onSearchTap ?? _handleSearchTap,
+                          promoBanners: promoBanners,
+                          promoBannerUrl:
+                              (data?.banners.isNotEmpty ?? false)
+                                  ? data!.banners.first.image
+                                  : null,
+                          onPromoBannerTap: widget.onPromoBannerTap,
+                          onQuickPlaceTap: widget.onQuickPlaceTap,
                         );
-
-                  return DraggableScrollableSheet(
-                    initialChildSize: _sheetInitial,
-                    minChildSize: _sheetMin,
-                    maxChildSize: _sheetMax,
-                    snap: true,
-                    snapSizes: const [_sheetMin, _sheetMax],
-                    builder: (context, scrollController) {
-                      return HomeBottomSheet(
-                        scrollController: scrollController,
-                        categories: categories,
-                        quickPlaces: quickPlaces,
-                        activeCategory: state.activeCategory,
-                        onCategoryTap: (i) {
-                          context.read<PassengerHomeBloc>().add(
-                            PassengerHomeCategoryChanged(i),
-                          );
-                          widget.onCategoryChanged?.call(i);
-                        },
-                        onSearchTap:
-                            widget.onSearchTap ?? _handleSearchTap,
-                        promoBanners: promoBanners,
-                        promoBannerUrl:
-                            (data?.banners.isNotEmpty ?? false)
-                                ? data!.banners.first.image
-                                : null,
-                        onPromoBannerTap: widget.onPromoBannerTap,
-                        onQuickPlaceTap: widget.onQuickPlaceTap,
-                      );
-                    },
-                  );
-                },
+                      },
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -441,7 +446,7 @@ class _HomeMapSectionState extends State<_HomeMapSection> {
       _positionStream =
           Geolocator.getPositionStream(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.best,
+              accuracy: LocationAccuracy.high,
               distanceFilter: 50,
             ),
           ).listen((pos) {
@@ -462,6 +467,8 @@ class _HomeMapSectionState extends State<_HomeMapSection> {
             key: _mapKey,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
+            rotateGesturesEnabled: false,
+            tiltGesturesEnabled: false,
             onMapCreated: (_) => _goToUserLocation(),
             mapPadding: EdgeInsets.only(
               bottom: MediaQuery.of(context).size.height * widget.sheetFraction,

@@ -230,26 +230,28 @@ class _DriverHomeBody extends StatelessWidget {
                 ),
               ),
 
-              // Bottom earnings sheet — scoped rebuild
-              BlocBuilder<DriverHomeBloc, DriverHomeState>(
-                buildWhen: (prev, curr) =>
-                    prev.homeData != curr.homeData,
-                builder: (context, state) {
-                  final data = state.homeData;
-                  final earnings = TodayEarnings(
-                    tripsCount: data?.totalRidesTaken ?? 0,
-                    distanceKm: data?.totalKms ?? 0,
-                    activeHours: data?.activeHours ?? 0,
-                    activeMinutes: data?.activeMinutes ?? 0,
-                    totalEarningsIQD: data?.totalEarnings ?? 0,
-                  );
-                  return Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: EarningsBottomSheet(earnings: earnings),
-                  );
-                },
+              // Bottom earnings sheet — isolated repaint layer
+              RepaintBoundary(
+                child: BlocBuilder<DriverHomeBloc, DriverHomeState>(
+                  buildWhen: (prev, curr) =>
+                      prev.homeData != curr.homeData,
+                  builder: (context, state) {
+                    final data = state.homeData;
+                    final earnings = TodayEarnings(
+                      tripsCount: data?.totalRidesTaken ?? 0,
+                      distanceKm: data?.totalKms ?? 0,
+                      activeHours: data?.activeHours ?? 0,
+                      activeMinutes: data?.activeMinutes ?? 0,
+                      totalEarningsIQD: data?.totalEarnings ?? 0,
+                    );
+                    return Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: EarningsBottomSheet(earnings: earnings),
+                    );
+                  },
+                ),
               ),
 
               // Incoming request overlay
@@ -342,6 +344,8 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
             key: _mapKey,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
+            rotateGesturesEnabled: false,
+            tiltGesturesEnabled: false,
             onMapCreated: (_) => _goToUserLocation(),
             mapPadding: EdgeInsets.only(bottom: 240.h),
           ),

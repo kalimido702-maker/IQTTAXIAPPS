@@ -105,15 +105,16 @@ class HomeBottomSheet extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(40.r)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+            color: AppColors.shadow.withValues(alpha: 0.12),
+            blurRadius: 8,
+            offset: const Offset(0, -3),
           ),
         ],
       ),
       child: ListView(
         controller: scrollController,
         padding: EdgeInsets.zero,
+        cacheExtent: 300,
         children: [
           // ─── Drag handle ───
           Center(
