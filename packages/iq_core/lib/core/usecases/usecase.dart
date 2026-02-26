@@ -3,10 +3,10 @@ import 'package:equatable/equatable.dart';
 import '../error/failures.dart';
 
 /// Base UseCase contract for Clean Architecture
-/// [Type] is the return type
+/// [T] is the return type
 /// [Params] is the input parameters type
-abstract class UseCase<Type, Params> {
-  Future<Either<Failure, Type>> call(Params params);
+abstract class UseCase<T, Params> {
+  Future<Either<Failure, T>> call(Params params);
 }
 
 /// Use when a UseCase doesn't need parameters

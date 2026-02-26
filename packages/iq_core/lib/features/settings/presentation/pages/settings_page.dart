@@ -46,7 +46,7 @@ class SettingsPage extends StatelessWidget {
                       value: themeState.isDark,
                       onChanged: (_) =>
                           context.read<ThemeCubit>().toggleTheme(),
-                      activeColor: AppColors.buttonYellow,
+                      activeThumbColor: AppColors.buttonYellow,
                       activeTrackColor:
                           AppColors.buttonYellow.withValues(alpha: 0.3),
                     ),

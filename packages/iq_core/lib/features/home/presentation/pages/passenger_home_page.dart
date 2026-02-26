@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -155,6 +156,10 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
 
   @override
   Widget build(BuildContext context) {
+    // Use granular MediaQuery accessors — prevents rebuilds when
+    // unrelated properties change (e.g. keyboard appearing).
+    final topPadding = MediaQuery.paddingOf(context).top;
+    final screenWidth = MediaQuery.sizeOf(context).width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ZoomDrawer(
@@ -184,7 +189,12 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
               isDark ? Brightness.light : Brightness.dark,
         ),
         child: Scaffold(
+          // Map page — keyboard should not resize the layout.
+          resizeToAvoidBottomInset: false,
           body: Stack(
+            // Clip.none avoids an extra save-layer on the GPU
+            // compositing thread. None of our children overflow.
+            clipBehavior: Clip.none,
             children: [
               // ── Map Section ──────────────────────────────
               // Fully isolated in its own StatefulWidget.
@@ -210,7 +220,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                   }
                   if (state.status == HomeStatus.error) {
                     return Positioned(
-                      top: MediaQuery.of(context).padding.top + 60.h,
+                      top: topPadding + 60.h,
                       left: 24.w,
                       right: 24.w,
                       child: Material(
@@ -253,7 +263,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
 
               // Top bar (menu button — right side for RTL)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 12.h,
+                top: topPadding + 12.h,
                 left: 16.w,
                 right: 16.w,
                 child: Row(
@@ -356,7 +366,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
           ),
         ),
       ),
-      slideWidth: MediaQuery.of(context).size.width * 0.65,
+      slideWidth: screenWidth * 0.65,
       isRtl: true,
       borderRadius: 24.0,
       showShadow: true,
@@ -412,6 +422,8 @@ class _HomeMapSectionState extends State<_HomeMapSection> {
   static const double _sheetFraction = 0.35;
 
   /// Request location permission and move map to current location.
+  /// Deferred to postFrameCallback so the first frame renders instantly
+  /// without waiting for GPS.
   Future<void> _goToUserLocation() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -450,7 +462,13 @@ class _HomeMapSectionState extends State<_HomeMapSection> {
             myLocationButtonEnabled: false,
             rotateGesturesEnabled: false,
             tiltGesturesEnabled: false,
-            onMapCreated: (_) => _goToUserLocation(),
+            onMapCreated: (_) {
+              // Defer GPS + camera animation to after the first frame
+              // so the map renders instantly without blocking.
+              SchedulerBinding.instance.addPostFrameCallback((_) {
+                _goToUserLocation();
+              });
+            },
             mapPadding: EdgeInsets.only(
               bottom: screenHeight * _sheetFraction,
             ),

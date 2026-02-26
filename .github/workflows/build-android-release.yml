@@ -39,7 +39,7 @@ on:
       - "docs/**"
 
 env:
-  FLUTTER_VERSION: "3.32.8"
+  FLUTTER_VERSION: "3.41.0-0.3.pre"
   JAVA_VERSION: "17"
 
 jobs:

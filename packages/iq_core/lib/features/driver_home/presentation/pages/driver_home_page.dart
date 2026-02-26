@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -65,7 +66,7 @@ class _DriverHomeBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
+    final topPadding = MediaQuery.paddingOf(context).top;
 
     return MultiBlocListener(
       listeners: [
@@ -103,6 +104,7 @@ class _DriverHomeBody extends StatelessWidget {
   }
 
   Widget _buildDrawer(BuildContext context, double topPadding) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ZoomDrawer(
@@ -132,7 +134,9 @@ class _DriverHomeBody extends StatelessWidget {
               isDark ? Brightness.light : Brightness.dark,
         ),
         child: Scaffold(
+          resizeToAvoidBottomInset: false,
           body: Stack(
+            clipBehavior: Clip.none,
             children: [
               // ── Map Section ──────────────────────────
               const Positioned.fill(child: _DriverMapSection()),
@@ -276,7 +280,7 @@ class _DriverHomeBody extends StatelessWidget {
           ),
         ),
       ),
-      slideWidth: MediaQuery.of(context).size.width * 0.65,
+      slideWidth: screenWidth * 0.65,
       isRtl: true,
       borderRadius: 24.0,
       showShadow: true,
@@ -305,11 +309,6 @@ class _DriverMapSection extends StatefulWidget {
 class _DriverMapSectionState extends State<_DriverMapSection> {
   final _mapKey = GlobalKey<IqMapViewState>();
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   /// Request location permission and move map to current location.
   Future<void> _goToUserLocation() async {
     try {
@@ -324,7 +323,7 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
 
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
+          accuracy: LocationAccuracy.high,
           timeLimit: Duration(seconds: 10),
         ),
       );
@@ -336,21 +335,18 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // The actual Google Map — uses default blue dot for location.
-        Positioned.fill(
-          child: IqMapView(
-            key: _mapKey,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            rotateGesturesEnabled: false,
-            tiltGesturesEnabled: false,
-            onMapCreated: (_) => _goToUserLocation(),
-            mapPadding: EdgeInsets.only(bottom: 240.h),
-          ),
-        ),
-      ],
+    return IqMapView(
+      key: _mapKey,
+      myLocationEnabled: true,
+      myLocationButtonEnabled: false,
+      rotateGesturesEnabled: false,
+      tiltGesturesEnabled: false,
+      onMapCreated: (_) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          _goToUserLocation();
+        });
+      },
+      mapPadding: EdgeInsets.only(bottom: 240.h),
     );
   }
 }
