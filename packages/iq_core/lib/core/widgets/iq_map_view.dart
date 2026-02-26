@@ -53,7 +53,7 @@ class IqMapView extends StatefulWidget {
     this.tiltGesturesEnabled = true,
     this.zoomGesturesEnabled = true,
     this.keepAlive = true,
-    this.liteModeEnabled = false,
+    this.liteModeEnabled = true,
     this.mapStyle = kCleanMapStyle,
   });
 
