@@ -1,4 +1,4 @@
-package com.iqtaxi.passenger.iq_taxi_passenger
+package com.elnooronline.taxi.driver
 
 import io.flutter.embedding.android.FlutterActivity
 

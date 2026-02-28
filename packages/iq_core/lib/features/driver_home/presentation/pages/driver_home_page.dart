@@ -14,6 +14,7 @@ import 'package:flutter_zoom_drawer/flutter_zoom_drawer.dart';
 import '../../../../core/widgets/iq_sidebar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../home/domain/repositories/home_repository.dart';
+import '../../../location/domain/repositories/location_repository.dart';
 import '../../../ride_booking/presentation/bloc/driver/driver_trip_bloc.dart';
 import '../../../ride_booking/presentation/bloc/driver/driver_trip_event.dart';
 import '../../../ride_booking/presentation/bloc/driver/driver_trip_state.dart';
@@ -44,9 +45,10 @@ class DriverHomePage extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) =>
-              DriverHomeBloc(repository: sl<HomeRepository>())
-                ..add(const DriverHomeLoadRequested()),
+          create: (_) => DriverHomeBloc(
+                repository: sl<HomeRepository>(),
+                locationRepository: sl<LocationRepository>(),
+              )..add(const DriverHomeLoadRequested()),
         ),
         BlocProvider.value(value: sl<DriverTripBloc>()),
       ],
@@ -138,6 +140,7 @@ class _DriverHomeBody extends StatelessWidget {
           body: Stack(
             clipBehavior: Clip.none,
             children: [
+              Container(color: Colors.transparent,),
               // ── Map Section ──────────────────────────
               const Positioned.fill(child: _DriverMapSection()),
 
@@ -235,26 +238,26 @@ class _DriverHomeBody extends StatelessWidget {
               ),
 
               // Bottom earnings sheet — isolated repaint layer
-              RepaintBoundary(
-                child: BlocBuilder<DriverHomeBloc, DriverHomeState>(
-                  buildWhen: (prev, curr) =>
-                      prev.homeData != curr.homeData,
-                  builder: (context, state) {
-                    final data = state.homeData;
-                    final earnings = TodayEarnings(
-                      tripsCount: data?.totalRidesTaken ?? 0,
-                      distanceKm: data?.totalKms ?? 0,
-                      activeHours: data?.activeHours ?? 0,
-                      activeMinutes: data?.activeMinutes ?? 0,
-                      totalEarningsIQD: data?.totalEarnings ?? 0,
-                    );
-                    return Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: EarningsBottomSheet(earnings: earnings),
-                    );
-                  },
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: RepaintBoundary(
+                  child: BlocBuilder<DriverHomeBloc, DriverHomeState>(
+                    buildWhen: (prev, curr) =>
+                        prev.homeData != curr.homeData,
+                    builder: (context, state) {
+                      final data = state.homeData;
+                      final earnings = TodayEarnings(
+                        tripsCount: data?.totalRidesTaken ?? 0,
+                        distanceKm: data?.totalKms ?? 0,
+                        activeHours: data?.activeHours ?? 0,
+                        activeMinutes: data?.activeMinutes ?? 0,
+                        totalEarningsIQD: data?.totalEarnings ?? 0,
+                      );
+                      return EarningsBottomSheet(earnings: earnings);
+                    },
+                  ),
                 ),
               ),
 

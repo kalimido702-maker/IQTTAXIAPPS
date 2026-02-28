@@ -1,0 +1,69 @@
+{
+  "project_info": {
+    "project_number": "871702027202",
+    "firebase_url": "https://iq-taxi-5cc3f-default-rtdb.firebaseio.com",
+    "project_id": "iq-taxi-5cc3f",
+    "storage_bucket": "iq-taxi-5cc3f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:871702027202:android:8088c1a6f029cad56f945b",
+        "android_client_info": {
+          "package_name": "com.elnooronline.taxi.driver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "871702027202-e2gvv94a6qkj9obp8v5fijotm3capd51.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbuNsXQZ7ArEmdrgA3UmK-ur-IxI4bhGM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "871702027202-e2gvv94a6qkj9obp8v5fijotm3capd51.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:871702027202:android:91cb7726d4d634b96f945b",
+        "android_client_info": {
+          "package_name": "com.elnooronline.taxi.user"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "871702027202-e2gvv94a6qkj9obp8v5fijotm3capd51.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbuNsXQZ7ArEmdrgA3UmK-ur-IxI4bhGM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "871702027202-e2gvv94a6qkj9obp8v5fijotm3capd51.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

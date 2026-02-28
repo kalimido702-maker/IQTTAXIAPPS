@@ -27,10 +27,13 @@ void main() async {
   // Initialize core dependencies
   await initCoreDependencies();
 
-  // Initialize Firebase if config is present
+  // Initialize Firebase
   try {
     await Firebase.initializeApp();
-  } catch (_) {}
+    debugPrint('✅ Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Firebase init failed: $e');
+  }
 
   // Use latest Android Maps renderer for smoother performance
   await initMapRenderer();

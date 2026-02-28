@@ -167,6 +167,7 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
               children: [
                 // Cancel
                 SizedBox(
+                  width: 130.w,
                   height: 60.h,
                   child: ElevatedButton(
                     onPressed: () {

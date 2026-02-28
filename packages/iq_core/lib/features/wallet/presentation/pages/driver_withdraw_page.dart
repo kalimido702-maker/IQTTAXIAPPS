@@ -200,6 +200,7 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
                   children: [
                     // Cancel
                     SizedBox(
+                      width: 130.w,
                       height: 60.h,
                       child: ElevatedButton(
                         onPressed: () {
