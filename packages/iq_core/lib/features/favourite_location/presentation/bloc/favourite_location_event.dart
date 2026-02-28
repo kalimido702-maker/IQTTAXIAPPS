@@ -40,3 +40,21 @@ class FavouriteLocationDeleteRequested extends FavouriteLocationEvent {
   @override
   List<Object?> get props => [id];
 }
+
+/// Add a new favourite location.
+class FavouriteLocationAddRequested extends FavouriteLocationEvent {
+  final double lat;
+  final double lng;
+  final String address;
+  final String addressName;
+
+  const FavouriteLocationAddRequested({
+    required this.lat,
+    required this.lng,
+    required this.address,
+    required this.addressName,
+  });
+
+  @override
+  List<Object?> get props => [lat, lng, address, addressName];
+}

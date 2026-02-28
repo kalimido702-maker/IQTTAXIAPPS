@@ -2,7 +2,7 @@ part of 'wallet_bloc.dart';
 
 enum WalletStatus { initial, loading, loaded, loadingMore, error }
 
-enum WalletActionStatus { idle, processing, success, failed }
+enum WalletActionStatus { idle, processing, success, failed, paymentUrlReady }
 
 class WalletState {
   final WalletStatus status;
@@ -15,6 +15,7 @@ class WalletState {
   final String? errorMessage;
   final WalletActionStatus actionStatus;
   final String? actionMessage;
+  final String? paymentUrl;
 
   const WalletState({
     this.status = WalletStatus.initial,
@@ -27,6 +28,7 @@ class WalletState {
     this.errorMessage,
     this.actionStatus = WalletActionStatus.idle,
     this.actionMessage,
+    this.paymentUrl,
   });
 
   String get formattedBalance =>
@@ -43,6 +45,7 @@ class WalletState {
     String? errorMessage,
     WalletActionStatus? actionStatus,
     String? actionMessage,
+    String? paymentUrl,
   }) {
     return WalletState(
       status: status ?? this.status,
@@ -55,6 +58,7 @@ class WalletState {
       errorMessage: errorMessage ?? this.errorMessage,
       actionStatus: actionStatus ?? this.actionStatus,
       actionMessage: actionMessage ?? this.actionMessage,
+      paymentUrl: paymentUrl ?? this.paymentUrl,
     );
   }
 }

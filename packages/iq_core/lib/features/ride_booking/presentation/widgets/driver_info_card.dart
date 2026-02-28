@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_image.dart';
@@ -223,7 +224,7 @@ class UserInfoCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4.r),
                       ),
                       child: IqText(
-                        'مستخدم جديد',
+                        AppStrings.newUser,
                         style: AppTypography.caption.copyWith(
                           color: AppColors.primary700,
                         ),
@@ -239,7 +240,7 @@ class UserInfoCard extends StatelessWidget {
                   if (tripCount != null) ...[
                     SizedBox(width: 8.w),
                     IqText(
-                      '• $tripCount رحلة',
+                      '• $tripCount ${AppStrings.trips}',
                       style: AppTypography.caption.copyWith(
                         color: AppColors.textMuted,
                       ),

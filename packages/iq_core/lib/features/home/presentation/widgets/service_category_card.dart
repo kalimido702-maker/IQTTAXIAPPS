@@ -31,16 +31,22 @@ class ServiceCategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 90.w,
         padding: EdgeInsets.symmetric(vertical: 8.h),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.buttonYellow : AppColors.white,
+          color: isActive
+              ? AppColors.buttonYellow
+              : (isDark ? AppColors.darkCard : AppColors.white),
           borderRadius: BorderRadius.circular(8.r),
           border: Border.all(
-            color: AppColors.buttonYellow,
+            color: isActive
+                ? AppColors.buttonYellow
+                : (isDark ? AppColors.darkDivider : AppColors.buttonYellow),
             width: isActive ? 0 : 1.5,
           ),
           boxShadow: isActive
@@ -65,6 +71,9 @@ class ServiceCategoryCard extends StatelessWidget {
               style: AppTypography.bodyMedium.copyWith(
                 fontSize: 14.sp,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                color: isActive
+                    ? AppColors.black
+                    : (isDark ? AppColors.white : null),
               ),
               textAlign: TextAlign.center,
               maxLines: 1,

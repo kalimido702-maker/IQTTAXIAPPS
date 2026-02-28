@@ -164,7 +164,10 @@ class ReportsPage extends StatelessWidget {
                   Padding(
                     padding: EdgeInsets.symmetric(vertical: 15.h),
                     child: Divider(
-                        color: AppColors.grayBorder, height: 1.h),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.darkDivider
+                            : AppColors.grayBorder,
+                        height: 1.h),
                   ),
                   DetailRow(
                     label: AppStrings.netEarnings,

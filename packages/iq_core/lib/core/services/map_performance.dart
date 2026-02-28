@@ -610,4 +610,36 @@ class RouteHelper {
     if (decoded.isEmpty) return decoded;
     return simplifyPolyline(decoded);
   }
+
+  /// Ensures the polyline visually connects to the exact pickup & dropoff
+  /// marker positions.
+  ///
+  /// Google Directions API often snaps route endpoints to the nearest road
+  /// which can be noticeably far from the actual marker coordinates. This
+  /// method prepends [origin] and appends [destination] when they differ
+  /// from the existing endpoints by more than ~11 m.
+  static List<LatLng> snapToEndpoints(
+    List<LatLng> routePoints,
+    LatLng origin,
+    LatLng destination,
+  ) {
+    if (routePoints.length < 2) return routePoints;
+    final result = List<LatLng>.from(routePoints);
+
+    // ~0.0001° ≈ 11 m — threshold for "close enough".
+    const threshold = 0.0001;
+    if (_sqDist(result.first, origin) > threshold * threshold) {
+      result.insert(0, origin);
+    }
+    if (_sqDist(result.last, destination) > threshold * threshold) {
+      result.add(destination);
+    }
+    return result;
+  }
+
+  static double _sqDist(LatLng a, LatLng b) {
+    final dx = a.latitude - b.latitude;
+    final dy = a.longitude - b.longitude;
+    return dx * dx + dy * dy;
+  }
 }

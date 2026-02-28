@@ -55,6 +55,7 @@ class AppStrings {
       'سجّل وابدأ رحلتك مع منصة تساعدك تكسب بسهولة وثبات';
 
   // ─── Home ───
+  static const String toWhere = 'إلى أين؟';
   static const String whereToGo = 'إلى أين أنت ذاهب؟';
   static const String quickPlaces = 'أماكن سريعة';
   static const String taxi = 'تاكسي';
@@ -70,6 +71,8 @@ class AppStrings {
   static const String duration = 'المدة';
   static const String distance = 'المسافة';
   static const String tripType = 'نوع الرحلة';
+  static const String tripTypes = 'أنواع الرحلات';
+  static const String enjoyYourTrip = 'استمتع برحلتك مع IQ Taxi';
   static const String normal = 'عادي';
   static const String baseFare = 'سعر المسافة الأساسية';
   static const String extraFare = 'سعر المسافة الإضافية';
@@ -77,10 +80,56 @@ class AppStrings {
   static const String amount = 'المبلغ';
   static const String total = 'الإجمالي';
   static const String choosePay = 'اختر الدفع';
+  static const String payNow = 'ادفع الآن';
   static const String paymentReceived = 'تم استلام الدفع';
   static const String cash = 'نقدي';
   static const String changePaymentMethod = 'تغيير طريقة الدفع';
   static const String orderNumber = 'رقم الطلب';
+  static const String promoCode = 'كود الخصم';
+  static const String ridePreferences = 'تفضيلات الرحلة';
+  static const String scheduleRide = 'جدولة الرحلة';
+  static const String rideNow = 'ركوب الآن';
+  static const String persons = 'أشخاص';
+  static const String selectPaymentMethod = 'اختر طريقة الدفع';
+  static const String walletPayment = 'محفظة';
+  static const String cardPayment = 'بطاقة';
+  static const String onlinePayment = 'دفع إلكتروني';
+  static const String loadingPaymentPage = 'جارٍ تحميل صفحة الدفع...';
+  static const String paymentFailed = 'فشلت عملية الدفع';
+  static const String enterPromoCode = 'أدخل كود الخصم';
+  static const String apply = 'تطبيق';
+  static const String remove = 'إزالة';
+  static const String promoApplied = 'تم تطبيق كود الخصم بنجاح';
+  static const String scheduleRideFor = 'جدولة الرحلة في';
+  static const String selectDate = 'اختر التاريخ';
+  static const String selectTime = 'اختر الوقت';
+  static const String removeSchedule = 'إلغاء الجدولة';
+  static const String rideLater = 'رحلة مؤجلة';
+  static const String driverInstructions = 'تعليمات للسائق';
+  static const String enterInstructions = 'أدخل تعليماتك للسائق...';
+  static const String noPreferencesAvailable = 'لا توجد تفضيلات متاحة';
+
+  // ─── Searching for Driver ───
+  static const String searchingForDriver = 'البحث عن سائق';
+  static const String searchingDriverSubtitle =
+      'نحن نبحث عن سائق قريب لقبول رحلتك…';
+  static const String estimatedArrivalTime = 'الوقت المتوقع للوصول';
+  static const String cancelTrip = 'إلغاء الرحلة';
+
+  // ─── Active Trip ───
+  static const String driverOnWay = 'السائق في الطريق إليك';
+  static const String driverArrived = 'السائق وصل';
+  static const String arrivingToDestination = 'الوصول للوجهة';
+  static const String waitingChargeWarning =
+      'سيتم احتساب رسوم الانتظار بعد مرور الوقت المجاني';
+
+  // ─── Cancel Reasons ───
+  static const String cancelReasonChangedMind = 'تغير رأيي';
+  static const String cancelReasonDriverFar = 'السائق بعيد جداً';
+  static const String cancelReasonFoundOther = 'وجدت وسيلة أخرى';
+  static const String cancelReasonMistake = 'طلبت بالخطأ';
+  static const String cancelReasonOther = 'أخرى';
+  static const String errorOccurred = 'حدث خطأ';
 
   // ─── Profile ───
   static const String profile = 'بروفايل';
@@ -248,4 +297,100 @@ class AppStrings {
   static const String insufficientBalance = 'رصيد غير كافي';
   static const String enterValidAmount = 'أدخل مبلغ صحيح';
   static const String enterValidPhone = 'أدخل رقم هاتف صحيح';
+
+  // ─── Data Source Errors ───
+  static const String failedToGetPrices = 'فشل في الحصول على الأسعار';
+  static const String failedToCreateRequest = 'فشل في إنشاء الطلب';
+  static const String failedToCancelRequest = 'فشل في إلغاء الطلب';
+  static const String failedToFetchCancelReasons = 'فشل في جلب أسباب الإلغاء';
+  static const String failedToLoadRecentPlaces = 'فشل في تحميل الأماكن الأخيرة';
+  static const String failedToSubmitRating = 'فشل في إرسال التقييم';
+  static const String failedToChangeDropoff = 'فشل في تغيير نقطة الوصول';
+  static const String failedToChangePayment = 'فشل في تغيير طريقة الدفع';
+  static const String invoiceNotFound = 'لم يتم العثور على الفاتورة';
+  static const String failedToFetchTripDetails = 'فشل في جلب تفاصيل الرحلة';
+  static const String failedToRespondToRequest = 'فشل في الاستجابة للطلب';
+  static const String failedToConfirmArrival = 'فشل في تأكيد الوصول';
+  static const String failedToStartTrip = 'فشل في بدء الرحلة';
+  static const String failedToEndTrip = 'فشل في إنهاء الرحلة';
+  static const String failedToConfirmPayment = 'فشل في تأكيد الدفع';
+  static const String failedToCancelTrip = 'فشل في إلغاء الرحلة';
+  static const String connectionTimeout = 'انتهت مهلة الاتصال';
+  static const String noInternetConnection = 'لا يوجد اتصال بالإنترنت';
+  static const String unauthorized = 'غير مصرح';
+  static const String invalidData = 'بيانات غير صالحة';
+  static const String serverError = 'حدث خطأ في الخادم';
+
+  // ─── Invoice / Payment Labels ───
+  static const String electronicPayment = 'دفع الكتروني';
+  static const String currencyIQD = 'د.ع';
+
+  // ─── Fare Breakdown ───
+  static const String distanceFare = 'أجرة المسافة';
+  static const String timeFare = 'أجرة الوقت';
+  static const String waitingCharge = 'رسوم الانتظار';
+  static const String couponDiscount = 'خصم الكوبون';
+  static const String tip = 'إكرامية';
+
+  // ─── Cancel / Reason Sheets ───
+  static const String cancelReason = 'سبب الإلغاء';
+  static const String writeReasonHere = 'اكتب السبب هنا...';
+
+  // ─── Driver Info ───
+  static const String newUser = 'مستخدم جديد';
+
+  // ─── Swipe / Actions ───
+  static const String swipeToAcceptTrip = 'مرر لقبول الرحلة';
+  static const String locatePosition = 'تحديد الموقع';
+  static const String shareTrip = 'مشاركة الرحلة';
+
+  // ─── Rating ───
+  static const String rating = 'التقييم';
+  static const String howWasYourTripWith = 'كيف كانت رحلتك مع';
+  static const String writeCommentHere = 'اكتب تعليقك هنا...';
+  static const String addRating = 'إضافة تقييم';
+
+  // ─── Driver Trip Status ───
+  static const String onTheWay = 'في الطريق';
+  static const String onWayToDropoff = 'في الطريق إلى موقع الإنزال';
+  static const String tripStatus = 'حالة الرحلة';
+  static const String remainingWaitTime = 'الوقت المتبقي لانتظار الراكب';
+  static const String tripArrived = 'وصلت الرحلة';
+  static const String startTrip = 'إبدأ الرحلة';
+  static const String endTrip = 'نهاية الرحلة';
+  static const String priceLabel = 'السعر: ';
+
+  // ─── Driver Cancel Reasons ───
+  static const String vehicleIssueOrEmergency = 'مشكلة في السيارة أو ظرف طارئ';
+  static const String passengerNotResponding = 'الراكب لا يرد على الهاتف أو الرسائل';
+
+  // ─── Incoming Request ───
+  static const String tripDetails = 'تفاصيل الرحلة';
+  static const String reject = 'رفض';
+
+  // ─── Map Picker ───
+  static const String selectLocation = 'حدد الموقع';
+  static const String resolvingLocation = 'جارٍ التحديد...';
+  static const String confirmLocation = 'تأكيد الموقع';
+  static const String unknownLocation = 'موقع غير معروف';
+
+  // ─── Search Destination ───
+  static const String pickupLocationHint = 'موقع الالتقاط';
+  static const String recentPlaces = 'الأماكن الأخيرة';
+  static const String savedPlaces = 'أماكن محفوظة';
+  static const String selectDestinationFromMap = 'حدد الوجهة من الخريطة';
+
+  // ─── Trip Invoice ───
+  static const String regular = 'عادي';
+
+  // ─── Empty State ───
+  static const String noDataToDisplay = 'لا يوجد بيانات للعرض';
+
+  // ─── Favourite Location ───
+  static const String enterAddressName = 'أدخل اسم العنوان';
+  static const String addressNameHint = 'مثال: البيت، الشغل، الجامعة';
+  static const String addFavouriteSuccess = 'تم إضافة الموقع بنجاح';
+  static const String deleteFavouriteConfirm = 'هل أنت متأكد من حذف هذا العنوان؟';
+  static const String add = 'إضافة';
+  static const String delete = 'حذف';
 }

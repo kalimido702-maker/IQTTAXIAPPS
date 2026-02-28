@@ -19,6 +19,7 @@ class FavouriteLocationBloc
     on<FavouriteLocationLoadRequested>(_onLoad);
     on<FavouriteLocationInitialized>(_onInitialized);
     on<FavouriteLocationDeleteRequested>(_onDelete);
+    on<FavouriteLocationAddRequested>(_onAdd);
   }
 
   // ──────────────────── LOAD FROM API ────────────────────────
@@ -94,6 +95,35 @@ class FavouriteLocationBloc
               .where((l) => l.id != event.id)
               .toList(),
         ));
+      },
+    );
+  }
+
+  // ────────────────────────── ADD ────────────────────────────
+
+  Future<void> _onAdd(
+    FavouriteLocationAddRequested event,
+    Emitter<FavouriteLocationState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! FavouriteLocationLoaded) return;
+
+    final result = await _repository.addFavouriteLocation(
+      lat: event.lat,
+      lng: event.lng,
+      address: event.address,
+      addressName: event.addressName,
+    );
+
+    result.fold(
+      (failure) {
+        emit(FavouriteLocationError(failure.message));
+        // Restore the list so user doesn't lose data.
+        emit(currentState);
+      },
+      (_) {
+        // Reload the full list from the API to get accurate data.
+        add(const FavouriteLocationLoadRequested());
       },
     );
   }

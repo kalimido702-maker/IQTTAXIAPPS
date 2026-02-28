@@ -135,6 +135,7 @@ Future<void> initCoreDependencies() async {
       registerUseCase: sl<RegisterUseCase>(),
       logoutUseCase: sl<LogoutUseCase>(),
       repository: sl<AuthRepository>(),
+      authService: sl<AuthService>(),
     ),
   );
 

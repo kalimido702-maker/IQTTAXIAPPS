@@ -54,7 +54,12 @@ class SettingsPage extends StatelessWidget {
                 );
               },
             ),
-            Divider(color: AppColors.grayBorder, height: 1.h),
+            Divider(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkDivider
+                  : AppColors.grayBorder,
+              height: 1.h,
+            ),
 
             // ── التعليمات ──
             SettingsRow(
@@ -68,7 +73,12 @@ class SettingsPage extends StatelessWidget {
                 // TODO: navigate to instructions page
               },
             ),
-            Divider(color: AppColors.grayBorder, height: 1.h),
+            Divider(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkDivider
+                  : AppColors.grayBorder,
+              height: 1.h,
+            ),
 
             // ── سياسة الخصوصية ──
             SettingsRow(

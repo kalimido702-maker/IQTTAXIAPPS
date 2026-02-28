@@ -29,7 +29,7 @@ abstract class BookingRemoteDataSource {
     required double dropLng,
     required String pickAddress,
     required String dropAddress,
-    required int vehicleType,
+    required String vehicleType,
     required int paymentOpt,
     int rideType = 1,
     String transportType = 'taxi',
@@ -39,6 +39,9 @@ abstract class BookingRemoteDataSource {
     String? instructions,
     int isBidRide = 0,
     double? offerAmount,
+    int isLater = 0,
+    String? tripStartTime,
+    List<Map<String, dynamic>>? selectedPreferences,
   });
 
   /// Cancel a ride request.
@@ -110,6 +113,12 @@ abstract class BookingRemoteDataSource {
     required double distance,
     int beforeTripWaitingTime = 0,
     int afterTripWaitingTime = 0,
+  });
+
+  /// Create a QiCard payment for a ride. Returns the payment URL.
+  Future<Either<Failure, String>> createRidePayment({
+    required String requestId,
+    required double amount,
   });
 
   /// Confirm cash payment received.

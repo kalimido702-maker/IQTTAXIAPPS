@@ -356,7 +356,7 @@ class _StyledTextField extends StatelessWidget {
         textDirection: resolvedDir,
         textAlign: resolvedAlign,
         style: AppTypography.bodyLarge.copyWith(
-          color: AppColors.textDark,
+          color: Theme.of(context).colorScheme.onSurface,
         ),
         decoration: InputDecoration(
           hintText: hintText,
@@ -369,14 +369,24 @@ class _StyledTextField extends StatelessWidget {
             vertical: 8.h,
           ),
           filled: true,
-          fillColor: AppColors.white,
+          fillColor: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.darkInputBg
+              : AppColors.white,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.r),
-            borderSide: const BorderSide(color: AppColors.inputBorder),
+            borderSide: BorderSide(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkDivider
+                  : AppColors.inputBorder,
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.r),
-            borderSide: const BorderSide(color: AppColors.inputBorder),
+            borderSide: BorderSide(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkDivider
+                  : AppColors.inputBorder,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.r),
@@ -399,13 +409,14 @@ class _PhoneField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 52.h,
       padding: EdgeInsets.symmetric(horizontal: 16.w),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: isDark ? AppColors.darkInputBg : AppColors.white,
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.inputBorder),
+        border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.inputBorder),
       ),
       child: Row(
         children: [
@@ -425,7 +436,7 @@ class _PhoneField extends StatelessWidget {
             child: IqText(
               '${AppStrings.countryCode} | $phone',
               style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textDark,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontFamily: AppTypography.fontFamilyLatin,
               ),
               dir: TextDirection.ltr,
@@ -487,6 +498,8 @@ class _GenderOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -501,7 +514,7 @@ class _GenderOption extends StatelessWidget {
           ),
           color: isSelected
               ? AppColors.primary.withValues(alpha: 0.08)
-              : AppColors.white,
+              : isDark ? AppColors.darkCard : AppColors.white,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -509,13 +522,13 @@ class _GenderOption extends StatelessWidget {
             Icon(
               icon,
               size: 24.w,
-              color: isSelected ? AppColors.primary700 : AppColors.textDark,
+              color: isSelected ? AppColors.primary700 : onSurface,
             ),
             SizedBox(width: 10.w),
             IqText(
               label,
               style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textDarkAlt,
+                color: onSurface,
                 height: 1,
               ),
             ),
@@ -532,7 +545,9 @@ class _GenderOption extends StatelessWidget {
                       : AppColors.grayInactive,
                   width: 1.5,
                 ),
-                color: isSelected ? AppColors.primary : AppColors.white,
+                color: isSelected
+                    ? AppColors.primary
+                    : isDark ? AppColors.darkCard : AppColors.white,
               ),
               child: isSelected
                   ? Icon(
@@ -557,13 +572,14 @@ class _CancelButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 156.w,
         height: 55.h,
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: isDark ? AppColors.darkCard : AppColors.white,
           borderRadius: BorderRadius.circular(50.r),
           border: Border.all(color: AppColors.cancelRed),
         ),

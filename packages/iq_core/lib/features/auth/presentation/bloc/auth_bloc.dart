@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/network/auth_service.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/logout_usecase.dart';
@@ -16,6 +19,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final RegisterUseCase registerUseCase;
   final LogoutUseCase logoutUseCase;
   final AuthRepository repository;
+  final AuthService _authService;
+
+  late final StreamSubscription<UnauthorizedEvent> _unauthorizedSub;
 
   AuthBloc({
     required this.sendOtpUseCase,
@@ -23,7 +29,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.registerUseCase,
     required this.logoutUseCase,
     required this.repository,
-  }) : super(const AuthInitial()) {
+    required AuthService authService,
+  })  : _authService = authService,
+        super(const AuthInitial()) {
     on<AuthSendOtpEvent>(_onSendOtp);
     on<AuthVerifyOtpEvent>(_onVerifyOtp);
     on<AuthResendOtpEvent>(_onResendOtp);
@@ -31,6 +39,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLogoutEvent>(_onLogout);
     on<AuthCheckStatusEvent>(_onCheckStatus);
     on<AuthUnauthorizedEvent>(_onUnauthorized);
+
+    // Listen to 401 events from the API interceptor
+    _unauthorizedSub = _authService.unauthorizedStream.listen((_) {
+      add(const AuthUnauthorizedEvent());
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _unauthorizedSub.cancel();
+    return super.close();
   }
 
   Future<void> _onSendOtp(

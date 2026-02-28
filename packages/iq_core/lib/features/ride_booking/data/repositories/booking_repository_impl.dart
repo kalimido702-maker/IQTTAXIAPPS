@@ -42,7 +42,7 @@ class BookingRepositoryImpl implements BookingRepository {
     required double dropLng,
     required String pickAddress,
     required String dropAddress,
-    required int vehicleType,
+    required String vehicleType,
     required int paymentOpt,
     int rideType = 1,
     String transportType = 'taxi',
@@ -52,6 +52,9 @@ class BookingRepositoryImpl implements BookingRepository {
     String? instructions,
     int isBidRide = 0,
     double? offerAmount,
+    int isLater = 0,
+    String? tripStartTime,
+    List<Map<String, dynamic>>? selectedPreferences,
   }) =>
       dataSource.createRideRequest(
         pickLat: pickLat,
@@ -70,6 +73,9 @@ class BookingRepositoryImpl implements BookingRepository {
         instructions: instructions,
         isBidRide: isBidRide,
         offerAmount: offerAmount,
+        isLater: isLater,
+        tripStartTime: tripStartTime,
+        selectedPreferences: selectedPreferences,
       );
 
   @override
@@ -183,6 +189,13 @@ class BookingRepositoryImpl implements BookingRepository {
         beforeTripWaitingTime: beforeTripWaitingTime,
         afterTripWaitingTime: afterTripWaitingTime,
       );
+
+  @override
+  Future<Either<Failure, String>> createRidePayment({
+    required String requestId,
+    required double amount,
+  }) =>
+      dataSource.createRidePayment(requestId: requestId, amount: amount);
 
   @override
   Future<Either<Failure, bool>> confirmPayment({

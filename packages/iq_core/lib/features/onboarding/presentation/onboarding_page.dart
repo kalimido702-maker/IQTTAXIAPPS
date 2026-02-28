@@ -140,33 +140,40 @@ class _OnboardingBody extends StatelessWidget {
       },
       builder: (context, state) {
         return Scaffold(
-          body: Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(-0.6, -0.65),
-                radius: 1.8,
-                colors: [AppColors.splashGradientLight, AppColors.white],
-              ),
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  _buildTopBar(context, state),
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: pages.length,
-                      onPageChanged: (index) => context
-                          .read<OnboardingBloc>()
-                          .add(OnboardingPageChanged(index)),
-                      itemBuilder: (_, index) =>
-                          _buildPageContent(pages[index], state),
-                    ),
+          body: Builder(
+            builder: (context) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(-0.6, -0.65),
+                    radius: 1.8,
+                    colors: isDark
+                        ? [AppColors.darkBackground, AppColors.darkSurface]
+                        : [AppColors.splashGradientLight, AppColors.white],
                   ),
-                  _buildBottomButton(context),
-                ],
-              ),
-            ),
+                ),
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      _buildTopBar(context, state),
+                      Expanded(
+                        child: PageView.builder(
+                          controller: _pageController,
+                          itemCount: pages.length,
+                          onPageChanged: (index) => context
+                              .read<OnboardingBloc>()
+                              .add(OnboardingPageChanged(index)),
+                          itemBuilder: (_, index) =>
+                              _buildPageContent(pages[index], state),
+                        ),
+                      ),
+                      _buildBottomButton(context),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         );
       },
@@ -203,7 +210,7 @@ class _OnboardingBody extends StatelessWidget {
                       AppAssets.icArrowLeft,
                       width: 24.w,
                       height: 24.w,
-                      color: AppColors.black,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 )

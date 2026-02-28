@@ -4,17 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-
-import '../../../../../core/di/injection_container.dart';
-import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/theme/app_dimens.dart';
-import '../../../../../core/theme/app_typography.dart';
-import '../../../../../core/widgets/iq_app_bar.dart';
-import '../../../../../core/widgets/iq_text.dart';
+import 'package:iq_core/core/core.dart';
 import '../../../../location/domain/repositories/location_repository.dart';
 import '../../../domain/repositories/booking_repository.dart';
 import '../../bloc/passenger/passenger_trip_bloc.dart';
-import '../../bloc/passenger/passenger_trip_event.dart';
 import 'map_picker_page.dart';
 import 'ride_selection_page.dart';
 
@@ -220,8 +213,8 @@ class _BodyState extends State<_Body> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: const IqAppBar(title: 'إلى أين؟'),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: const IqAppBar(title: AppStrings.toWhere),
       body: Column(
         children: [
           // ── Address fields ──
@@ -230,33 +223,21 @@ class _BodyState extends State<_Body> {
               horizontal: AppDimens.paddingLG,
               vertical: AppDimens.paddingMD,
             ),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadowLight,
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
             child: Column(
               children: [
                 // Pickup field
                 _AddressField(
                   controller: _pickupController,
-                  hint: 'موقع الالتقاط',
-                  icon: Icons.circle,
-                  iconColor: AppColors.markerGreen,
+                  hint: AppStrings.pickupLocationHint,
+                  iconPath: AppAssets.icLocation,
                   readOnly: true,
                 ),
                 SizedBox(height: 12.h),
                 // Dropoff field
                 _AddressField(
                   controller: _dropController,
-                  hint: 'إلى أين أنت ذاهب؟',
-                  icon: Icons.circle,
-                  iconColor: AppColors.markerRed,
+                  hint: AppStrings.whereToGo,
+                  iconPath: AppAssets.searchIcon,
                   focusNode: _dropFocus,
                   onChanged: _onSearchChanged,
                 ),
@@ -293,8 +274,7 @@ class _AddressField extends StatelessWidget {
   const _AddressField({
     required this.controller,
     required this.hint,
-    required this.icon,
-    required this.iconColor,
+    required this.iconPath,
     this.focusNode,
     this.readOnly = false,
     this.onChanged,
@@ -302,31 +282,34 @@ class _AddressField extends StatelessWidget {
 
   final TextEditingController controller;
   final String hint;
-  final IconData icon;
-  final Color iconColor;
   final FocusNode? focusNode;
   final bool readOnly;
   final ValueChanged<String>? onChanged;
+  final String iconPath;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 56.h,
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: isDark ? AppColors.darkCard : AppColors.white,
         borderRadius: BorderRadius.circular(28.r),
-        border: Border.all(color: AppColors.grayDivider, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(
+          color: isDark ? AppColors.darkDivider : AppColors.black.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
           SizedBox(width: 16.w),
+          SizedBox(width: 10.w),
+          IqImage(
+            iconPath,
+            width: 20.w,
+            height: 20.w,
+          ),
+          SizedBox(width: 10.w),
           Expanded(
             child: TextField(
               controller: controller,
@@ -345,15 +328,15 @@ class _AddressField extends StatelessWidget {
                 hintStyle: AppTypography.bodyMedium.copyWith(
                   color: AppColors.grayPlaceholder,
                 ),
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
                 isDense: true,
+                fillColor: AppColors.transparent,
               ),
             ),
           ),
-          SizedBox(width: 10.w),
-          Icon(icon, size: 12.w, color: iconColor),
-          SizedBox(width: 16.w),
         ],
       ),
     );
@@ -398,7 +381,7 @@ class _SearchResultsList extends StatelessWidget {
           title: IqText(
             place['name'] as String? ?? '',
             style: AppTypography.labelMedium.copyWith(
-              color: AppColors.textDark,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           subtitle: IqText(
@@ -451,8 +434,10 @@ class _QuickPlaces extends StatelessWidget {
           ),
         if (!isLoading && recentPlaces.isNotEmpty) ...[
           IqText(
-            'الأماكن الأخيرة',
-            style: AppTypography.labelLarge.copyWith(color: AppColors.textDark),
+            AppStrings.recentPlaces,
+            style: AppTypography.labelLarge.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           SizedBox(height: 12.h),
           ...recentPlaces.map((place) {
@@ -474,8 +459,10 @@ class _QuickPlaces extends StatelessWidget {
         // Saved places (favourites)
         if (savedPlaces.isNotEmpty) ...[
           IqText(
-            'أماكن محفوظة',
-            style: AppTypography.labelLarge.copyWith(color: AppColors.textDark),
+            AppStrings.savedPlaces,
+            style: AppTypography.labelLarge.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           SizedBox(height: 12.h),
           ...savedPlaces.map((place) {
@@ -497,8 +484,8 @@ class _QuickPlaces extends StatelessWidget {
         // Choose from map
         _QuickPlaceTile(
           icon: Icons.map_outlined,
-          title: 'اختر من الخريطة',
-          subtitle: 'حدد الوجهة من الخريطة',
+          title: AppStrings.chooseFromMap,
+          subtitle: AppStrings.selectDestinationFromMap,
           onTap: onPickFromMap,
         ),
       ],
@@ -521,20 +508,23 @@ class _QuickPlaceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
         width: 44.w,
         height: 44.w,
-        decoration: const BoxDecoration(
-          color: AppColors.grayLightBg,
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.darkInputBg
+              : AppColors.grayLightBg,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 22.w, color: AppColors.textDark),
+        child: Icon(icon, size: 22.w, color: onSurface),
       ),
       title: IqText(
         title,
-        style: AppTypography.labelMedium.copyWith(color: AppColors.textDark),
+        style: AppTypography.labelMedium.copyWith(color: onSurface),
       ),
       subtitle: IqText(
         subtitle,

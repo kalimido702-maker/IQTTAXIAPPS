@@ -55,6 +55,9 @@ class PassengerTripState extends Equatable {
     this.invoice,
     this.errorMessage,
     this.promoCode,
+    this.scheduledTime,
+    this.selectedPreferences = const [],
+    this.instructions,
   });
 
   final PassengerTripStatus status;
@@ -65,7 +68,7 @@ class PassengerTripState extends Equatable {
   /// User's selected vehicle type.
   final VehicleTypeModel? selectedVehicle;
 
-  /// Payment option: 1=cash, 2=wallet, 0=card, 3=online.
+  /// Payment option: 0=online/card, 1=cash, 2=wallet.
   final int paymentOpt;
 
   /// Trip coordinates.
@@ -91,6 +94,15 @@ class PassengerTripState extends Equatable {
   /// Applied promo code.
   final String? promoCode;
 
+  /// Scheduled ride time (null = ride now).
+  final DateTime? scheduledTime;
+
+  /// Selected ride preferences (e.g. [{"id": 1}]).
+  final List<Map<String, dynamic>> selectedPreferences;
+
+  /// Driver instructions.
+  final String? instructions;
+
   PassengerTripState copyWith({
     PassengerTripStatus? status,
     List<VehicleTypeModel>? vehicleTypes,
@@ -107,6 +119,11 @@ class PassengerTripState extends Equatable {
     InvoiceModel? invoice,
     String? errorMessage,
     String? promoCode,
+    DateTime? scheduledTime,
+    bool clearSchedule = false,
+    List<Map<String, dynamic>>? selectedPreferences,
+    String? instructions,
+    bool clearInstructions = false,
   }) {
     return PassengerTripState(
       status: status ?? this.status,
@@ -124,6 +141,9 @@ class PassengerTripState extends Equatable {
       invoice: invoice ?? this.invoice,
       errorMessage: errorMessage,
       promoCode: promoCode ?? this.promoCode,
+      scheduledTime: clearSchedule ? null : (scheduledTime ?? this.scheduledTime),
+      selectedPreferences: selectedPreferences ?? this.selectedPreferences,
+      instructions: clearInstructions ? null : (instructions ?? this.instructions),
     );
   }
 

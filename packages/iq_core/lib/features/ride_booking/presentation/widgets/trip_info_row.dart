@@ -20,6 +20,7 @@ class TripInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final items = <_InfoItem>[];
     if (duration != null) {
       items.add(_InfoItem(icon: Icons.access_time_rounded, value: duration!));
@@ -36,7 +37,7 @@ class TripInfoRow extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: AppColors.grayLightBg,
+        color: isDark ? AppColors.darkInputBg : AppColors.grayLightBg,
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Row(
@@ -48,7 +49,7 @@ class TripInfoRow extends StatelessWidget {
                     Container(
                       width: 1,
                       height: 30.h,
-                      color: AppColors.grayBorder,
+                      color: isDark ? AppColors.darkDivider : AppColors.grayBorder,
                     ),
                 ])
             .toList(),
@@ -71,7 +72,9 @@ class _InfoItem extends StatelessWidget {
         SizedBox(height: 4.h),
         IqText(
           value,
-          style: AppTypography.labelSmall.copyWith(color: AppColors.textDark),
+          style: AppTypography.labelSmall.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           textAlign: TextAlign.center,
         ),
       ],

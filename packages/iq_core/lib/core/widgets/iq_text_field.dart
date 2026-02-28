@@ -80,6 +80,7 @@ class IqTextField extends StatelessWidget {
     final resolvedDir = dir ?? Directionality.of(context);
     final resolvedAlign = textAlign ??
         (resolvedDir == TextDirection.rtl ? TextAlign.right : TextAlign.left);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: resolvedDir == TextDirection.rtl
@@ -119,18 +120,22 @@ class IqTextField extends StatelessWidget {
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: AppColors.inputBackground,
+            fillColor: isDark ? AppColors.darkInputBg : AppColors.inputBackground,
             contentPadding: EdgeInsets.symmetric(
               horizontal: 16.w,
               vertical: maxLines != null && maxLines! > 1 ? 16.h : 8.h,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.r),
-              borderSide: const BorderSide(color: AppColors.inputBorder),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.darkDivider : AppColors.inputBorder,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.r),
-              borderSide: const BorderSide(color: AppColors.inputBorder),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.darkDivider : AppColors.inputBorder,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.r),

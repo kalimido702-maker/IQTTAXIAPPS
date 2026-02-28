@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../models/cancel_reason_model.dart';
 import '../models/invoice_model.dart';
@@ -48,7 +49,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return Right(list);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في الحصول على الأسعار',
+        message: body['message']?.toString() ?? AppStrings.failedToGetPrices,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -65,7 +66,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     required double dropLng,
     required String pickAddress,
     required String dropAddress,
-    required int vehicleType,
+    required String vehicleType,
     required int paymentOpt,
     int rideType = 1,
     String transportType = 'taxi',
@@ -75,6 +76,9 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     String? instructions,
     int isBidRide = 0,
     double? offerAmount,
+    int isLater = 0,
+    String? tripStartTime,
+    List<Map<String, dynamic>>? selectedPreferences,
   }) async {
     try {
       final response = await dio.post(
@@ -96,6 +100,10 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           if (instructions != null) 'instructions': instructions,
           'is_bid_ride': isBidRide,
           if (offerAmount != null) 'offer_amount': offerAmount,
+          if (isLater == 1) 'is_later': 1,
+          if (tripStartTime != null) 'trip_start_time': tripStartTime,
+          if (selectedPreferences != null)
+            'selected_preferences': selectedPreferences.toString(),
         }),
       );
       final body = response.data as Map<String, dynamic>;
@@ -103,7 +111,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return Right(RideRequestResponseModel.fromJson(body));
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في إنشاء الطلب',
+        message: body['message']?.toString() ?? AppStrings.failedToCreateRequest,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -132,7 +140,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return const Right(true);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في إلغاء الطلب',
+        message: body['message']?.toString() ?? AppStrings.failedToCancelRequest,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -154,7 +162,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return Right(list);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في جلب أسباب الإلغاء',
+        message: body['message']?.toString() ?? AppStrings.failedToFetchCancelReasons,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -184,7 +192,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return Right(list);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في تحميل الأماكن الأخيرة',
+        message: body['message']?.toString() ?? AppStrings.failedToLoadRecentPlaces,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -213,7 +221,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return const Right(true);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في إرسال التقييم',
+        message: body['message']?.toString() ?? AppStrings.failedToSubmitRating,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -247,7 +255,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
       }
       return Left(ServerFailure(
         message:
-            body['message']?.toString() ?? 'فشل في تغيير نقطة الوصول',
+            body['message']?.toString() ?? AppStrings.failedToChangeDropoff,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -275,7 +283,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
       }
       return Left(ServerFailure(
         message:
-            body['message']?.toString() ?? 'فشل في تغيير طريقة الدفع',
+            body['message']?.toString() ?? AppStrings.failedToChangePayment,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -306,11 +314,11 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           }
         }
         return Left(
-            const ServerFailure(message: 'لم يتم العثور على الفاتورة'));
+            ServerFailure(message: AppStrings.invoiceNotFound));
       }
       return Left(ServerFailure(
         message:
-            body['message']?.toString() ?? 'فشل في جلب تفاصيل الرحلة',
+            body['message']?.toString() ?? AppStrings.failedToFetchTripDetails,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -339,7 +347,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return const Right(true);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في الاستجابة للطلب',
+        message: body['message']?.toString() ?? AppStrings.failedToRespondToRequest,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -362,7 +370,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return const Right(true);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في تأكيد الوصول',
+        message: body['message']?.toString() ?? AppStrings.failedToConfirmArrival,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -393,7 +401,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return const Right(true);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في بدء الرحلة',
+        message: body['message']?.toString() ?? AppStrings.failedToStartTrip,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -428,7 +436,42 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return const Right(true);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في إنهاء الرحلة',
+        message: body['message']?.toString() ?? AppStrings.failedToEndTrip,
+      ));
+    } on DioException catch (e) {
+      return Left(_handleDioError(e));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> createRidePayment({
+    required String requestId,
+    required double amount,
+  }) async {
+    try {
+      final response = await dio.post(
+        'api/v1/payment/qicard/create-payment',
+        data: {
+          'amount': amount,
+          'request_id': requestId,
+        },
+      );
+
+      final body = response.data as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['success'] == true) {
+        final data = body['data'] as Map<String, dynamic>? ?? {};
+        final paymentUrl = data['payment_url']?.toString() ?? '';
+        if (paymentUrl.isEmpty) {
+          return const Left(
+            ServerFailure(message: 'لم يتم استلام رابط الدفع'),
+          );
+        }
+        return Right(paymentUrl);
+      }
+      return Left(ServerFailure(
+        message: body['message']?.toString() ?? AppStrings.paymentFailed,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -451,7 +494,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return const Right(true);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في تأكيد الدفع',
+        message: body['message']?.toString() ?? AppStrings.failedToConfirmPayment,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -480,7 +523,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         return const Right(true);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في إلغاء الرحلة',
+        message: body['message']?.toString() ?? AppStrings.failedToCancelTrip,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
@@ -493,21 +536,21 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
-      return const NetworkFailure(message: 'انتهت مهلة الاتصال');
+      return NetworkFailure(message: AppStrings.connectionTimeout);
     }
     if (e.type == DioExceptionType.connectionError) {
-      return const NetworkFailure(message: 'لا يوجد اتصال بالإنترنت');
+      return NetworkFailure(message: AppStrings.noInternetConnection);
     }
     final statusCode = e.response?.statusCode;
     final body = e.response?.data;
     final message = body is Map ? body['message']?.toString() : null;
 
     if (statusCode == 401) {
-      return AuthFailure(message: message ?? 'غير مصرح');
+      return AuthFailure(message: message ?? AppStrings.unauthorized);
     }
     if (statusCode == 422) {
-      return ValidationFailure(message: message ?? 'بيانات غير صالحة');
+      return ValidationFailure(message: message ?? AppStrings.invalidData);
     }
-    return ServerFailure(message: message ?? 'حدث خطأ في الخادم');
+    return ServerFailure(message: message ?? AppStrings.serverError);
   }
 }

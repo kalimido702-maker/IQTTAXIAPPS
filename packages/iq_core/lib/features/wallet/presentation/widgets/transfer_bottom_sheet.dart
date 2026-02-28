@@ -18,10 +18,11 @@ class TransferBottomSheet extends StatefulWidget {
 
   /// Show the transfer bottom sheet.
   static Future<void> show(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.white,
+      backgroundColor: isDark ? AppColors.darkCard : AppColors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
       ),
@@ -83,6 +84,8 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.only(
         left: 24.w,
@@ -105,7 +108,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
           IqText(
             AppStrings.userType,
             style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textDark,
+              color: onSurface,
             ),
           ),
           SizedBox(height: 10.h),
@@ -113,7 +116,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
             height: 52.h,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.inputBorder),
+              border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.inputBorder),
               borderRadius: BorderRadius.circular(50.r),
             ),
             child: Row(
@@ -124,7 +127,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
                     value: _selectedRole,
                     isDense: true,
                     style: AppTypography.labelLarge.copyWith(
-                      color: AppColors.textDark,
+                      color: onSurface,
                     ),
                     icon: const SizedBox.shrink(),
                     items: [
@@ -133,7 +136,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
                         child: IqText(
                           AppStrings.driver,
                           style: AppTypography.labelLarge.copyWith(
-                            color: AppColors.textDark,
+                            color: onSurface,
                           ),
                         ),
                       ),
@@ -142,7 +145,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
                         child: IqText(
                           AppStrings.user,
                           style: AppTypography.labelLarge.copyWith(
-                            color: AppColors.textDark,
+                            color: onSurface,
                           ),
                         ),
                       ),
@@ -157,7 +160,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
                 Icon(
                   Icons.keyboard_arrow_down_rounded,
                   size: 24.w,
-                  color: AppColors.textDark,
+                  color: onSurface,
                 ),
               ],
             ),
@@ -168,7 +171,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
           IqText(
             AppStrings.theAmount,
             style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textDark,
+              color: onSurface,
             ),
           ),
           SizedBox(height: 10.h),
@@ -176,7 +179,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
             height: 52.h,
             padding: EdgeInsets.only(left: 16.w, right: 16.w, top: 4.h),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.inputBorder),
+              border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.inputBorder),
               borderRadius: BorderRadius.circular(50.r),
             ),
             child: TextField(
@@ -185,7 +188,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
                   const TextInputType.numberWithOptions(decimal: true),
               textAlign: TextAlign.end,
               style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textDark,
+                color: onSurface,
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
@@ -209,7 +212,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
           IqText(
             AppStrings.mobileNumber,
             style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textDark,
+              color: onSurface,
             ),
           ),
           SizedBox(height: 10.h),
@@ -217,7 +220,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
             height: 52.h,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.inputBorder),
+              border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.inputBorder),
               borderRadius: BorderRadius.circular(50.r),
             ),
             child: Directionality(
@@ -231,7 +234,7 @@ class _TransferBottomSheetState extends State<TransferBottomSheet> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(2.r),
                     border: Border.all(
-                      color: AppColors.grayBorder,
+                      color: isDark ? AppColors.darkDivider : AppColors.grayBorder,
                       width: 0.5,
                     ),
                   ),

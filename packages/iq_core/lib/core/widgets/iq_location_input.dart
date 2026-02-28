@@ -26,6 +26,8 @@ class IqLocationInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -33,7 +35,9 @@ class IqLocationInput extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(24.r),
-          border: Border.all(color: AppColors.grayBorder),
+          border: Border.all(
+            color: isDark ? AppColors.darkDivider : AppColors.grayBorder,
+          ),
         ),
         child: Row(
           children: [

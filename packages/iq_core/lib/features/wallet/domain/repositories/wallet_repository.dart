@@ -10,10 +10,11 @@ abstract class WalletRepository {
   /// Calls `GET api/v1/payment/wallet/history?page={page}`
   Future<Either<Failure, WalletEntity>> getWalletHistory({required int page});
 
-  /// Add money to wallet.
+  /// Create a QiCard payment for adding money to wallet.
   ///
-  /// Calls `POST api/v1/payment/stripe/add-money-to-wallet`
-  Future<Either<Failure, String>> addMoneyToWallet({
+  /// Returns the payment URL to open in a WebView.
+  /// Calls `POST api/v1/payment/qicard/create-payment`
+  Future<Either<Failure, String>> createWalletPayment({
     required double amount,
   });
 

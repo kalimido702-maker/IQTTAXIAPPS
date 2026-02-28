@@ -3,4 +3,5 @@
 export 'api_client.dart' hide ApiClient;
 // Note: AuthInterceptor & LoggingInterceptor hidden to avoid conflict with core/api/interceptors/
 export 'api_interceptors.dart' hide AuthInterceptor, LoggingInterceptor;
+export 'auth_service.dart';
 export 'network_info.dart';

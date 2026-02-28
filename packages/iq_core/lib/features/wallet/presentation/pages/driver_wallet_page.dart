@@ -171,6 +171,7 @@ class _ActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Column(
       children: [
         // Add balance — full width yellow
@@ -219,17 +220,17 @@ class _ActionButtons extends StatelessWidget {
                     TransferBottomSheet.show(context);
                   },
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.black),
+                    side: BorderSide(color: onSurface),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(1000.r),
                     ),
                   ),
                   icon: Icon(Icons.swap_horiz, size: 24.w,
-                      color: AppColors.black),
+                      color: onSurface),
                   label: IqText(
                     AppStrings.transfer,
                     style: AppTypography.button.copyWith(
-                      color: AppColors.black,
+                      color: onSurface,
                     ),
                   ),
                 ),
@@ -253,17 +254,17 @@ class _ActionButtons extends StatelessWidget {
                     );
                   },
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.black),
+                    side: BorderSide(color: onSurface),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(1000.r),
                     ),
                   ),
                   icon: Icon(Icons.north_east, size: 24.w,
-                      color: AppColors.black),
+                      color: onSurface),
                   label: IqText(
                     AppStrings.withdraw,
                     style: AppTypography.button.copyWith(
-                      color: AppColors.black,
+                      color: onSurface,
                     ),
                   ),
                 ),
@@ -295,7 +296,7 @@ class _TransactionsSection extends StatelessWidget {
         IqText(
           AppStrings.recentTransactions,
           style: AppTypography.heading3.copyWith(
-            color: AppColors.textDark,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 18.sp,
           ),
         ),
@@ -382,7 +383,7 @@ class _DriverTransactionItem extends StatelessWidget {
                     IqText(
                       description,
                       style: AppTypography.labelLarge.copyWith(
-                        color: AppColors.textDark,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 16.sp,
                       ),
                       maxLines: 1,
@@ -430,7 +431,9 @@ class _DriverTransactionItem extends StatelessWidget {
         ),
         Divider(
           height: 0.5,
-          color: AppColors.grayBorder,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.darkDivider
+              : AppColors.grayBorder,
         ),
       ],
     );

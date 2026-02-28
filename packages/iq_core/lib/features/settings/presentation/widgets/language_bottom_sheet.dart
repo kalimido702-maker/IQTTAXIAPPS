@@ -107,6 +107,7 @@ class _LanguageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14.r),
@@ -115,7 +116,9 @@ class _LanguageTile extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14.r),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.grayBorder,
+            color: isSelected
+                ? AppColors.primary
+                : isDark ? AppColors.darkDivider : AppColors.grayBorder,
             width: isSelected ? 2 : 1,
           ),
           color: isSelected

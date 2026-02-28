@@ -137,9 +137,12 @@ class _MapPreviewState extends State<_MapPreview> {
     final dropoff = LatLng(trip.dropoffLat, trip.dropoffLng);
 
     // Decode the encoded polyline from the backend if available
-    final polylinePoints = trip.polyLine != null && trip.polyLine!.isNotEmpty
+    final rawPoints = trip.polyLine != null && trip.polyLine!.isNotEmpty
         ? RouteHelper.decodeAndSimplify(trip.polyLine!)
         : <LatLng>[pickup, dropoff];
+    final polylinePoints = rawPoints.length >= 2
+        ? RouteHelper.snapToEndpoints(rawPoints, pickup, dropoff)
+        : rawPoints;
 
     // Calculate bounds to fit the route (shared utility)
     final bounds = calculateBounds(polylinePoints);

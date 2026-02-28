@@ -9,5 +9,6 @@ export 'presentation/pages/passenger_wallet_page.dart';
 export 'presentation/pages/driver_wallet_page.dart';
 export 'presentation/pages/driver_add_balance_page.dart';
 export 'presentation/pages/driver_withdraw_page.dart';
+export 'presentation/pages/payment_web_view_page.dart';
 export 'presentation/widgets/deposit_bottom_sheet.dart';
 export 'presentation/widgets/transfer_bottom_sheet.dart';

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/constants/app_strings.dart';
+
 /// Trip invoice / fare breakdown shown after trip completion.
 class InvoiceModel extends Equatable {
   const InvoiceModel({
@@ -27,6 +29,7 @@ class InvoiceModel extends Equatable {
     required this.currency,
     required this.currencySymbol,
     required this.paymentMethod,
+    this.isPaid = false,
     this.additionalCharge = 0.0,
     this.cancellationFee = 0.0,
   });
@@ -55,21 +58,20 @@ class InvoiceModel extends Equatable {
   final String currency;
   final String currencySymbol;
   final int paymentMethod;
+  final bool isPaid;
   final double additionalCharge;
   final double cancellationFee;
 
   String get paymentMethodName {
     switch (paymentMethod) {
       case 0:
-        return 'بطاقة';
+        return AppStrings.onlinePayment;
       case 1:
-        return 'نقدي';
+        return AppStrings.cash;
       case 2:
-        return 'محفظة';
-      case 3:
-        return 'دفع الكتروني';
+        return AppStrings.walletPayment;
       default:
-        return 'نقدي';
+        return AppStrings.cash;
     }
   }
 
@@ -108,8 +110,11 @@ class InvoiceModel extends Equatable {
           (data['request_eta_amount'] as num?)?.toDouble() ??
           0.0,
       currency: (data['currency'] ?? 'IQD').toString(),
-      currencySymbol: (data['currency_symbol'] ?? 'د.ع').toString(),
+      currencySymbol: (data['currency_symbol'] ?? AppStrings.currencyIQD).toString(),
       paymentMethod: (data['payment_opt'] as num?)?.toInt() ?? 1,
+      isPaid: data['is_paid'] == 1 ||
+          data['is_paid'] == true ||
+          data['is_paid'] == '1',
       additionalCharge:
           (data['additional_charge'] as num?)?.toDouble() ?? 0.0,
       cancellationFee:

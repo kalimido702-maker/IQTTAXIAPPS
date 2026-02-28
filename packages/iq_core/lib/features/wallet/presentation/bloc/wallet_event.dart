@@ -20,10 +20,16 @@ class WalletRefreshRequested extends WalletEvent {
   const WalletRefreshRequested();
 }
 
-/// Deposit money into wallet.
+/// Deposit money into wallet (creates QiCard payment).
 class WalletDepositRequested extends WalletEvent {
   final double amount;
   const WalletDepositRequested({required this.amount});
+}
+
+/// Payment WebView completed — refresh wallet.
+class WalletPaymentCompleted extends WalletEvent {
+  final bool success;
+  const WalletPaymentCompleted({required this.success});
 }
 
 /// Transfer money from wallet to another user.

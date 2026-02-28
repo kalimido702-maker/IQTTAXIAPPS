@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/services/map_performance.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
@@ -85,8 +86,9 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
   @override
   Widget build(BuildContext context) {
     final req = widget.request;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: AppColors.white,
+      color: isDark ? AppColors.darkBackground : AppColors.white,
       child: SafeArea(
         child: Column(
           children: [
@@ -125,9 +127,9 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IqText(
-                          'تفاصيل الرحلة',
+                          AppStrings.tripDetails,
                           style: AppTypography.heading3.copyWith(
-                            color: AppColors.textDark,
+                            color: isDark ? AppColors.white : AppColors.textDark,
                           ),
                         ),
                         // Timer badge
@@ -143,7 +145,7 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                             borderRadius: BorderRadius.circular(20.r),
                           ),
                           child: IqText(
-                            '$_secondsLeft ثانية',
+                            '$_secondsLeft ${AppStrings.minute}',
                             style: AppTypography.labelMedium.copyWith(
                               color: _secondsLeft <= 10
                                   ? AppColors.error
@@ -193,7 +195,7 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                         SizedBox(width: 12.w),
                         _InfoChip(
                           icon: Icons.straighten_rounded,
-                          value: '${req.distance.toStringAsFixed(1)} كم',
+                          value: '${req.distance.toStringAsFixed(1)} ${AppStrings.km}',
                         ),
                       ],
                     ),
@@ -227,7 +229,7 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                                 padding: EdgeInsets.symmetric(vertical: 16.h),
                                 child: Center(
                                   child: IqText(
-                                    'رفض',
+                                    AppStrings.reject,
                                     style: AppTypography.labelMedium.copyWith(
                                       color: AppColors.error,
                                     ),
@@ -272,7 +274,9 @@ class _InfoChip extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
         decoration: BoxDecoration(
-          color: AppColors.grayLightBg,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.darkInputBg
+              : AppColors.grayLightBg,
           borderRadius: BorderRadius.circular(10.r),
         ),
         child: Row(
@@ -283,7 +287,7 @@ class _InfoChip extends StatelessWidget {
             IqText(
               value,
               style: AppTypography.labelSmall.copyWith(
-                color: AppColors.textDark,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],

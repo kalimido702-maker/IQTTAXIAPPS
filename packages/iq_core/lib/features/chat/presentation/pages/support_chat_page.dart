@@ -58,7 +58,7 @@ class _SupportChatPageState extends State<SupportChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -98,10 +98,12 @@ class _SupportChatPageState extends State<SupportChatPage> {
 
   /// Custom header matching Figma: avatar+title on RIGHT, back arrow on LEFT.
   Widget _buildHeader(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 14.h),
-      decoration: const BoxDecoration(
-        color: AppColors.white,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.white,
         boxShadow: [
           BoxShadow(
             color: AppColors.chatShadow,
@@ -117,9 +119,9 @@ class _SupportChatPageState extends State<SupportChatPage> {
           Container(
             width: 46.w,
             height: 46.w,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.grayLightBg,
+              color: isDark ? AppColors.darkInputBg : AppColors.grayLightBg,
             ),
             child: ClipOval(
               child: Icon(
@@ -138,7 +140,7 @@ class _SupportChatPageState extends State<SupportChatPage> {
                 AppStrings.adminChat,
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                  color: AppColors.black,
+                  color: onSurface,
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w700,
                   fontFamily: 'Almarai',
@@ -164,7 +166,7 @@ class _SupportChatPageState extends State<SupportChatPage> {
               padding: EdgeInsets.all(8.w),
               child: Icon(
                 Icons.arrow_forward,
-                color: AppColors.black,
+                color: onSurface,
                 size: 22.sp,
               ),
             ),
@@ -305,7 +307,7 @@ class _SupportChatPageState extends State<SupportChatPage> {
           label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: AppColors.textDark,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 20.sp,
             fontFamily: 'Almarai',
             fontWeight: FontWeight.w400,
@@ -317,12 +319,13 @@ class _SupportChatPageState extends State<SupportChatPage> {
   }
 
   Widget _buildInputBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 24.h),
       child: Container(
         height: 55.h,
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: isDark ? AppColors.darkCard : AppColors.white,
           borderRadius: BorderRadius.circular(50.r),
           boxShadow: const [
             BoxShadow(
@@ -341,7 +344,7 @@ class _SupportChatPageState extends State<SupportChatPage> {
                 style: TextStyle(
                   fontSize: 16.sp,
                   fontFamily: 'Almarai',
-                  color: AppColors.black,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 decoration: InputDecoration(
                   fillColor: AppColors.transparent,
@@ -418,13 +421,14 @@ class _MessageBubble extends StatelessWidget {
     return Padding(
       // 12px between same-sender messages, 30px between different senders.
       padding: EdgeInsets.only(top: isFollowUp ? 12.h : 30.h),
-      child: message.isMe ? _buildUserBubble() : _buildAdminBubble(),
+      child: message.isMe ? _buildUserBubble(context) : _buildAdminBubble(context),
     );
   }
 
   /// Admin message: black bubble, LEFT-aligned (LTR context).
   /// Sharp bottom-left corner (tail pointing left toward sender).
-  Widget _buildAdminBubble() {
+  Widget _buildAdminBubble(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,7 +445,7 @@ class _MessageBubble extends StatelessWidget {
                     vertical: 8.h,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.black,
+                    color: isDark ? AppColors.darkCard : AppColors.black,
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(8.r),
                       topRight: Radius.circular(8.r),
@@ -480,7 +484,8 @@ class _MessageBubble extends StatelessWidget {
 
   /// User message: white bubble, RIGHT-aligned (LTR context) with avatar.
   /// Sharp bottom-right corner (tail pointing right toward avatar).
-  Widget _buildUserBubble() {
+  Widget _buildUserBubble(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,7 +503,7 @@ class _MessageBubble extends StatelessWidget {
                     vertical: 8.h,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.white,
+                    color: isDark ? AppColors.darkInputBg : AppColors.white,
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(8.r),
                       topRight: Radius.circular(8.r),
@@ -509,7 +514,7 @@ class _MessageBubble extends StatelessWidget {
                     message.message,
                     textAlign: TextAlign.right,
                     style: TextStyle(
-                      color: AppColors.textDark,
+                      color: isDark ? AppColors.white : AppColors.textDark,
                       fontSize: 15.sp,
                       fontFamily: 'Almarai',
                       fontWeight: FontWeight.w400,
@@ -537,9 +542,9 @@ class _MessageBubble extends StatelessWidget {
         Container(
           width: 44.w,
           height: 44.w,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.grayLightBg,
+            color: isDark ? AppColors.darkInputBg : AppColors.grayLightBg,
           ),
           child: ClipOval(
             child: Icon(

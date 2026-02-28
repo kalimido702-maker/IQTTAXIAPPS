@@ -33,7 +33,7 @@ class AppAssets {
   // ─── SVG Icons ───
   static const String icArrowLeft = '$_svg/arrow_left.svg';
   static const String icArrowBack = '$_svg/ic_arrow_back.svg';
-  static const String icLocation = '$_svg/ic_location.svg';
+  static const String icLocation = '$_svg/location_icon.svg';
   static const String icSearch = '$_svg/ic_search.svg';
   static const String icMenu = '$_svg/ic_menu.svg';
   static const String icStar = '$_svg/ic_star.svg';
@@ -60,6 +60,7 @@ class AppAssets {
   static const String icClose = '$_svg/ic_close.svg';
   static const String icCheck = '$_svg/ic_check.svg';
   static const String searchIcon = '$_svg/search.svg';
+  static const String locationIcon = '$_svg/location_icon.svg';
   static const String gift = '$_images/gift.png';
 
   // ─── Lottie Animations ───

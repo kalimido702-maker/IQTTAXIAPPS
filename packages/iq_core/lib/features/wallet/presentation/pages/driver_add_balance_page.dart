@@ -57,6 +57,8 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const IqAppBar(title: AppStrings.addBalance),
@@ -71,7 +73,7 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
             IqText(
               AppStrings.enterAmount,
               style: AppTypography.heading3.copyWith(
-                color: AppColors.textDark,
+                color: onSurface,
                 fontSize: 18.sp,
               ),
             ),
@@ -81,7 +83,7 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
             Container(
               height: 75.h,
               decoration: BoxDecoration(
-                border: Border.all(color: AppColors.inputBorder),
+                border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.inputBorder),
                 borderRadius: BorderRadius.circular(12.r),
               ),
               child: Center(
@@ -94,7 +96,7 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
                     fontFamily: AppTypography.fontFamilyLatin,
                     fontWeight: FontWeight.w500,
                     fontSize: 24.sp,
-                    color: AppColors.textDark,
+                    color: onSurface,
                   ),
                   decoration: InputDecoration(
                     border: InputBorder.none,
@@ -103,7 +105,7 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
                       fontFamily: AppTypography.fontFamilyLatin,
                       fontWeight: FontWeight.w500,
                       fontSize: 24.sp,
-                      color: AppColors.textDark,
+                      color: onSurface,
                     ),
                     isDense: true,
                   ),
@@ -136,11 +138,11 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? AppColors.buttonYellow
-                          : AppColors.white,
+                          : isDark ? AppColors.darkCard : AppColors.white,
                       border: Border.all(
                         color: isSelected
                             ? AppColors.buttonYellow
-                            : AppColors.black,
+                            : isDark ? AppColors.darkDivider : AppColors.black,
                       ),
                       borderRadius: BorderRadius.circular(1000.r),
                     ),
@@ -148,7 +150,9 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
                       formatted,
                       style: AppTypography.bodyLarge.copyWith(
                         fontSize: 16.sp,
-                        color: AppColors.black,
+                        color: isSelected
+                            ? AppColors.black
+                            : onSurface,
                       ),
                     ),
                   ),
@@ -170,7 +174,7 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
                       Navigator.of(context).pop();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.black,
+                      backgroundColor: isDark ? AppColors.darkCard : AppColors.black,
                       foregroundColor: AppColors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(

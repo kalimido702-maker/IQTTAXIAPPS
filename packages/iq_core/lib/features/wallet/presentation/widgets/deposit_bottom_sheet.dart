@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_text.dart';
 import '../bloc/wallet_bloc.dart';
+import '../pages/payment_web_view_page.dart';
 
 /// Bottom sheet for depositing money — إيداع أموال
 ///
@@ -17,10 +18,11 @@ class DepositBottomSheet extends StatefulWidget {
 
   /// Show the deposit bottom sheet.
   static Future<void> show(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.white,
+      backgroundColor: isDark ? AppColors.darkCard : AppColors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30.r)),
       ),
@@ -67,12 +69,53 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
     }
 
     context.read<WalletBloc>().add(WalletDepositRequested(amount: amount));
-    Navigator.of(context).pop();
+  }
+
+  Future<void> _openPaymentWebView(String paymentUrl) async {
+    final result = await Navigator.of(context).push<PaymentResult>(
+      MaterialPageRoute(
+        builder: (_) => PaymentWebViewPage(paymentUrl: paymentUrl),
+      ),
+    );
+
+    if (!mounted) return;
+
+    final success = result == PaymentResult.success;
+    context.read<WalletBloc>().add(WalletPaymentCompleted(success: success));
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return BlocListener<WalletBloc, WalletState>(
+      listenWhen: (prev, curr) => prev.actionStatus != curr.actionStatus,
+      listener: (context, state) {
+        switch (state.actionStatus) {
+          case WalletActionStatus.paymentUrlReady:
+            if (state.paymentUrl != null) {
+              _openPaymentWebView(state.paymentUrl!);
+            }
+          case WalletActionStatus.success:
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.actionMessage ?? ''),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          case WalletActionStatus.failed:
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.actionMessage ?? ''),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          default:
+            break;
+        }
+      },
+      child: Padding(
       padding: EdgeInsets.only(
         left: 24.w,
         right: 24.w,
@@ -161,11 +204,11 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? AppColors.buttonYellow
-                          : AppColors.white,
+                          : isDark ? AppColors.darkCard : AppColors.white,
                       border: Border.all(
                         color: isSelected
                             ? AppColors.buttonYellow
-                            : AppColors.chipBorder,
+                            : isDark ? AppColors.darkDivider : AppColors.chipBorder,
                       ),
                       borderRadius: BorderRadius.circular(6.r),
                     ),
@@ -176,7 +219,9 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
                         fontFamily: AppTypography.fontFamilyLatin,
                         fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
                         fontSize: 14.sp,
-                        color: AppColors.black,
+                        color: isSelected
+                            ? AppColors.black
+                            : isDark ? AppColors.white : AppColors.black,
                       ),
                     ),
                   ),
@@ -191,26 +236,45 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
             children: [
               // Add amount button
               Expanded(
-                child: SizedBox(
-                  height: 55.h,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      _onAddPressed();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.buttonYellow,
-                      foregroundColor: AppColors.black,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50.r),
+                child: BlocBuilder<WalletBloc, WalletState>(
+                  buildWhen: (prev, curr) =>
+                      prev.actionStatus != curr.actionStatus,
+                  builder: (context, state) {
+                    final isProcessing =
+                        state.actionStatus == WalletActionStatus.processing;
+                    return SizedBox(
+                      height: 55.h,
+                      child: ElevatedButton(
+                        onPressed: isProcessing
+                            ? null
+                            : () {
+                                HapticFeedback.lightImpact();
+                                _onAddPressed();
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.buttonYellow,
+                          foregroundColor: AppColors.black,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50.r),
+                          ),
+                        ),
+                        child: isProcessing
+                            ? SizedBox(
+                                width: 24.w,
+                                height: 24.w,
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: AppColors.black,
+                                ),
+                              )
+                            : IqText(
+                                AppStrings.addAmount,
+                                style: AppTypography.button,
+                              ),
                       ),
-                    ),
-                    child: IqText(
-                      AppStrings.addAmount,
-                      style: AppTypography.button,
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
               SizedBox(width: 14.w),
@@ -241,6 +305,7 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
           ),
         ],
       ),
+    ),
     );
   }
 }

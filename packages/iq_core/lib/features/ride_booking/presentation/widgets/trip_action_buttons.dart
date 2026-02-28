@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_text.dart';
@@ -27,12 +28,12 @@ class TripActionButtons extends StatelessWidget {
       children: [
         _ActionItem(
           icon: Icons.my_location_rounded,
-          label: 'تحديد الموقع',
+          label: AppStrings.locatePosition,
           onTap: onLocate,
         ),
         _ActionItem(
           icon: Icons.share_rounded,
-          label: 'مشاركة الرحلة',
+          label: AppStrings.shareTrip,
           onTap: onShareTrip,
         ),
         _ActionItem(

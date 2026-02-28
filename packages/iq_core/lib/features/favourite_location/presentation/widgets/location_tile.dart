@@ -59,9 +59,11 @@ class LocationTile extends StatelessWidget {
               Container(
                 width: 44.w,
                 height: 44.w,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.grayLightBg,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.darkInputBg
+                      : AppColors.grayLightBg,
                 ),
                 child: Icon(
                   icon,
@@ -117,7 +119,12 @@ class LocationTile extends StatelessWidget {
             ],
           ),
         ),
-        Divider(color: AppColors.grayBorder, height: 1.h),
+        Divider(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.darkDivider
+              : AppColors.grayBorder,
+          height: 1.h,
+        ),
       ],
     );
   }

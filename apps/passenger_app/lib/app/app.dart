@@ -3,10 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:iq_core/iq_core.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Root widget for the Passenger App
 class PassengerApp extends StatelessWidget {
   const PassengerApp({super.key});
+
+  /// Global key so [BlocListener] can navigate without a page [BuildContext].
+  static final navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +30,7 @@ class PassengerApp extends StatelessWidget {
               return BlocBuilder<LocaleCubit, LocaleState>(
                 builder: (context, localeState) {
                   return MaterialApp(
+                    navigatorKey: PassengerApp.navigatorKey,
                     title: AppStrings.appNamePassenger,
                     debugShowCheckedModeBanner: false,
                     theme: AppTheme.lightTheme,
@@ -46,7 +51,22 @@ class PassengerApp extends StatelessWidget {
                         textDirection: localeState.isArabic
                             ? TextDirection.rtl
                             : TextDirection.ltr,
-                        child: child ?? const SizedBox.shrink(),
+                        child: BlocListener<AuthBloc, AuthState>(
+                          listenWhen: (prev, curr) =>
+                              prev is! AuthUnauthenticated &&
+                              curr is AuthUnauthenticated,
+                          listener: (context, state) {
+                            // 401 received → clear nav stack, restart from splash
+                            PassengerApp.navigatorKey.currentState
+                                ?.pushAndRemoveUntil(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const _AppHome(),
+                              ),
+                              (route) => false,
+                            );
+                          },
+                          child: child ?? const SizedBox.shrink(),
+                        ),
                       );
                     },
                     home: const _AppHome(),
@@ -264,8 +284,11 @@ class _AppHome extends StatelessWidget {
       IqSidebarItem(
         icon: Icons.cell_tower,
         label: AppStrings.emergency,
-        onTap: (_) {
-          // TODO: navigate to emergency page
+        onTap: (ctx) async {
+          final uri = Uri(scheme: 'tel', path: '911');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+          }
         },
       ),
       IqSidebarItem(

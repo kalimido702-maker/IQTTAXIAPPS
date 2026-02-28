@@ -27,6 +27,10 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
     on<PassengerTripCancelRequested>(_onCancelRequested);
     on<PassengerTripRatingSubmitted>(_onRatingSubmitted);
     on<PassengerTripReset>(_onReset);
+    on<PassengerTripPromoApplied>(_onPromoApplied);
+    on<PassengerTripScheduleChanged>(_onScheduleChanged);
+    on<PassengerTripPreferencesChanged>(_onPreferencesChanged);
+    on<PassengerTripInstructionsChanged>(_onInstructionsChanged);
   }
 
   final BookingRepository repository;
@@ -108,12 +112,17 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
       dropLng: state.dropLng,
       pickAddress: state.pickAddress,
       dropAddress: state.dropAddress,
-      vehicleType: state.selectedVehicle!.zoneTypeId,
+      vehicleType: state.selectedVehicle!.typeId,
       paymentOpt: state.paymentOpt,
       promoCode: state.promoCode,
       polyline: event.polyline,
       requestEtaAmount: state.selectedVehicle!.total,
-      instructions: event.instructions,
+      instructions: state.instructions ?? event.instructions,
+      isLater: state.scheduledTime != null ? 1 : 0,
+      rideType: state.scheduledTime != null ? 2 : 1,
+      tripStartTime: state.scheduledTime?.toIso8601String(),
+      selectedPreferences:
+          state.selectedPreferences.isNotEmpty ? state.selectedPreferences : null,
     );
 
     result.fold(
@@ -239,6 +248,42 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
     _tripSubscription?.cancel();
     _tripSubscription = null;
     emit(const PassengerTripState());
+  }
+
+  void _onPromoApplied(
+    PassengerTripPromoApplied event,
+    Emitter<PassengerTripState> emit,
+  ) {
+    emit(state.copyWith(promoCode: event.promoCode));
+  }
+
+  void _onScheduleChanged(
+    PassengerTripScheduleChanged event,
+    Emitter<PassengerTripState> emit,
+  ) {
+    if (event.scheduledTime == null) {
+      emit(state.copyWith(clearSchedule: true));
+    } else {
+      emit(state.copyWith(scheduledTime: event.scheduledTime));
+    }
+  }
+
+  void _onPreferencesChanged(
+    PassengerTripPreferencesChanged event,
+    Emitter<PassengerTripState> emit,
+  ) {
+    emit(state.copyWith(selectedPreferences: event.preferences));
+  }
+
+  void _onInstructionsChanged(
+    PassengerTripInstructionsChanged event,
+    Emitter<PassengerTripState> emit,
+  ) {
+    if (event.instructions == null || event.instructions!.isEmpty) {
+      emit(state.copyWith(clearInstructions: true));
+    } else {
+      emit(state.copyWith(instructions: event.instructions));
+    }
   }
 
   @override

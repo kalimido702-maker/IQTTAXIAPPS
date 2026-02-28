@@ -10,8 +10,8 @@ abstract class WalletDataSource {
     required int page,
   });
 
-  /// Add money to wallet.
-  Future<Either<Failure, String>> addMoneyToWallet({
+  /// Create a QiCard payment and return the payment URL.
+  Future<Either<Failure, String>> createWalletPayment({
     required double amount,
   });
 

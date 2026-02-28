@@ -176,58 +176,85 @@ class _HeaderSection extends StatelessWidget {
                   // Back card
                   Positioned(
                     top: 0,
-                    child: Container(
-                      width: 279.w,
-                      height: 210.h,
-                      decoration: BoxDecoration(
-                        color: AppColors.white.withValues(alpha: 0.95),
-                        borderRadius: BorderRadius.circular(8.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.black.withValues(alpha: 0.1),
-                            offset: const Offset(0, -5),
-                            blurRadius: 20,
+                    child: Builder(
+                      builder: (context) {
+                        final isDark = Theme.of(context).brightness == Brightness.dark;
+                        final cardColor = isDark
+                            ? AppColors.darkCard.withValues(alpha: 0.95)
+                            : AppColors.white.withValues(alpha: 0.95);
+                        final shadowColor = AppColors.black.withValues(alpha: 0.1);
+                        return Container(
+                          width: 279.w,
+                          height: 210.h,
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(8.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: shadowColor,
+                                offset: const Offset(0, -5),
+                                blurRadius: 20,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
                   // Middle card
                   Positioned(
                     top: 16.h,
-                    child: Container(
-                      width: 311.w,
-                      height: 193.h,
-                      decoration: BoxDecoration(
-                        color: AppColors.white.withValues(alpha: 0.95),
-                        borderRadius: BorderRadius.circular(8.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.black.withValues(alpha: 0.1),
-                            offset: const Offset(0, -5),
-                            blurRadius: 20,
+                    child: Builder(
+                      builder: (context) {
+                        final isDark = Theme.of(context).brightness == Brightness.dark;
+                        final cardColor = isDark
+                            ? AppColors.darkCard.withValues(alpha: 0.95)
+                            : AppColors.white.withValues(alpha: 0.95);
+                        final shadowColor = AppColors.black.withValues(alpha: 0.1);
+                        return Container(
+                          width: 311.w,
+                          height: 193.h,
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(8.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: shadowColor,
+                                offset: const Offset(0, -5),
+                                blurRadius: 20,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
                   // Front card
                   Positioned(
                     top: 32.h,
-                    child: Container(
-                      width: 343.w,
-                      height: 193.h,
-                      decoration: BoxDecoration(
-                        color: AppColors.white.withValues(alpha: 0.95),
-                        borderRadius: BorderRadius.circular(8.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.black.withValues(alpha: 0.1),
-                            offset: const Offset(0, -5),
-                            blurRadius: 20,
+                    child: Builder(
+                      builder: (context) {
+                        final isDark = Theme.of(context).brightness == Brightness.dark;
+                        final cardColor = isDark
+                            ? AppColors.darkCard.withValues(alpha: 0.95)
+                            : AppColors.white.withValues(alpha: 0.95);
+                        final shadowColor = AppColors.black.withValues(alpha: 0.1);
+                        return Container(
+                          width: 343.w,
+                          height: 193.h,
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(8.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: shadowColor,
+                                offset: const Offset(0, -5),
+                                blurRadius: 20,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
                   // Payment method row
@@ -259,7 +286,7 @@ class _HeaderSection extends StatelessWidget {
                                   AppStrings.cashPayment,
                                   style: AppTypography.bodyLarge.copyWith(
                                     fontSize: 17.sp,
-                                    color: AppColors.textDark,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                                 SizedBox(height: 4.h),
@@ -493,7 +520,9 @@ class _ActionButtons extends StatelessWidget {
                 TransferBottomSheet.show(context);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.black,
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.darkCard
+                    : AppColors.black,
                 foregroundColor: AppColors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(

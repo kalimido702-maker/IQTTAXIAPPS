@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../domain/entities/wallet_entity.dart';
 import '../../domain/repositories/wallet_repository.dart';
 
@@ -15,6 +16,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     on<WalletLoadMoreRequested>(_onLoadMoreRequested);
     on<WalletRefreshRequested>(_onRefreshRequested);
     on<WalletDepositRequested>(_onDepositRequested);
+    on<WalletPaymentCompleted>(_onPaymentCompleted);
     on<WalletTransferRequested>(_onTransferRequested);
   }
 
@@ -95,22 +97,40 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   ) async {
     emit(state.copyWith(actionStatus: WalletActionStatus.processing));
 
-    final result = await repository.addMoneyToWallet(amount: event.amount);
+    final result =
+        await repository.createWalletPayment(amount: event.amount);
 
     result.fold(
       (failure) => emit(state.copyWith(
         actionStatus: WalletActionStatus.failed,
         actionMessage: failure.message,
       )),
-      (message) {
+      (paymentUrl) {
         emit(state.copyWith(
-          actionStatus: WalletActionStatus.success,
-          actionMessage: message,
+          actionStatus: WalletActionStatus.paymentUrlReady,
+          paymentUrl: paymentUrl,
         ));
-        // Refresh to get updated balance
-        add(const WalletRefreshRequested());
       },
     );
+  }
+
+  void _onPaymentCompleted(
+    WalletPaymentCompleted event,
+    Emitter<WalletState> emit,
+  ) {
+    if (event.success) {
+      emit(state.copyWith(
+        actionStatus: WalletActionStatus.success,
+        actionMessage: AppStrings.depositSuccess,
+      ));
+      // Refresh wallet to get updated balance
+      add(const WalletRefreshRequested());
+    } else {
+      emit(state.copyWith(
+        actionStatus: WalletActionStatus.failed,
+        actionMessage: AppStrings.paymentFailed,
+      ));
+    }
   }
 
   Future<void> _onTransferRequested(

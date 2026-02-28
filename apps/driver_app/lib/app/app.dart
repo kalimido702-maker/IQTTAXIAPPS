@@ -9,6 +9,9 @@ import 'package:url_launcher/url_launcher.dart';
 class DriverApp extends StatelessWidget {
   const DriverApp({super.key});
 
+  /// Global key so [BlocListener] can navigate without a page [BuildContext].
+  static final navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
@@ -27,6 +30,7 @@ class DriverApp extends StatelessWidget {
               return BlocBuilder<LocaleCubit, LocaleState>(
                 builder: (context, localeState) {
                   return MaterialApp(
+                    navigatorKey: DriverApp.navigatorKey,
                     title: AppStrings.appNameDriver,
                     debugShowCheckedModeBanner: false,
                     theme: AppTheme.lightTheme,
@@ -47,7 +51,22 @@ class DriverApp extends StatelessWidget {
                         textDirection: localeState.isArabic
                             ? TextDirection.rtl
                             : TextDirection.ltr,
-                        child: child ?? const SizedBox.shrink(),
+                        child: BlocListener<AuthBloc, AuthState>(
+                          listenWhen: (prev, curr) =>
+                              prev is! AuthUnauthenticated &&
+                              curr is AuthUnauthenticated,
+                          listener: (context, state) {
+                            // 401 received → clear nav stack, restart from splash
+                            DriverApp.navigatorKey.currentState
+                                ?.pushAndRemoveUntil(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const _AppHome(),
+                              ),
+                              (route) => false,
+                            );
+                          },
+                          child: child ?? const SizedBox.shrink(),
+                        ),
                       );
                     },
                     home: const _AppHome(),

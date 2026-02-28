@@ -61,6 +61,8 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const IqAppBar(title: AppStrings.withdrawBalance),
@@ -109,7 +111,7 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
                 IqText(
                   AppStrings.enterWithdrawAmount,
                   style: AppTypography.heading3.copyWith(
-                    color: AppColors.textDark,
+                    color: onSurface,
                     fontSize: 18.sp,
                   ),
                 ),
@@ -118,7 +120,7 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
                 Container(
                   height: 75.h,
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.inputBorder),
+                    border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.inputBorder),
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Center(
@@ -131,7 +133,7 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
                         fontFamily: AppTypography.fontFamilyLatin,
                         fontWeight: FontWeight.w500,
                         fontSize: 24.sp,
-                        color: AppColors.textDark,
+                        color: onSurface,
                       ),
                       decoration: InputDecoration(
                         border: InputBorder.none,
@@ -140,7 +142,7 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
                           fontFamily: AppTypography.fontFamilyLatin,
                           fontWeight: FontWeight.w500,
                           fontSize: 24.sp,
-                          color: AppColors.textDark,
+                          color: onSurface,
                         ),
                         isDense: true,
                       ),
@@ -161,7 +163,7 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
                   child: IqText(
                     AppStrings.updatePaymentMethod,
                     style: AppTypography.bodyLarge.copyWith(
-                      color: AppColors.textDark,
+                      color: onSurface,
                       fontSize: 16.sp,
                       decoration: TextDecoration.underline,
                     ),
@@ -205,7 +207,7 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
                           Navigator.of(context).pop();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.black,
+                          backgroundColor: isDark ? AppColors.darkCard : AppColors.black,
                           foregroundColor: AppColors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

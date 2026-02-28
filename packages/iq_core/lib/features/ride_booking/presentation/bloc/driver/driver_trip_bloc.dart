@@ -216,7 +216,13 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     );
     result.fold(
       (failure) => emit(state.copyWith(errorMessage: failure.message)),
-      (_) {}, // Firebase stream will update the state
+      (_) {
+        // Notify passenger app that the trip has ended.
+        tripStream.updateTripNode(
+          requestId: event.requestId,
+          data: {'is_completed': true},
+        );
+      },
     );
   }
 
@@ -229,7 +235,13 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     );
     result.fold(
       (failure) => emit(state.copyWith(errorMessage: failure.message)),
-      (_) {}, // Firebase stream will update the state
+      (_) {
+        // Notify passenger app that payment has been received.
+        tripStream.updateTripNode(
+          requestId: event.requestId,
+          data: {'is_payment_received': true},
+        );
+      },
     );
   }
 

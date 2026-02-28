@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:iq_core/core/constants/app_strings.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/services/google_maps_service.dart';
@@ -10,12 +12,18 @@ import '../../../../../core/services/map_performance.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/iq_map_view.dart';
-import '../../../../../core/widgets/iq_primary_button.dart';
 import '../../../../../core/widgets/iq_text.dart';
+import '../../../../chat/presentation/bloc/support_chat_bloc.dart';
+import '../../../../chat/presentation/pages/support_chat_page.dart';
+import '../../../../chat/data/datasources/support_chat_data_source.dart';
+import '../../../../chat/domain/repositories/support_chat_repository.dart';
+import '../../../../home/presentation/bloc/passenger_home_bloc.dart';
 import '../../bloc/passenger/passenger_trip_bloc.dart';
 import '../../bloc/passenger/passenger_trip_event.dart';
 import '../../bloc/passenger/passenger_trip_state.dart';
-import '../../widgets/trip_address_row.dart';
+// Trip address row kept available for future use.
+// import '../../widgets/trip_address_row.dart';
+import '../../widgets/ride_bottom_sheets.dart';
 import '../../widgets/vehicle_type_card.dart';
 import 'passenger_active_trip_page.dart';
 
@@ -113,7 +121,10 @@ class _BodyState extends State<_Body> {
 
     final pts = _directions?.polylinePoints;
     if (pts != null && pts.isNotEmpty) {
-      _polylines = { MapRouteStyle.route(points: pts) };
+      final pickup = LatLng(widget.pickupLat, widget.pickupLng);
+      final dropoff = LatLng(widget.dropoffLat, widget.dropoffLng);
+      final snapped = RouteHelper.snapToEndpoints(pts, pickup, dropoff);
+      _polylines = { MapRouteStyle.route(points: snapped) };
     } else {
       _polylines = {
         MapRouteStyle.fallbackLine(
@@ -201,7 +212,7 @@ class _BodyState extends State<_Body> {
             Positioned(
               top: MediaQuery.of(context).padding.top + 8.h,
               right: 16.w,
-              child: _CircleButton(
+              child: _CircleIconButton(
                 icon: Icons.arrow_forward_ios_rounded,
                 onTap: () => Navigator.pop(context),
               ),
@@ -240,15 +251,17 @@ class _BottomPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: isDark ? AppColors.darkCard : AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+            color: AppColors.chatShadow,
+            blurRadius: 10,
+            offset: Offset(0, -4),
           ),
         ],
       ),
@@ -257,7 +270,11 @@ class _BottomPanel extends StatelessWidget {
             prev.status != curr.status ||
             prev.vehicleTypes != curr.vehicleTypes ||
             prev.selectedVehicle != curr.selectedVehicle ||
-            prev.paymentOpt != curr.paymentOpt,
+            prev.paymentOpt != curr.paymentOpt ||
+            prev.promoCode != curr.promoCode ||
+            prev.scheduledTime != curr.scheduledTime ||
+            prev.selectedPreferences != curr.selectedPreferences ||
+            prev.instructions != curr.instructions,
         builder: (context, state) {
           if (state.status == PassengerTripStatus.loadingEta) {
             return Padding(
@@ -277,8 +294,9 @@ class _BottomPanel extends StatelessWidget {
                   Icon(Icons.error_outline, color: AppColors.error, size: 40.w),
                   SizedBox(height: 8.h),
                   IqText(
-                    state.errorMessage ?? 'حدث خطأ',
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
+                    state.errorMessage ?? AppStrings.errorOccurred,
+                    style: AppTypography.bodyMedium
+                        .copyWith(color: AppColors.error),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -290,96 +308,68 @@ class _BottomPanel extends StatelessWidget {
           final selected = state.selectedVehicle;
 
           return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24.w, 16.h, 24.w, 24.h),
+            padding: EdgeInsets.symmetric(horizontal: 30.w),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 50.w,
-                    height: 5.h,
-                    decoration: BoxDecoration(
-                      color: AppColors.black.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10.r),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16.h),
+                SizedBox(height: 30.h),
 
-                // Addresses
-                TripAddressRow(
-                  pickAddress: pickupAddress,
-                  dropAddress: dropoffAddress,
-                  compact: true,
-                ),
-                SizedBox(height: 12.h),
-
-                // Distance & Time from Google Directions
-                if (directions != null)
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 10.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary50,
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _InfoChip(
-                          icon: Icons.route_rounded,
-                          label: directions!.distanceText,
-                        ),
-                        Container(
-                          width: 1,
-                          height: 24.h,
-                          color: AppColors.primary200,
-                        ),
-                        _InfoChip(
-                          icon: Icons.access_time_rounded,
-                          label: directions!.durationText,
-                        ),
-                      ],
-                    ),
-                  )
-                else if (isLoadingRoute)
-                  Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.h),
-                      child: SizedBox(
-                        width: 20.w,
-                        height: 20.w,
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
-                        ),
+                // ─── Title ───
+                SizedBox(
+                  width: double.infinity,
+                  child: Center(
+                    child: IqText(
+                      AppStrings.enjoyYourTrip,
+                      style: AppTypography.labelLarge.copyWith(
+                        color: isDark ? AppColors.white : AppColors.black,
+                        fontWeight: FontWeight.w700,
+                        height: 1.50,
                       ),
                     ),
                   ),
+                ),
 
-                SizedBox(height: 12.h),
-                Divider(color: AppColors.grayBorder, height: 1),
-                SizedBox(height: 16.h),
+                SizedBox(height: 30.h),
 
-                // Vehicle type list
-                IqText(
-                  'اختر نوع الرحلة',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: AppColors.textDark,
+                // ─── Section header — "أنواع الرحلات" ───
+                SizedBox(
+                  width: double.infinity,
+                  child: IqText(
+                    AppStrings.tripTypes,
+                    style: AppTypography.heading3.copyWith(
+                      color: isDark ? AppColors.white : AppColors.black,
+                      fontWeight: FontWeight.w700,
+                      height: 1.33,
+                    ),
+                    textAlign: TextAlign.right,
                   ),
                 ),
-                SizedBox(height: 12.h),
-                ...vehicles.map((v) {
+
+                SizedBox(height: 16.h),
+
+                // ─── Vehicle type cards ───
+                if (vehicles.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.h),
+                    child: Center(
+                      child: IqText(
+                        AppStrings.noDataToDisplay,
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.chipText,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                else
+                  ...vehicles.map((v) {
                   return Padding(
-                    padding: EdgeInsets.only(bottom: 8.h),
+                    padding: EdgeInsets.only(bottom: 10.h),
                     child: VehicleTypeCard(
                       name: v.name,
                       icon: v.icon,
-                      price: v.total.toStringAsFixed(0),
+                      price: v.total.toStringAsFixed(2),
                       capacity: v.capacity,
                       isSelected: selected?.zoneTypeId == v.zoneTypeId,
                       currency: v.currencySymbol,
@@ -393,35 +383,157 @@ class _BottomPanel extends StatelessWidget {
                   );
                 }),
 
-                SizedBox(height: 12.h),
+                SizedBox(height: 20.h),
 
-                // Payment row
-                _PaymentRow(
-                  currentPayment: state.paymentOpt,
-                  onChanged: (opt) {
-                    context
-                        .read<PassengerTripBloc>()
-                        .add(PassengerTripPaymentChanged(opt));
+                // ─── Promo code row ───
+                _PromoCodeRow(
+                  appliedCode: state.promoCode,
+                  onTap: () async {
+                    final code = await showPromoCodeSheet(
+                      context,
+                      currentCode: state.promoCode,
+                    );
+                    if (code != null && context.mounted) {
+                      context.read<PassengerTripBloc>().add(
+                            PassengerTripPromoApplied(
+                              code.isEmpty ? null : code,
+                            ),
+                          );
+                    }
                   },
                 ),
 
-                SizedBox(height: 16.h),
+                SizedBox(height: 15.h),
 
-                // Confirm button
-                IqPrimaryButton(
-                  text: 'ركوب الآن',
-                  isLoading: state.status == PassengerTripStatus.creatingRequest,
-                  onPressed: selected != null
-                      ? () {
-                          HapticFeedback.mediumImpact();
-                          context
-                              .read<PassengerTripBloc>()
-                              .add(PassengerTripCreateRequested(
-                                polyline: directions?.encodedPolyline,
-                              ));
-                        }
-                      : null,
+                // ─── Payment row ───
+                _PaymentRow(
+                  currentPayment: state.paymentOpt,
+                  onChanged: (opt) async {
+                    final result = await showPaymentMethodSheet(
+                      context,
+                      currentPayment: state.paymentOpt,
+                      allowedMethods:
+                          selected?.paymentTypes ?? const {},
+                    );
+                    if (result != null && context.mounted) {
+                      context
+                          .read<PassengerTripBloc>()
+                          .add(PassengerTripPaymentChanged(result));
+                    }
+                  },
                 ),
+
+                SizedBox(height: 30.h),
+
+                // ─── Schedule + Preferences buttons ───
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: _PillButton(
+                        text: state.scheduledTime != null
+                            ? '${AppStrings.rideLater} ✓'
+                            : AppStrings.scheduleRide,
+                        backgroundColor: state.scheduledTime != null
+                            ? AppColors.primary
+                            : AppColors.black,
+                        textColor: state.scheduledTime != null
+                            ? AppColors.black
+                            : AppColors.white,
+                        onTap: () async {
+                          final result = await showScheduleRideSheet(
+                            context,
+                            currentSchedule: state.scheduledTime,
+                          );
+                          if (result != null && context.mounted) {
+                            final bloc = context.read<PassengerTripBloc>();
+                            if (result is DateTime) {
+                              bloc.add(PassengerTripScheduleChanged(result));
+                            } else {
+                              // empty string = remove schedule
+                              bloc.add(
+                                  const PassengerTripScheduleChanged(null));
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 30.w),
+                    Expanded(
+                      child: _PillButton(
+                        text: state.selectedPreferences.isNotEmpty
+                            ? '${AppStrings.ridePreferences} (${state.selectedPreferences.length})'
+                            : AppStrings.ridePreferences,
+                        backgroundColor: AppColors.buttonYellow,
+                        textColor: AppColors.black,
+                        onTap: () async {
+                          final prefs = selected?.preferences ?? [];
+                          final currentIds = state.selectedPreferences
+                              .map((m) => m['id'] as int)
+                              .toList();
+                          final result = await showRidePreferencesSheet(
+                            context,
+                            availablePreferences: prefs,
+                            selectedIds: currentIds,
+                            currentInstructions: state.instructions,
+                          );
+                          if (result != null && context.mounted) {
+                            final bloc = context.read<PassengerTripBloc>();
+                            bloc.add(PassengerTripPreferencesChanged(
+                              (result['preferences'] as List<Map<String, dynamic>>?) ?? [],
+                            ));
+                            final instr = result['instructions'] as String?;
+                            bloc.add(PassengerTripInstructionsChanged(
+                              (instr != null && instr.isNotEmpty) ? instr : null,
+                            ));
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 30.h),
+
+                // ─── Ride now button + phone/chat icons ───
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Ride now / schedule button
+                    _RideNowButton(
+                      isLoading: state.status ==
+                          PassengerTripStatus.creatingRequest,
+                      isScheduled: state.scheduledTime != null,
+                      onPressed: selected != null
+                          ? () {
+                              HapticFeedback.mediumImpact();
+                              context
+                                  .read<PassengerTripBloc>()
+                                  .add(PassengerTripCreateRequested(
+                                    polyline: directions?.encodedPolyline,
+                                  ));
+                            }
+                          : null,
+                    ),
+                    // Phone + Chat icons
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _ActionCircle(
+                          icon: Icons.phone_rounded,
+                          onTap: () => _callSupport(context),
+                        ),
+                        SizedBox(width: 9.w),
+                        _ActionCircle(
+                          icon: Icons.chat_bubble_rounded,
+                          onTap: () => _openSupportChat(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 34.h),
               ],
             ),
           );
@@ -431,6 +543,121 @@ class _BottomPanel extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Support Helpers — call & chat
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Opens the phone dialer with the admin SOS number from HomeData.
+Future<void> _callSupport(BuildContext context) async {
+  String? phone;
+  try {
+    final homeData = context.read<PassengerHomeBloc>().state.homeData;
+    phone = homeData?.adminSosPhone;
+  } catch (_) {}
+
+  if (phone == null || phone.isEmpty) return;
+  final uri = Uri(scheme: 'tel', path: phone);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  }
+}
+
+/// Navigates to the admin support chat page.
+void _openSupportChat(BuildContext context) {
+  String userId = '';
+  String? conversationId;
+
+  try {
+    final homeData = context.read<PassengerHomeBloc>().state.homeData;
+    userId = homeData?.id ?? '';
+    conversationId = homeData?.conversationId;
+  } catch (_) {}
+
+  final cachedConvId = sl<SupportChatDataSource>().getSavedConversationId();
+
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => BlocProvider(
+        create: (_) => SupportChatBloc(
+          repository: sl<SupportChatRepository>(),
+          currentUserId: userId,
+          initialConversationId: conversationId ?? cachedConvId,
+        )..add(const SupportChatLoadRequested()),
+        child: const SupportChatPage(),
+      ),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper Widgets — pixel-matched to Figma export
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Promo code row — white bg, shadow, radius 16, height 54.
+class _PromoCodeRow extends StatelessWidget {
+  const _PromoCodeRow({required this.onTap, this.appliedCode});
+
+  final VoidCallback onTap;
+  final String? appliedCode;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCode = appliedCode != null && appliedCode!.isNotEmpty;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: 54.h,
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 15.h),
+        decoration: BoxDecoration(
+          color: hasCode
+              ? AppColors.buttonYellow.withValues(alpha: 0.12)
+              : (isDark ? AppColors.darkCard : AppColors.white),
+          borderRadius: BorderRadius.circular(16.r),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.chatShadow,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(
+              Icons.arrow_back_ios_rounded,
+              size: 16.w,
+              color: isDark ? AppColors.white : AppColors.black,
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hasCode) ...[
+                  Icon(Icons.check_circle,
+                      size: 18.w, color: AppColors.buttonYellow),
+                  SizedBox(width: 8.w),
+                ],
+                IqText(
+                  hasCode ? '${AppStrings.promoCode}: $appliedCode' : AppStrings.promoCode,
+                  style: AppTypography.labelLarge.copyWith(
+                    color: isDark ? AppColors.white : AppColors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Payment row — white bg, shadow, radius 16, height 70.
+/// Shows payment icon + name (18sp bold) + subtitle "تغيير طريقة الدفع" (14sp).
 class _PaymentRow extends StatelessWidget {
   const _PaymentRow({
     required this.currentPayment,
@@ -443,24 +670,24 @@ class _PaymentRow extends StatelessWidget {
   String get _paymentName {
     switch (currentPayment) {
       case 0:
-        return 'نقدي';
+        return AppStrings.onlinePayment;
       case 1:
-        return 'محفظة';
+        return AppStrings.cash;
       case 2:
-        return 'بطاقة';
+        return AppStrings.walletPayment;
       default:
-        return 'نقدي';
+        return AppStrings.cash;
     }
   }
 
   IconData get _paymentIcon {
     switch (currentPayment) {
       case 0:
-        return Icons.payments_outlined;
-      case 1:
-        return Icons.account_balance_wallet_outlined;
-      case 2:
         return Icons.credit_card;
+      case 1:
+        return Icons.payments_outlined;
+      case 2:
+        return Icons.account_balance_wallet_outlined;
       default:
         return Icons.payments_outlined;
     }
@@ -468,33 +695,59 @@ class _PaymentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: () {
-        // Cycle through payment options
-        onChanged((currentPayment + 1) % 3);
-      },
+      onTap: () => onChanged(currentPayment),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        width: double.infinity,
+        height: 70.h,
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 15.h),
         decoration: BoxDecoration(
-          color: AppColors.grayLightBg,
-          borderRadius: BorderRadius.circular(12.r),
+          color: isDark ? AppColors.darkCard : AppColors.white,
+          borderRadius: BorderRadius.circular(16.r),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.chatShadow,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            Icon(_paymentIcon, size: 22.w, color: AppColors.textDark),
-            SizedBox(width: 10.w),
-            IqText(
-              _paymentName,
-              style: AppTypography.labelMedium.copyWith(
-                color: AppColors.textDark,
-              ),
+            // Arrow (leading in LTR = left side. In RTL this becomes right.)
+            Icon(
+              Icons.arrow_back_ios_rounded,
+              size: 16.w,
+              color: AppColors.grayDate,
             ),
             const Spacer(),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 22.w,
-              color: AppColors.textMuted,
+            // Name + subtitle
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                IqText(
+                  _paymentName,
+                  style: AppTypography.heading3.copyWith(
+                    color: isDark ? AppColors.white : AppColors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+                IqText(
+                  AppStrings.changePaymentMethod,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.grayDate,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ],
             ),
+            SizedBox(width: 15.w),
+            // Payment icon
+            Icon(_paymentIcon, size: 24.w, color: isDark ? AppColors.white : AppColors.black),
           ],
         ),
       ),
@@ -502,8 +755,99 @@ class _PaymentRow extends StatelessWidget {
   }
 }
 
-class _CircleButton extends StatelessWidget {
-  const _CircleButton({
+/// Pill-shaped button — used for "جدولة الرحلة" (black) and "تفضيلات الرحلة" (yellow).
+/// Figma: height 60, borderRadius 1000, padding h:40 v:18, fontSize 18, w700.
+class _PillButton extends StatelessWidget {
+  const _PillButton({
+    required this.text,
+    required this.backgroundColor,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  final String text;
+  final Color backgroundColor;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 60.h,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(1000.r),
+        ),
+        alignment: Alignment.center,
+        child: IqText(
+          text,
+          style: AppTypography.heading3.copyWith(
+            color: textColor,
+            fontWeight: FontWeight.w700,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+/// "ركوب الآن" yellow pill button.
+/// Figma: width ~189, borderRadius 75, yellow bg, black text 18sp bold.
+class _RideNowButton extends StatelessWidget {
+  const _RideNowButton({
+    required this.isLoading,
+    required this.onPressed,
+    this.isScheduled = false,
+  });
+
+  final bool isLoading;
+  final VoidCallback? onPressed;
+  final bool isScheduled;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 189.w,
+        padding: EdgeInsets.symmetric(horizontal: 50.w, vertical: 15.5.h),
+        decoration: BoxDecoration(
+          color: onPressed != null
+              ? AppColors.buttonYellow
+              : AppColors.buttonYellow.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(75.r),
+        ),
+        alignment: Alignment.center,
+        child: isLoading
+            ? SizedBox(
+                width: 22.w,
+                height: 22.w,
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: AppColors.black,
+                ),
+              )
+            : IqText(
+                isScheduled ? AppStrings.rideLater : AppStrings.rideNow,
+                style: AppTypography.heading3.copyWith(
+                  color: AppColors.black,
+                  fontWeight: FontWeight.w700,
+                  height: 1.28,
+                ),
+                textAlign: TextAlign.center,
+              ),
+      ),
+    );
+  }
+}
+
+/// Circle action button — white bg, yellow border, 50x50.
+/// Used for phone & chat beside "ركوب الآن".
+class _ActionCircle extends StatelessWidget {
+  const _ActionCircle({
     required this.icon,
     required this.onTap,
   });
@@ -513,44 +857,62 @@ class _CircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      shape: const CircleBorder(),
-      elevation: 4,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: EdgeInsets.all(12.w),
-          child: Icon(icon, size: 20.w, color: AppColors.textDark),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 50.w,
+        height: 50.w,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.white,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: AppColors.buttonYellow,
+            width: 1,
+          ),
+        ),
+        child: Icon(icon, size: 22.w, color: isDark ? AppColors.white : AppColors.black),
+      ),
+    );
+  }
+}
+
+/// Back button — white circle with optional outer glow. Used on map overlay.
+class _CircleIconButton extends StatelessWidget {
+  const _CircleIconButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 35.w,
+        height: 35.w,
+        decoration: BoxDecoration(
+          color: (isDark ? AppColors.darkCard : AppColors.white).withValues(alpha: 0.10),
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Container(
+            width: 30.w,
+            height: 30.w,
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : AppColors.white,
+              borderRadius: BorderRadius.circular(15.r),
+            ),
+            child: Icon(icon, size: 20.w, color: isDark ? AppColors.white : AppColors.black),
+          ),
         ),
       ),
     );
   }
 }
 
-/// Small icon + text chip for showing distance/time.
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label});
 
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18.w, color: AppColors.primary700),
-        SizedBox(width: 6.w),
-        IqText(
-          label,
-          style: AppTypography.labelMedium.copyWith(
-            color: AppColors.primary700,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}

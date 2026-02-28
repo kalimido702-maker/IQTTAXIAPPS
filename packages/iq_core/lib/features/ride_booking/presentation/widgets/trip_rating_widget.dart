@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_text.dart';
@@ -15,7 +16,7 @@ class TripRatingWidget extends StatefulWidget {
     this.onRatingChanged,
     this.onCommentChanged,
     this.showComment = true,
-    this.commentHint = 'اكتب تعليقك هنا...',
+    this.commentHint = AppStrings.writeCommentHere,
   });
 
   final int initialRating;

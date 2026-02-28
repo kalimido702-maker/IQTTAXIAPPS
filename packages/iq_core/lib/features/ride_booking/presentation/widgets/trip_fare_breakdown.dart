@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_text.dart';
@@ -18,7 +19,7 @@ class TripFareBreakdown extends StatelessWidget {
     this.tips = 0,
     required this.totalFare,
     this.currency = 'IQD',
-    this.currencySymbol = 'د.ع',
+    this.currencySymbol,
   });
 
   final double baseFare;
@@ -30,38 +31,44 @@ class TripFareBreakdown extends StatelessWidget {
   final double tips;
   final double totalFare;
   final String currency;
-  final String currencySymbol;
+  final String? currencySymbol;
 
   @override
   Widget build(BuildContext context) {
+    final sym = currencySymbol ?? AppStrings.currencyIQD;
     return Column(
       children: [
-        _FareRow(label: 'أجرة البداية', amount: baseFare, symbol: currencySymbol),
+        _FareRow(label: AppStrings.baseFare, amount: baseFare, symbol: sym),
         if (distanceFare > 0)
-          _FareRow(label: 'أجرة المسافة', amount: distanceFare, symbol: currencySymbol),
+          _FareRow(label: AppStrings.distanceFare, amount: distanceFare, symbol: sym),
         if (timeFare > 0)
-          _FareRow(label: 'أجرة الوقت', amount: timeFare, symbol: currencySymbol),
+          _FareRow(label: AppStrings.timeFare, amount: timeFare, symbol: sym),
         if (waitingCharge > 0)
-          _FareRow(label: 'رسوم الانتظار', amount: waitingCharge, symbol: currencySymbol),
+          _FareRow(label: AppStrings.waitingCharge, amount: waitingCharge, symbol: sym),
         if (taxes > 0)
-          _FareRow(label: 'الضرائب', amount: taxes, symbol: currencySymbol),
+          _FareRow(label: AppStrings.taxes, amount: taxes, symbol: sym),
         if (promoDiscount > 0)
           _FareRow(
-            label: 'خصم الكوبون',
+            label: AppStrings.couponDiscount,
             amount: -promoDiscount,
-            symbol: currencySymbol,
+            symbol: sym,
             isDiscount: true,
           ),
         if (tips > 0)
-          _FareRow(label: 'إكرامية', amount: tips, symbol: currencySymbol),
+          _FareRow(label: AppStrings.tip, amount: tips, symbol: sym),
         Padding(
           padding: EdgeInsets.symmetric(vertical: 8.h),
-          child: Divider(color: AppColors.grayBorder, height: 1),
+          child: Divider(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.darkDivider
+                : AppColors.grayBorder,
+            height: 1,
+          ),
         ),
         _FareRow(
-          label: 'الإجمالي',
+          label: AppStrings.total,
           amount: totalFare,
-          symbol: currencySymbol,
+          symbol: sym,
           isTotal: true,
         ),
       ],
@@ -86,13 +93,14 @@ class _FareRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     final textStyle = isTotal
-        ? AppTypography.labelLarge.copyWith(color: AppColors.textDark)
+        ? AppTypography.labelLarge.copyWith(color: onSurface)
         : AppTypography.bodyMedium.copyWith(color: AppColors.textSubtitle);
     final amountStyle = isTotal
         ? AppTypography.numberLarge.copyWith(color: AppColors.primary)
         : AppTypography.numberMedium.copyWith(
-            color: isDiscount ? AppColors.success : AppColors.textDark,
+            color: isDiscount ? AppColors.success : onSurface,
           );
 
     return Padding(

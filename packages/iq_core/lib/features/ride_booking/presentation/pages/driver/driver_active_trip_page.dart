@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/services/google_maps_service.dart';
 import '../../../../../core/services/map_performance.dart';
@@ -184,10 +185,15 @@ class _DriverTripMapState extends State<_DriverTripMap> {
         icon: MapIcons.dropoff,
       ));
 
-      // Route polyline
+      // Route polyline — snap to markers so the line visually connects.
       final routePts = _routePoints;
       if (routePts != null && routePts.length >= 2) {
-        _polylinePool.upsert(MapRouteStyle.route(points: routePts));
+        final snapped = RouteHelper.snapToEndpoints(
+          routePts,
+          LatLng(req.pickLat, req.pickLng),
+          LatLng(req.dropLat, req.dropLng),
+        );
+        _polylinePool.upsert(MapRouteStyle.route(points: snapped));
       } else {
         _polylinePool.upsert(MapRouteStyle.fallbackLine(
           from: LatLng(req.pickLat, req.pickLng),
@@ -226,10 +232,11 @@ class _DriverTripSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final trip = state.activeTripData;
     final phase = trip?.phase;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: isDark ? AppColors.darkCard : AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
         boxShadow: [
           BoxShadow(
@@ -267,8 +274,8 @@ class _DriverTripSheet extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.only(bottom: 12.h),
                 child: WaitingTimerBanner(
-                  message: 'الوقت المتبقي لانتظار الراكب',
-                  warningMessage: 'سيتم احتساب رسوم الانتظار بعد انتهاء الوقت المجاني',
+                  message: AppStrings.remainingWaitTime,
+                  warningMessage: AppStrings.waitingChargeWarning,
                   startTime: DateTime.now(),
                 ),
               ),
@@ -334,7 +341,7 @@ class _DriverTripSheet extends StatelessWidget {
               Row(
                 children: [
                   IqText(
-                    'السعر: ',
+                    AppStrings.priceLabel,
                     style: AppTypography.labelMedium.copyWith(
                       color: AppColors.textMuted,
                     ),
@@ -374,13 +381,13 @@ class _DriverStatusHeader extends StatelessWidget {
   String get _text {
     switch (status) {
       case DriverTripStatus.navigatingToPickup:
-        return 'في الطريق';
+        return AppStrings.onTheWay;
       case DriverTripStatus.arrivedAtPickup:
-        return 'وصل السائق';
+        return AppStrings.driverArrived;
       case DriverTripStatus.tripInProgress:
-        return 'في الطريق إلى موقع الإنزال';
+        return AppStrings.onWayToDropoff;
       default:
-        return 'حالة الرحلة';
+        return AppStrings.tripStatus;
     }
   }
 
@@ -393,7 +400,7 @@ class _DriverStatusHeader extends StatelessWidget {
       case DriverTripStatus.tripInProgress:
         return AppColors.success;
       default:
-        return AppColors.textDark;
+        return AppColors.info;
     }
   }
 
@@ -434,7 +441,7 @@ class _DriverActionButtons extends StatelessWidget {
           children: [
             Expanded(
               child: IqOutlinedButton(
-                text: 'إلغاء',
+                text: AppStrings.cancel,
                 onPressed: () => _showDriverCancelSheet(context, requestId),
               ),
             ),
@@ -442,7 +449,7 @@ class _DriverActionButtons extends StatelessWidget {
             Expanded(
               flex: 2,
               child: IqPrimaryButton(
-                text: 'وصلت الرحلة',
+                text: AppStrings.tripArrived,
                 onPressed: () {
                   HapticFeedback.mediumImpact();
                   context.read<DriverTripBloc>().add(
@@ -459,7 +466,7 @@ class _DriverActionButtons extends StatelessWidget {
           children: [
             Expanded(
               child: IqOutlinedButton(
-                text: 'إلغاء',
+                text: AppStrings.cancel,
                 onPressed: () => _showDriverCancelSheet(context, requestId),
               ),
             ),
@@ -467,7 +474,7 @@ class _DriverActionButtons extends StatelessWidget {
             Expanded(
               flex: 2,
               child: IqPrimaryButton(
-                text: 'إبدأ الرحلة',
+                text: AppStrings.startTrip,
                 onPressed: () {
                   HapticFeedback.mediumImpact();
                   context.read<DriverTripBloc>().add(
@@ -485,7 +492,7 @@ class _DriverActionButtons extends StatelessWidget {
 
       case DriverTripStatus.tripInProgress:
         return IqPrimaryButton(
-          text: 'نهاية الرحلة',
+          text: AppStrings.endTrip,
           onPressed: () {
             HapticFeedback.heavyImpact();
             context.read<DriverTripBloc>().add(
@@ -509,25 +516,25 @@ void _showDriverCancelSheet(BuildContext context, String requestId) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+    backgroundColor: AppColors.transparent,
     builder: (_) => CancelReasonsSheet(
-      title: 'سبب الإلغاء',
-      reasons: const [
+      title: AppStrings.cancelReason,
+      reasons: [
         CancelReasonModel(
           id: 1,
-          reason: 'مشكلة في السيارة أو ظرف طارئ',
+          reason: AppStrings.vehicleIssueOrEmergency,
           userType: 'driver',
           arrivalStatus: 'before',
         ),
         CancelReasonModel(
           id: 2,
-          reason: 'الراكب لا يرد على الهاتف أو الرسائل',
+          reason: AppStrings.passengerNotResponding,
           userType: 'driver',
           arrivalStatus: 'before',
         ),
         CancelReasonModel(
           id: 3,
-          reason: 'أخرى',
+          reason: AppStrings.cancelReasonOther,
           userType: 'driver',
           arrivalStatus: 'before',
         ),

@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_image.dart';
 import '../../../../core/widgets/iq_text.dart';
 
 /// Card for selecting a vehicle type in the ride selection page.
+///
+/// Figma: 65h, padding h:22 v:11, white bg, border 0xFFF4F5F6, radius 16.
+/// Layout (RTL): [Radio 24] — [price+currency] — [name+capacity] — [vehicle 80w]
 class VehicleTypeCard extends StatelessWidget {
   const VehicleTypeCard({
     super.key,
@@ -17,7 +21,7 @@ class VehicleTypeCard extends StatelessWidget {
     required this.capacity,
     required this.isSelected,
     required this.onTap,
-    this.currency = 'د.ع',
+    this.currency,
     this.description,
   });
 
@@ -27,11 +31,13 @@ class VehicleTypeCard extends StatelessWidget {
   final int capacity;
   final bool isSelected;
   final VoidCallback onTap;
-  final String currency;
+  final String? currency;
   final String? description;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -40,12 +46,15 @@ class VehicleTypeCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+        constraints: BoxConstraints(minHeight: 65.h),
+        padding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 11.h),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary50 : AppColors.white,
-          borderRadius: BorderRadius.circular(12.r),
+          color: isDark ? AppColors.darkCard : AppColors.white,
+          borderRadius: BorderRadius.circular(16.r),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.grayBorder,
+            color: isSelected
+                ? AppColors.primary
+                : (isDark ? AppColors.darkDivider : AppColors.inputFill),
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -53,75 +62,89 @@ class VehicleTypeCard extends StatelessWidget {
           children: [
             // Vehicle icon
             SizedBox(
-              width: 60.w,
-              height: 40.h,
+              width: 80.w,
+              height: 33.h,
               child: IqImage(icon, fit: BoxFit.contain),
             ),
-            SizedBox(width: 12.w),
+            SizedBox(width: 14.w),
             // Name + capacity
-            Expanded(
+            SizedBox(
+              width: 110.w,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   IqText(
                     name,
-                    style: AppTypography.labelMedium.copyWith(
-                      color: AppColors.textDark,
+                    style: AppTypography.labelLarge.copyWith(
+                      color: isDark ? AppColors.white : AppColors.black,
+                      fontWeight: FontWeight.w700,
+                      height: 1.13,
                     ),
+                    textAlign: TextAlign.right,
                   ),
-                  SizedBox(height: 2.h),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.person_outline_rounded,
-                        size: 14.w,
-                        color: AppColors.textMuted,
-                      ),
-                      SizedBox(width: 2.w),
-                      IqText(
-                        '$capacity',
-                        style: AppTypography.caption,
-                        dir: TextDirection.ltr,
-                      ),
-                      if (description != null) ...[
-                        SizedBox(width: 8.w),
-                        Expanded(
-                          child: IqText(
-                            description!,
-                            style: AppTypography.caption,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ],
+                  SizedBox(height: 1.h),
+                  IqText(
+                    '$capacity ${AppStrings.persons}',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.grayCapacity,
+                      fontWeight: FontWeight.w300,
+                    ),
+                    textAlign: TextAlign.right,
                   ),
                 ],
               ),
             ),
-            // Price
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                IqText(
-                  price,
-                  style: AppTypography.numberLarge.copyWith(
-                    color: AppColors.textDark,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  dir: TextDirection.ltr,
-                ),
-                IqText(
-                  currency,
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
+            const Spacer(),
+            // Price + currency
+            IqText(
+              '$price ${currency ?? AppStrings.currencyIQD}',
+              style: AppTypography.labelLarge.copyWith(
+                color: isDark ? AppColors.white : AppColors.black,
+                fontWeight: FontWeight.w400,
+              ),
             ),
+            SizedBox(width: 21.w),
+            // Radio indicator
+            _RadioDot(selected: isSelected, isDark: isDark),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RadioDot extends StatelessWidget {
+  const _RadioDot({required this.selected, required this.isDark});
+
+  final bool selected;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isDark ? AppColors.white : AppColors.black;
+
+    return Container(
+      width: 24.w,
+      height: 24.w,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: borderColor,
+          width: 1.5,
+        ),
+      ),
+      child: selected
+          ? Center(
+              child: Container(
+                width: 16.w,
+                height: 16.w,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: borderColor,
+                ),
+              ),
+            )
+          : null,
     );
   }
 }

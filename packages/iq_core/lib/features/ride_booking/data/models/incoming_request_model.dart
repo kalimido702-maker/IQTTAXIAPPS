@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/constants/app_strings.dart';
+
 /// Incoming ride request for the driver, from Firebase `request-meta`.
 class IncomingRequestModel extends Equatable {
   const IncomingRequestModel({
@@ -83,7 +85,7 @@ class IncomingRequestModel extends Equatable {
           _d(data['request_eta_amount']) ??
           0.0,
       currency: (data['currency'] ?? 'IQD').toString(),
-      currencySymbol: (data['currency_symbol'] ?? 'د.ع').toString(),
+      currencySymbol: (data['currency_symbol'] ?? AppStrings.currencyIQD).toString(),
       distance: _d(data['distance']) ?? 0.0,
       transportType: (data['transport_type'] ?? 'taxi').toString(),
       isBidRide: data['is_bid_ride'] == 1 || data['is_bid_ride'] == true,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_dimens.dart';
@@ -60,7 +61,7 @@ class _TripRatingPageState extends State<TripRatingPage> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: AppColors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         body: SafeArea(
           child: SingleChildScrollView(
             padding: EdgeInsets.symmetric(
@@ -72,9 +73,9 @@ class _TripRatingPageState extends State<TripRatingPage> {
                 SizedBox(height: 40.h),
                 // Header
                 IqText(
-                  'التقييم',
+                  AppStrings.rating,
                   style: AppTypography.heading2.copyWith(
-                    color: AppColors.textDark,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 SizedBox(height: 32.h),
@@ -108,14 +109,14 @@ class _TripRatingPageState extends State<TripRatingPage> {
                 IqText(
                   widget.otherPersonName,
                   style: AppTypography.heading3.copyWith(
-                    color: AppColors.textDark,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 SizedBox(height: 24.h),
 
                 // Question
                 IqText(
-                  'كيف كانت رحلتك مع ${widget.otherPersonName}؟',
+                  '${AppStrings.howWasYourTripWith} ${widget.otherPersonName}؟',
                   style: AppTypography.bodyLarge.copyWith(
                     color: AppColors.textSubtitle,
                   ),
@@ -127,13 +128,13 @@ class _TripRatingPageState extends State<TripRatingPage> {
                 TripRatingWidget(
                   onRatingChanged: (r) => setState(() => _rating = r),
                   onCommentChanged: (c) => _comment = c,
-                  commentHint: 'اكتب تعليقك هنا...',
+                  commentHint: AppStrings.writeCommentHere,
                 ),
                 SizedBox(height: 40.h),
 
                 // Submit
                 IqPrimaryButton(
-                  text: 'إضافة تقييم',
+                  text: AppStrings.addRating,
                   isLoading: _submitting,
                   onPressed: _rating > 0 ? _submit : null,
                 ),
@@ -145,7 +146,7 @@ class _TripRatingPageState extends State<TripRatingPage> {
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
                   child: IqText(
-                    'تخطي',
+                    AppStrings.skip,
                     style: AppTypography.labelMedium.copyWith(
                       color: AppColors.textMuted,
                     ),

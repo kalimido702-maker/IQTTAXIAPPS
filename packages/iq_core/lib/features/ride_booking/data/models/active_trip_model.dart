@@ -26,6 +26,7 @@ class ActiveTripModel extends Equatable {
     this.cancelledByUser = false,
     this.cancelledByDriver = false,
     this.isAccepted = false,
+    this.isCompleted = false,
     this.isPaid = false,
     this.isUserPaid = false,
     this.isPaymentReceived = false,
@@ -70,6 +71,9 @@ class ActiveTripModel extends Equatable {
   final bool cancelledByUser;
   final bool cancelledByDriver;
   final bool isAccepted;
+
+  /// Whether the trip has been completed by the driver.
+  final bool isCompleted;
 
   /// Payment flags
   final bool isPaid;
@@ -127,7 +131,8 @@ class ActiveTripModel extends Equatable {
     if (isCancelled || cancelledByUser || cancelledByDriver) {
       return TripPhase.cancelled;
     }
-    if (isPaid || isUserPaid || isPaymentReceived) {
+    // Trip completed: either paid or driver ended the ride.
+    if (isPaid || isUserPaid || isPaymentReceived || isCompleted) {
       return TripPhase.completed;
     }
     if (tripStart) return TripPhase.inProgress;
@@ -161,6 +166,7 @@ class ActiveTripModel extends Equatable {
       cancelledByUser: _parseBool(data['cancelled_by_user']),
       cancelledByDriver: _parseBool(data['cancelled_by_driver']),
       isAccepted: _parseBool(data['is_accept']),
+      isCompleted: _parseBool(data['is_completed']),
       isPaid: _parseBool(data['is_paid']),
       isUserPaid: _parseBool(data['is_user_paid']),
       isPaymentReceived: _parseBool(data['is_payment_received']),

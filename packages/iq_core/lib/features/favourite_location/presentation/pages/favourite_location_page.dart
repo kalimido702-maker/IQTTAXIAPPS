@@ -3,10 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_app_bar.dart';
 import '../../../../core/widgets/iq_text.dart';
+import '../../../location/domain/repositories/location_repository.dart';
+import '../../../ride_booking/presentation/pages/passenger/map_picker_page.dart';
 import '../bloc/favourite_location_bloc.dart';
 import '../bloc/favourite_location_event.dart';
 import '../bloc/favourite_location_state.dart';
@@ -59,9 +62,7 @@ class FavouriteLocationPage extends StatelessWidget {
                     model: loc,
                     icon: Icons.home_outlined,
                     title: AppStrings.home,
-                    onDelete: () => context
-                        .read<FavouriteLocationBloc>()
-                        .add(FavouriteLocationDeleteRequested(loc.id)),
+                    onDelete: () => _confirmDelete(context, loc.id),
                   ),
                 ),
                 if (state.homeLocations.isEmpty)
@@ -78,9 +79,7 @@ class FavouriteLocationPage extends StatelessWidget {
                     model: loc,
                     icon: Icons.work_outline,
                     title: AppStrings.work,
-                    onDelete: () => context
-                        .read<FavouriteLocationBloc>()
-                        .add(FavouriteLocationDeleteRequested(loc.id)),
+                    onDelete: () => _confirmDelete(context, loc.id),
                   ),
                 ),
                 if (state.workLocations.isEmpty)
@@ -97,10 +96,10 @@ class FavouriteLocationPage extends StatelessWidget {
                     model: loc,
                     icon: Icons.star,
                     iconColor: AppColors.starFilled,
-                    title: loc.address.split(',').first,
-                    onDelete: () => context
-                        .read<FavouriteLocationBloc>()
-                        .add(FavouriteLocationDeleteRequested(loc.id)),
+                    title: loc.addressName.isNotEmpty
+                        ? loc.addressName
+                        : loc.address.split(',').first,
+                    onDelete: () => _confirmDelete(context, loc.id),
                   ),
                 ),
 
@@ -108,9 +107,7 @@ class FavouriteLocationPage extends StatelessWidget {
 
                 // ── Add more button ──
                 GestureDetector(
-                  onTap: () {
-                    // TODO: navigate to add favourite location
-                  },
+                  onTap: () => _addFavouriteLocation(context),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -148,6 +145,153 @@ class FavouriteLocationPage extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // ── Confirm delete dialog ──
+  void _confirmDelete(BuildContext context, int locationId) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.darkCard : AppColors.white,
+        title: IqText(
+          AppStrings.deleteFavouriteConfirm,
+          style: AppTypography.bodyLarge.copyWith(
+            color: Theme.of(dialogCtx).colorScheme.onSurface,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: IqText(
+              AppStrings.cancel,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              context.read<FavouriteLocationBloc>().add(
+                    FavouriteLocationDeleteRequested(locationId),
+                  );
+            },
+            child: IqText(
+              AppStrings.delete,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.error,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Add favourite location flow ──
+  Future<void> _addFavouriteLocation(BuildContext context) async {
+    // 1. Get current location for map initial position
+    final locRepo = sl<LocationRepository>();
+    final locResult = await locRepo.getCurrentLocation();
+    double initLat = 33.312;
+    double initLng = 44.366;
+    locResult.fold((_) {}, (coords) {
+      initLat = coords.$1;
+      initLng = coords.$2;
+    });
+
+    if (!context.mounted) return;
+
+    // 2. Navigate to map picker
+    final result = await Navigator.of(context).push<MapPickResult>(
+      MaterialPageRoute<MapPickResult>(
+        builder: (_) => MapPickerPage(
+          initialLat: initLat,
+          initialLng: initLng,
+        ),
+      ),
+    );
+
+    if (result == null || !context.mounted) return;
+
+    // 3. Show name dialog
+    final addressName = await _showAddressNameDialog(context);
+    if (addressName == null || addressName.isEmpty || !context.mounted) return;
+
+    // 4. Add via BLoC
+    context.read<FavouriteLocationBloc>().add(
+          FavouriteLocationAddRequested(
+            lat: result.lat,
+            lng: result.lng,
+            address: result.address,
+            addressName: addressName,
+          ),
+        );
+  }
+
+  Future<String?> _showAddressNameDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final controller = TextEditingController();
+
+    return showDialog<String>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.darkCard : AppColors.white,
+        title: IqText(
+          AppStrings.enterAddressName,
+          style: AppTypography.labelLarge.copyWith(
+            color: Theme.of(dialogCtx).colorScheme.onSurface,
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: AppTypography.bodyLarge.copyWith(
+            color: Theme.of(dialogCtx).colorScheme.onSurface,
+          ),
+          decoration: InputDecoration(
+            hintText: AppStrings.addressNameHint,
+            hintStyle: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textMuted,
+            ),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(
+                color: isDark ? AppColors.darkDivider : AppColors.grayBorder,
+              ),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: IqText(
+              AppStrings.cancel,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(dialogCtx, name);
+            },
+            child: IqText(
+              AppStrings.add,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

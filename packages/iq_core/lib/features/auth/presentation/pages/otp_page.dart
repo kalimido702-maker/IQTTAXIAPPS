@@ -70,41 +70,48 @@ class OtpPage extends StatelessWidget {
             ),
           ],
           child: Scaffold(
-            body: Container(
-              width: double.infinity,
-              height: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(-0.6, -0.65),
-                  radius: 1.8,
-                  colors: [AppColors.splashGradientLight, AppColors.white],
-                ),
-              ),
-              child: Column(
-                children: [
-                  IqAppBar(title: AppStrings.confirmCode),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(horizontal: 40.w),
-                      child: Column(
-                        children: [
-                          SizedBox(height: 16.h),
-                          _buildWelcomeText(),
-                          SizedBox(height: 40.h),
-                          _buildOtpInput(),
-                          SizedBox(height: 48.h),
-                          _buildTimer(),
-                          SizedBox(height: 30.h),
-                          _buildResendSection(),
-                          SizedBox(height: 40.h),
-                          _buildConfirmButton(),
-                          SizedBox(height: 24.h),
-                        ],
-                      ),
+            body: Builder(
+              builder: (context) {
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                return Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.6, -0.65),
+                      radius: 1.8,
+                      colors: isDark
+                          ? [AppColors.darkBackground, AppColors.darkSurface]
+                          : [AppColors.splashGradientLight, AppColors.white],
                     ),
                   ),
-                ],
-              ),
+                  child: Column(
+                    children: [
+                      IqAppBar(title: AppStrings.confirmCode),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: EdgeInsets.symmetric(horizontal: 40.w),
+                          child: Column(
+                            children: [
+                              SizedBox(height: 16.h),
+                              _buildWelcomeText(),
+                              SizedBox(height: 40.h),
+                              _buildOtpInput(),
+                              SizedBox(height: 48.h),
+                              _buildTimer(),
+                              SizedBox(height: 30.h),
+                              _buildResendSection(),
+                              SizedBox(height: 40.h),
+                              _buildConfirmButton(),
+                              SizedBox(height: 24.h),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         );
@@ -188,7 +195,7 @@ class OtpPage extends StatelessWidget {
                 style: AppTypography.bodyLarge.copyWith(
                   decoration: TextDecoration.underline,
                   color: formState.canResend
-                      ? AppColors.black
+                      ? Theme.of(context).colorScheme.onSurface
                       : AppColors.grayLight,
                 ),
               ),

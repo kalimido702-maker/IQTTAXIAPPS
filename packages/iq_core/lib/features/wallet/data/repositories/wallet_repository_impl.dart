@@ -20,10 +20,10 @@ class WalletRepositoryImpl implements WalletRepository {
   }
 
   @override
-  Future<Either<Failure, String>> addMoneyToWallet({
+  Future<Either<Failure, String>> createWalletPayment({
     required double amount,
   }) {
-    return dataSource.addMoneyToWallet(amount: amount);
+    return dataSource.createWalletPayment(amount: amount);
   }
 
   @override

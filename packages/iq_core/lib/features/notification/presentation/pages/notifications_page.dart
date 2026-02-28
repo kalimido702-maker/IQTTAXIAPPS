@@ -93,8 +93,13 @@ class NotificationsPage extends StatelessWidget {
                     EdgeInsets.symmetric(horizontal: 30.w, vertical: 16.h),
                 itemCount: state.notifications.length +
                     (state.isLoadingMore ? 1 : 0),
-                separatorBuilder: (_, __) =>
-                    Divider(color: AppColors.grayBorder, height: 1.h),
+                separatorBuilder: (context, __) {
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    return Divider(
+                      color: isDark ? AppColors.darkDivider : AppColors.grayBorder,
+                      height: 1.h,
+                    );
+                  },
                 itemBuilder: (_, index) {
                   if (index >= state.notifications.length) {
                     return Padding(

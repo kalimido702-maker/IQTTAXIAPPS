@@ -119,6 +119,8 @@ class HomeDataModel extends Equatable {
   final String? refferalCode;
   // ─── Support Chat ──
   final String? conversationId;
+  // ── SOS contacts (from API 'sos.data') ──
+  final List<SosContactModel> sosContacts;
   // ── Driver-only fields ──
   final bool? isAvailable;
   final String? vehicleTypeName;
@@ -155,6 +157,7 @@ class HomeDataModel extends Equatable {
     this.otherLocations = const [],
     this.refferalCode,
     this.conversationId,
+    this.sosContacts = const [],
     this.isAvailable,
     this.vehicleTypeName,
     this.carMake,
@@ -181,6 +184,14 @@ class HomeDataModel extends Equatable {
       }
       return [];
     }
+
+    // ── SOS Contacts ──
+    final sosRaw = json['sos'] as Map<String, dynamic>? ?? {};
+    final sosList = sosRaw['data'] as List<dynamic>? ?? [];
+    final sosContacts = sosList
+        .whereType<Map<String, dynamic>>()
+        .map(SosContactModel.fromJson)
+        .toList();
 
     // ── Banners ──
     final bannerRaw = json['bannerImage'];
@@ -233,6 +244,7 @@ class HomeDataModel extends Equatable {
       otherLocations: parseLocList(fav['others']),
       refferalCode: json['refferal_code'] as String?,
       conversationId: json['conversation_id']?.toString(),
+      sosContacts: sosContacts,
       isAvailable: available,
       vehicleTypeName: json['vehicle_type_name'] as String?,
       carMake: json['car_make'] as String?,
@@ -271,6 +283,14 @@ class HomeDataModel extends Equatable {
   /// Active remaining minutes.
   int get activeMinutes => totalMinutesOnline % 60;
 
+  /// First admin SOS phone number, if any.
+  String? get adminSosPhone {
+    for (final c in sosContacts) {
+      if (c.userType == 'admin' && c.number.isNotEmpty) return c.number;
+    }
+    return null;
+  }
+
   @override
   List<Object?> get props => [
         id, name, phone, role, avatarUrl, rating,
@@ -278,5 +298,33 @@ class HomeDataModel extends Equatable {
         homeLocations, workLocations, otherLocations,
         isAvailable, totalEarnings, totalKms,
         totalMinutesOnline, totalRidesTaken,
+        sosContacts,
       ];
+}
+
+/// SOS contact entry from `sos.data[]` in the home API response.
+class SosContactModel extends Equatable {
+  final int id;
+  final String name;
+  final String number;
+  final String userType; // 'admin' or 'user'
+
+  const SosContactModel({
+    required this.id,
+    required this.name,
+    required this.number,
+    required this.userType,
+  });
+
+  factory SosContactModel.fromJson(Map<String, dynamic> json) {
+    return SosContactModel(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: (json['name'] ?? '').toString(),
+      number: (json['number'] ?? '').toString(),
+      userType: (json['user_type'] ?? 'user').toString(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name, number, userType];
 }

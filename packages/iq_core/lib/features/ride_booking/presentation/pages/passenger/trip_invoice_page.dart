@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_dimens.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/iq_primary_button.dart';
 import '../../../../../core/widgets/iq_text.dart';
+import '../../../../wallet/presentation/pages/payment_web_view_page.dart';
+import '../../../data/datasources/trip_stream_data_source.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../domain/repositories/booking_repository.dart';
 import '../../widgets/driver_info_card.dart';
@@ -65,7 +67,7 @@ class _TripInvoicePageState extends State<TripInvoicePage> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: AppColors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         body: SafeArea(
           child: _loading
               ? const Center(
@@ -91,7 +93,7 @@ class _TripInvoicePageState extends State<TripInvoicePage> {
   }
 }
 
-class _InvoiceContent extends StatelessWidget {
+class _InvoiceContent extends StatefulWidget {
   const _InvoiceContent({
     required this.invoice,
     required this.requestId,
@@ -103,7 +105,101 @@ class _InvoiceContent extends StatelessWidget {
   final bool isDriver;
 
   @override
+  State<_InvoiceContent> createState() => _InvoiceContentState();
+}
+
+class _InvoiceContentState extends State<_InvoiceContent> {
+  bool _processingPayment = false;
+
+  Future<void> _handleOnlinePayment() async {
+    setState(() => _processingPayment = true);
+
+    final repo = sl<BookingRepository>();
+    final result = await repo.createRidePayment(
+      requestId: widget.requestId,
+      amount: widget.invoice.totalFare,
+    );
+
+    if (!mounted) return;
+
+    await result.fold(
+      (failure) async {
+        setState(() => _processingPayment = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(failure.message),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      },
+      (paymentUrl) async {
+        setState(() => _processingPayment = false);
+
+        final paymentResult = await Navigator.of(context).push<PaymentResult>(
+          MaterialPageRoute(
+            builder: (_) => PaymentWebViewPage(paymentUrl: paymentUrl),
+          ),
+        );
+
+        if (!mounted) return;
+
+        if (paymentResult == PaymentResult.success) {
+          // Mark as paid in Firebase so both sides see the update
+          sl<TripStreamDataSource>().updateTripNode(
+            requestId: widget.requestId,
+            data: {'is_paid': 1, 'is_user_paid': true},
+          );
+          // Confirm payment on backend then navigate to rating
+          repo.confirmPayment(requestId: widget.requestId);
+          _navigateToRating();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppStrings.paymentFailed),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  void _navigateToRating() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TripRatingPage(
+          requestId: widget.requestId,
+          otherPersonName: widget.invoice.driverName ?? '',
+          otherPersonPhoto: widget.invoice.driverImage,
+          isDriver: widget.isDriver,
+        ),
+      ),
+    );
+  }
+
+  void _onActionPressed() {
+    HapticFeedback.mediumImpact();
+
+    if (widget.isDriver) {
+      // Driver confirms payment → go to rating
+      sl<BookingRepository>().confirmPayment(requestId: widget.requestId);
+      _navigateToRating();
+      return;
+    }
+
+    // Passenger: check if online payment is needed (code 0 = online/card)
+    if (widget.invoice.paymentMethod == 0 && !widget.invoice.isPaid) {
+      _handleOnlinePayment();
+    } else {
+      _navigateToRating();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(
         horizontal: AppDimens.paddingLG,
@@ -116,17 +212,17 @@ class _InvoiceContent extends StatelessWidget {
           // Header
           Center(
             child: IqText(
-              'ملخص الرحلة',
-              style: AppTypography.heading2.copyWith(color: AppColors.textDark),
+              AppStrings.tripSummary,
+              style: AppTypography.heading2.copyWith(color: onSurface),
             ),
           ),
           SizedBox(height: 24.h),
 
           // Driver/User info
-          if (invoice.driverName != null)
+          if (widget.invoice.driverName != null)
             DriverInfoCard(
-              name: invoice.driverName!,
-              photoUrl: invoice.driverImage,
+              name: widget.invoice.driverName!,
+              photoUrl: widget.invoice.driverImage,
               rating: 0,
               carModel: null,
               showActions: false,
@@ -135,35 +231,36 @@ class _InvoiceContent extends StatelessWidget {
 
           // Trip info row
           TripInfoRow(
-            duration: '${invoice.duration} دقيقة',
-            distance: '${invoice.distance.toStringAsFixed(2)} كم',
-            rideType: 'عادي',
+            duration: '${widget.invoice.duration} ${AppStrings.minute}',
+            distance:
+                '${widget.invoice.distance.toStringAsFixed(2)} ${AppStrings.km}',
+            rideType: AppStrings.regular,
           ),
           SizedBox(height: 20.h),
 
           // Addresses
           TripAddressRow(
-            pickAddress: invoice.pickAddress,
-            dropAddress: invoice.dropAddress,
+            pickAddress: widget.invoice.pickAddress,
+            dropAddress: widget.invoice.dropAddress,
           ),
           SizedBox(height: 20.h),
 
           // Divider
-          Divider(color: AppColors.grayBorder),
+          Divider(color: isDark ? AppColors.darkDivider : AppColors.grayBorder),
           SizedBox(height: 12.h),
 
           // Fare breakdown
           TripFareBreakdown(
-            baseFare: invoice.baseFare,
-            distanceFare: invoice.distanceFare,
-            timeFare: invoice.timeFare,
-            waitingCharge: invoice.waitingCharge,
-            taxes: invoice.taxes,
-            promoDiscount: invoice.promoDiscount,
-            tips: invoice.tips,
-            totalFare: invoice.totalFare,
-            currency: invoice.currency,
-            currencySymbol: invoice.currencySymbol,
+            baseFare: widget.invoice.baseFare,
+            distanceFare: widget.invoice.distanceFare,
+            timeFare: widget.invoice.timeFare,
+            waitingCharge: widget.invoice.waitingCharge,
+            taxes: widget.invoice.taxes,
+            promoDiscount: widget.invoice.promoDiscount,
+            tips: widget.invoice.tips,
+            totalFare: widget.invoice.totalFare,
+            currency: widget.invoice.currency,
+            currencySymbol: widget.invoice.currencySymbol,
           ),
           SizedBox(height: 20.h),
 
@@ -171,7 +268,7 @@ class _InvoiceContent extends StatelessWidget {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
             decoration: BoxDecoration(
-              color: AppColors.grayLightBg,
+              color: isDark ? AppColors.darkInputBg : AppColors.grayLightBg,
               borderRadius: BorderRadius.circular(12.r),
             ),
             child: Row(
@@ -179,13 +276,13 @@ class _InvoiceContent extends StatelessWidget {
                 Icon(
                   Icons.payments_outlined,
                   size: 22.w,
-                  color: AppColors.textDark,
+                  color: onSurface,
                 ),
                 SizedBox(width: 10.w),
                 IqText(
-                  invoice.paymentMethodName,
+                  widget.invoice.paymentMethodName,
                   style: AppTypography.labelMedium.copyWith(
-                    color: AppColors.textDark,
+                    color: onSurface,
                   ),
                 ),
               ],
@@ -195,25 +292,13 @@ class _InvoiceContent extends StatelessWidget {
 
           // Action button
           IqPrimaryButton(
-            text: isDriver ? 'تم استلام الدفع' : 'اختر الدفع',
-            onPressed: () {
-              HapticFeedback.mediumImpact();
-              if (isDriver) {
-                // Driver confirms payment → go to rating
-                sl<BookingRepository>().confirmPayment(requestId: requestId);
-              }
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TripRatingPage(
-                    requestId: requestId,
-                    otherPersonName: invoice.driverName ?? '',
-                    otherPersonPhoto: invoice.driverImage,
-                    isDriver: isDriver,
-                  ),
-                ),
-              );
-            },
+            text: widget.isDriver
+                ? AppStrings.paymentReceived
+                : (widget.invoice.paymentMethod == 0 && !widget.invoice.isPaid)
+                    ? AppStrings.payNow
+                    : AppStrings.choosePay,
+            isLoading: _processingPayment,
+            onPressed: _processingPayment ? null : _onActionPressed,
           ),
           SizedBox(height: 16.h),
         ],

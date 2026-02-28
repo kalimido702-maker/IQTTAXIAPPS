@@ -47,7 +47,9 @@ class IqAppBar extends StatelessWidget implements PreferredSizeWidget {
           : null,
       title: IqText(
         title,
-        style: AppTypography.appBarTitle,
+        style: AppTypography.appBarTitle.copyWith(
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
       actions: actions,
     );

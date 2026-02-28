@@ -39,23 +39,32 @@ class WalletDataSourceImpl implements WalletDataSource {
   }
 
   @override
-  Future<Either<Failure, String>> addMoneyToWallet({
+  Future<Either<Failure, String>> createWalletPayment({
     required double amount,
   }) async {
     try {
       final response = await dio.post(
-        'api/v1/payment/stripe/add-money-to-wallet',
-        data: {'amount': amount},
+        'api/v1/payment/qicard/create-payment',
+        data: {
+          'amount': amount,
+          'currency': 'IQD',
+          'payment_for': 'wallet',
+        },
       );
 
       final body = response.data as Map<String, dynamic>;
 
       if (response.statusCode == 200 && body['success'] == true) {
-        return Right(body['message']?.toString() ?? 'تم الإيداع بنجاح');
+        final data = body['data'] as Map<String, dynamic>? ?? {};
+        final paymentUrl = data['payment_url']?.toString() ?? '';
+        if (paymentUrl.isEmpty) {
+          return const Left(ServerFailure(message: 'لم يتم استلام رابط الدفع'));
+        }
+        return Right(paymentUrl);
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل الإيداع',
+        message: body['message']?.toString() ?? 'فشل إنشاء عملية الدفع',
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {

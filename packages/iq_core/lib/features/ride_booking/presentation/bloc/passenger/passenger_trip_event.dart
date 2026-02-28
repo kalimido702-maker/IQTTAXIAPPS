@@ -118,3 +118,43 @@ class PassengerTripRatingSubmitted extends PassengerTripEvent {
 class PassengerTripReset extends PassengerTripEvent {
   const PassengerTripReset();
 }
+
+/// User applied or removed a promo code.
+class PassengerTripPromoApplied extends PassengerTripEvent {
+  const PassengerTripPromoApplied(this.promoCode);
+  final String? promoCode;
+
+  @override
+  List<Object?> get props => [promoCode];
+}
+
+/// User scheduled a ride for later.
+class PassengerTripScheduleChanged extends PassengerTripEvent {
+  const PassengerTripScheduleChanged(this.scheduledTime);
+
+  /// null = ride now (not scheduled).
+  final DateTime? scheduledTime;
+
+  @override
+  List<Object?> get props => [scheduledTime];
+}
+
+/// User changed ride preferences (e.g. pet-friendly).
+class PassengerTripPreferencesChanged extends PassengerTripEvent {
+  const PassengerTripPreferencesChanged(this.preferences);
+
+  /// List of preference IDs: [{"id": 1}, {"id": 2}]
+  final List<Map<String, dynamic>> preferences;
+
+  @override
+  List<Object?> get props => [preferences];
+}
+
+/// User changed instructions for the driver.
+class PassengerTripInstructionsChanged extends PassengerTripEvent {
+  const PassengerTripInstructionsChanged(this.instructions);
+  final String? instructions;
+
+  @override
+  List<Object?> get props => [instructions];
+}

@@ -84,6 +84,11 @@ class AppColors {
   static const Color shadow = Color(0x40000000); // 25% black
   static const Color shadowLight = Color(0x1A000000); // 10% black
 
+  // ─── Misc UI ───
+  static const Color dragHandle = Color(0xFFD9D9D9);
+  static const Color inputFill = Color(0xFFF4F5F6);
+  static const Color grayCapacity = Color(0xFFA5A5A5);
+
   // ─── Input Field ───
   static const Color inputBorder = Color(0xFFFEB800);
   static const Color inputFocusBorder = Color(0xFFFEC400);

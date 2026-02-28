@@ -7,10 +7,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/services/google_maps_service.dart';
 import '../../../../../core/services/map_performance.dart';
+import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/iq_map_view.dart';
-import '../../../../../core/widgets/iq_outlined_button.dart';
 import '../../../../../core/widgets/iq_text.dart';
 import '../../../data/models/active_trip_model.dart';
 import '../../../data/models/cancel_reason_model.dart';
@@ -219,8 +219,11 @@ class _TripMapState extends State<_TripMap> {
 
     // Route polyline — use decoded Google route if available.
     final routePts = _routePoints;
+    final pickup = LatLng(widget.state.pickLat, widget.state.pickLng);
+    final dropoff = LatLng(widget.state.dropLat, widget.state.dropLng);
     if (routePts != null && routePts.length >= 2) {
-      _polylinePool.upsert(MapRouteStyle.route(points: routePts));
+      final snapped = RouteHelper.snapToEndpoints(routePts, pickup, dropoff);
+      _polylinePool.upsert(MapRouteStyle.route(points: snapped));
     } else if (widget.state.pickLat != 0 && widget.state.dropLat != 0) {
       // Fallback straight line
       _polylinePool.upsert(MapRouteStyle.fallbackLine(
@@ -241,37 +244,22 @@ class _TripMapState extends State<_TripMap> {
   }
 }
 
-/// Searching for driver overlay with pulse animation + cancel.
+/// Searching for driver — bottom sheet over the map (Figma 7:2182).
 class _SearchingOverlay extends StatelessWidget {
   const _SearchingOverlay({required this.state});
   final PassengerTripState state;
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: Container(
-        color: AppColors.white.withValues(alpha: 0.95),
-        child: SafeArea(
-          child: Column(
-            children: [
-              SizedBox(height: 60.h),
-              const Expanded(
-                child: SearchingDriverAnimation(),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 40.w),
-                child: IqOutlinedButton(
-                  text: 'إلغاء',
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    _showCancelConfirmation(context, state.requestId ?? '');
-                  },
-                ),
-              ),
-              SizedBox(height: 40.h),
-            ],
-          ),
-        ),
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: SearchingDriverSheet(
+        onCancel: () {
+          HapticFeedback.mediumImpact();
+          _showCancelConfirmation(context, state.requestId ?? '');
+        },
       ),
     );
   }
@@ -291,6 +279,7 @@ class _ActiveTripSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final trip = state.activeTripData;
     if (trip == null) return const SizedBox.shrink();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Positioned(
       left: 0,
@@ -298,7 +287,7 @@ class _ActiveTripSheet extends StatelessWidget {
       bottom: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: isDark ? AppColors.darkCard : AppColors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
           boxShadow: [
             BoxShadow(
@@ -411,7 +400,7 @@ class _ActiveTripSheet extends StatelessWidget {
                         state.requestId ?? '',
                       ),
                       child: IqText(
-                        'إلغاء',
+                        AppStrings.cancel,
                         style: AppTypography.labelMedium.copyWith(
                           color: AppColors.error,
                         ),
@@ -434,11 +423,11 @@ class _StatusHeader extends StatelessWidget {
   String get _text {
     switch (phase) {
       case TripPhase.driverOnWay:
-        return 'السائق في الطريق إليك';
+        return AppStrings.driverOnWay;
       case TripPhase.driverArrived:
-        return 'السائق وصل';
+        return AppStrings.driverArrived;
       case TripPhase.inProgress:
-        return 'الوصول للوجهة';
+        return AppStrings.arrivingToDestination;
       default:
         return '';
     }
@@ -472,7 +461,9 @@ class _StatusHeader extends StatelessWidget {
         SizedBox(width: 10.w),
         IqText(
           _text,
-          style: AppTypography.heading3.copyWith(color: AppColors.textDark),
+          style: AppTypography.heading3.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
       ],
     );
@@ -497,7 +488,7 @@ class _WaitingBanner extends StatelessWidget {
           SizedBox(width: 8.w),
           Expanded(
             child: IqText(
-              'سيتم احتساب رسوم الانتظار بعد مرور الوقت المجاني',
+              AppStrings.waitingChargeWarning,
               style: AppTypography.bodySmall.copyWith(color: AppColors.warning),
             ),
           ),
@@ -514,14 +505,14 @@ void _showCancelConfirmation(BuildContext context, String requestId) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+    backgroundColor: AppColors.transparent,
     builder: (_) => CancelReasonsSheet(
       reasons: const [
-        CancelReasonModel(id: 1, reason: 'تغير رأيي', userType: 'user', arrivalStatus: 'before'),
-        CancelReasonModel(id: 2, reason: 'السائق بعيد جداً', userType: 'user', arrivalStatus: 'before'),
-        CancelReasonModel(id: 3, reason: 'وجدت وسيلة أخرى', userType: 'user', arrivalStatus: 'before'),
-        CancelReasonModel(id: 4, reason: 'طلبت بالخطأ', userType: 'user', arrivalStatus: 'before'),
-        CancelReasonModel(id: 5, reason: 'أخرى', userType: 'user', arrivalStatus: 'before'),
+        CancelReasonModel(id: 1, reason: AppStrings.cancelReasonChangedMind, userType: 'user', arrivalStatus: 'before'),
+        CancelReasonModel(id: 2, reason: AppStrings.cancelReasonDriverFar, userType: 'user', arrivalStatus: 'before'),
+        CancelReasonModel(id: 3, reason: AppStrings.cancelReasonFoundOther, userType: 'user', arrivalStatus: 'before'),
+        CancelReasonModel(id: 4, reason: AppStrings.cancelReasonMistake, userType: 'user', arrivalStatus: 'before'),
+        CancelReasonModel(id: 5, reason: AppStrings.cancelReasonOther, userType: 'user', arrivalStatus: 'before'),
       ],
       onConfirm: (reason, custom) {
         Navigator.pop(context);
