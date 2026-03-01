@@ -24,16 +24,18 @@ void main() async {
     ),
   );
 
-  // Initialize core dependencies
-  await initCoreDependencies();
-
-  // Initialize Firebase
+  // Initialize Firebase FIRST — must be before any DI registration
+  // that might access Firebase services.
   try {
     await Firebase.initializeApp();
     debugPrint('✅ Firebase initialized successfully');
-  } catch (e) {
+  } catch (e, st) {
     debugPrint('❌ Firebase init failed: $e');
+    debugPrint('❌ Stack trace: $st');
   }
+
+  // Initialize core dependencies
+  await initCoreDependencies();
 
   // Use latest Android Maps renderer for smoother performance
   await initMapRenderer();

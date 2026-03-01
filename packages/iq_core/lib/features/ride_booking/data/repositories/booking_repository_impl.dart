@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../data/datasources/booking_remote_data_source.dart';
 import '../../data/models/cancel_reason_model.dart';
+import '../../data/models/incoming_request_model.dart';
 import '../../data/models/invoice_model.dart';
 import '../../data/models/ride_request_response_model.dart';
 import '../../data/models/vehicle_type_model.dart';
@@ -214,4 +215,8 @@ class BookingRepositoryImpl implements BookingRepository {
         reason: reason,
         customReason: customReason,
       );
+
+  @override
+  Future<Either<Failure, IncomingRequestModel?>> fetchPendingRequest() =>
+      dataSource.fetchPendingRequest();
 }

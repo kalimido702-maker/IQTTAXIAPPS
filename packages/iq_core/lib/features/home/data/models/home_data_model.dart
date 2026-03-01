@@ -124,6 +124,7 @@ class HomeDataModel extends Equatable {
   // ── Driver-only fields ──
   final bool? isAvailable;
   final String? vehicleTypeName;
+  final String? vehicleTypeIcon;
   final String? carMake;
   final String? carModel;
   final String? carColor;
@@ -133,6 +134,10 @@ class HomeDataModel extends Equatable {
   final int totalMinutesOnline;
   final int totalRidesTaken;
   final bool? isApproved;
+  final String? serviceLocationId;
+  final String transportType;
+  final List<dynamic> vehicleTypes;
+  final String? ownerId;
 
   const HomeDataModel({
     required this.id,
@@ -160,6 +165,7 @@ class HomeDataModel extends Equatable {
     this.sosContacts = const [],
     this.isAvailable,
     this.vehicleTypeName,
+    this.vehicleTypeIcon,
     this.carMake,
     this.carModel,
     this.carColor,
@@ -168,6 +174,10 @@ class HomeDataModel extends Equatable {
     this.totalKms = 0,
     this.totalMinutesOnline = 0,
     this.totalRidesTaken = 0,
+    this.serviceLocationId,
+    this.transportType = 'taxi',
+    this.vehicleTypes = const [],
+    this.ownerId,
     this.isApproved,
   });
 
@@ -247,10 +257,15 @@ class HomeDataModel extends Equatable {
       sosContacts: sosContacts,
       isAvailable: available,
       vehicleTypeName: json['vehicle_type_name'] as String?,
+      vehicleTypeIcon: json['vehicle_type_icon'] as String?,
       carMake: json['car_make'] as String?,
       carModel: json['car_model'] as String?,
       carColor: json['car_color'] as String?,
       carNumber: json['car_number'] as String?,
+      serviceLocationId: json['service_location_id']?.toString(),
+      transportType: (json['transport_type'] ?? 'taxi').toString(),
+      vehicleTypes: json['vehicle_types'] as List<dynamic>? ?? [],
+      ownerId: json['owner_id']?.toString(),
       totalEarnings:
           int.tryParse(json['total_earnings']?.toString() ?? '0') ?? 0,
       totalKms: int.tryParse(json['total_kms']?.toString() ?? '0') ?? 0,

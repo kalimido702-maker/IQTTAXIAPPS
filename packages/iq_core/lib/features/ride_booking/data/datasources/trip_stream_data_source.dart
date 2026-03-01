@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/active_trip_model.dart';
 import '../models/incoming_request_model.dart';
@@ -75,16 +76,21 @@ class TripStreamDataSourceImpl implements TripStreamDataSource {
   @override
   Stream<IncomingRequestModel?> watchIncomingRequests(String driverId) {
     if (!_isFirebaseReady) {
+      debugPrint('⚠️ watchIncomingRequests: Firebase NOT ready — returning empty stream');
       return Stream<IncomingRequestModel?>.empty();
     }
+
+    final queryValue = int.tryParse(driverId) ?? driverId;
+    debugPrint('🔥 watchIncomingRequests: listening for driver_id=$queryValue (type: ${queryValue.runtimeType})');
 
     return _db
         .ref('request-meta')
         .orderByChild('driver_id')
-        .equalTo(int.tryParse(driverId) ?? driverId)
+        .equalTo(queryValue)
         .onValue
         .map((event) {
       final data = event.snapshot.value;
+      debugPrint('🔥 request-meta event: ${data == null ? "null" : data.runtimeType} — children: ${event.snapshot.children.length}');
       if (data == null || data is! Map) return null;
 
       final entries = data.entries.toList();

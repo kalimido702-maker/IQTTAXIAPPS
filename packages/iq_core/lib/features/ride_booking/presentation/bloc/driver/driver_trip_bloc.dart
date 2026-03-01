@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/datasources/trip_stream_data_source.dart';
@@ -18,6 +19,7 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
   }) : super(const DriverTripState()) {
     on<DriverTripListenRequested>(_onListenRequested);
     on<DriverTripIncomingReceived>(_onIncomingReceived);
+    on<_FetchPendingRequestDetails>(_onFetchPendingDetails);
     on<DriverTripAccepted>(_onAccepted);
     on<DriverTripRejected>(_onRejected);
     on<DriverTripStreamStarted>(_onStreamStarted);
@@ -41,6 +43,7 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     DriverTripListenRequested event,
     Emitter<DriverTripState> emit,
   ) async {
+    debugPrint('🚕 DriverTripBloc: _onListenRequested for driverId=${event.driverId}');
     emit(state.copyWith(
       status: DriverTripStatus.idle,
       driverId: event.driverId,
@@ -50,9 +53,13 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     _incomingSubscription =
         tripStream.watchIncomingRequests(event.driverId).listen(
       (request) {
+        debugPrint('🚕 DriverTripBloc: incoming request received: ${request?.requestId ?? "null"}');
         if (!isClosed) {
           add(DriverTripIncomingReceived(request));
         }
+      },
+      onError: (e) {
+        debugPrint('🚕 DriverTripBloc: incoming stream error: $e');
       },
     );
   }
@@ -70,11 +77,49 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
       return;
     }
 
-    emit(state.copyWith(
-      status: DriverTripStatus.incomingRequest,
-      incomingRequest: request,
-      requestId: request.requestId,
-    ));
+    // Firebase `request-meta` only carries `driver_id` as a signal.
+    // Fetch full ride details from the user API (metaRequest field).
+    add(_FetchPendingRequestDetails(firebaseRequestId: request.requestId));
+  }
+
+  /// Internal event: fetch rich ride details from the backend API after
+  /// Firebase has signalled a new incoming request.
+  Future<void> _onFetchPendingDetails(
+    _FetchPendingRequestDetails event,
+    Emitter<DriverTripState> emit,
+  ) async {
+    // Avoid refetching if we already have a fully-loaded incoming request
+    // being displayed. The user must accept/reject before we fetch another.
+    if (state.status == DriverTripStatus.incomingRequest &&
+        state.incomingRequest != null &&
+        state.incomingRequest!.pickAddress.isNotEmpty) {
+      return;
+    }
+
+    // Don't show loading overlay — stay idle until API returns real data.
+    debugPrint('🚕 _onFetchPendingDetails: calling API for request ${event.firebaseRequestId}');
+    final result = await repository.fetchPendingRequest();
+
+    result.fold(
+      (failure) {
+        debugPrint('🚕 _onFetchPendingDetails: API failed — ${failure.message}');
+        // API call failed — fall back to idle rather than showing empty data
+        emit(state.copyWith(status: DriverTripStatus.idle));
+      },
+      (fullRequest) {
+        debugPrint('🚕 _onFetchPendingDetails: API returned ${fullRequest == null ? "null" : "request id=${fullRequest.requestId}, pickAddr=${fullRequest.pickAddress}"}');
+        if (fullRequest != null) {
+          emit(state.copyWith(
+            status: DriverTripStatus.incomingRequest,
+            incomingRequest: fullRequest,
+            requestId: fullRequest.requestId,
+          ));
+        } else {
+          // metaRequest is null — request may have been cancelled/expired
+          emit(state.copyWith(status: DriverTripStatus.idle));
+        }
+      },
+    );
   }
 
   Future<void> _onAccepted(
@@ -304,4 +349,13 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     _tripSubscription?.cancel();
     return super.close();
   }
+}
+
+/// Internal event: Firebase signalled a new request — now fetch full details.
+class _FetchPendingRequestDetails extends DriverTripEvent {
+  const _FetchPendingRequestDetails({required this.firebaseRequestId});
+  final String firebaseRequestId;
+
+  @override
+  List<Object?> get props => [firebaseRequestId];
 }

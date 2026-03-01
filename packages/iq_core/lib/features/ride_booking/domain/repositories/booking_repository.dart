@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../data/models/cancel_reason_model.dart';
+import '../../data/models/incoming_request_model.dart';
 import '../../data/models/invoice_model.dart';
 import '../../data/models/ride_request_response_model.dart';
 import '../../data/models/vehicle_type_model.dart';
@@ -115,4 +116,7 @@ abstract class BookingRepository {
     required String reason,
     String? customReason,
   });
+
+  /// Fetch pending incoming request details from the user API.
+  Future<Either<Failure, IncomingRequestModel?>> fetchPendingRequest();
 }

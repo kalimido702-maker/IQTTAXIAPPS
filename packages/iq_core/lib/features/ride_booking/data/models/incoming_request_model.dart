@@ -107,6 +107,44 @@ class IncomingRequestModel extends Equatable {
     return int.tryParse(v.toString());
   }
 
+  /// Parse from API `GET api/v1/user` → `response.data['metaRequest']['data']`.
+  ///
+  /// The backend returns full ride details here when a request is pending
+  /// for this driver. Field names match the old app's MetaData model.
+  factory IncomingRequestModel.fromApi(Map<String, dynamic> json) {
+    final userDetail =
+        json['userDetail']?['data'] as Map<String, dynamic>? ?? {};
+    return IncomingRequestModel(
+      requestId: (json['id'] ?? '').toString(),
+      userId: userDetail['id']?.toString(),
+      userName: (userDetail['name'] ?? '').toString(),
+      userImage: userDetail['profile_picture']?.toString(),
+      userRating: userDetail['rating']?.toString(),
+      totalRides: userDetail['completed_ride_count']?.toString(),
+      pickLat: _d(json['pick_lat']) ?? 0.0,
+      pickLng: _d(json['pick_lng']) ?? 0.0,
+      dropLat: _d(json['drop_lat']) ?? 0.0,
+      dropLng: _d(json['drop_lng']) ?? 0.0,
+      pickAddress: (json['pick_address'] ?? '').toString(),
+      dropAddress: (json['drop_address'] ?? '').toString(),
+      vehicleTypeName: (json['vehicle_type_name'] ?? '').toString(),
+      vehicleTypeIcon: (json['vehicle_type_image'] ?? '').toString(),
+      rideType: (json['ride_type'] ?? '').toString(),
+      paymentMethod: _i(json['payment_opt']) ?? 1,
+      totalAmount:
+          _d(json['request_eta_amount']) ?? _d(json['total_amount']) ?? 0.0,
+      currency: (json['currency'] ?? 'IQD').toString(),
+      currencySymbol:
+          (json['requested_currency_symbol'] ?? AppStrings.currencyIQD)
+              .toString(),
+      distance: _d(json['total_distance']) ?? 0.0,
+      transportType: (json['transport_type'] ?? 'taxi').toString(),
+      isBidRide: json['is_bid_ride'] == 1 || json['is_bid_ride'] == true,
+      offerAmount: _d(json['offer_amount']),
+      // API does not return expiresAt — overlay will use default 60s timer.
+    );
+  }
+
   @override
   List<Object?> get props => [requestId];
 }

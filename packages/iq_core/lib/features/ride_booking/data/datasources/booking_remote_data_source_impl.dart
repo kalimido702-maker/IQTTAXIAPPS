@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../models/cancel_reason_model.dart';
+import '../models/incoming_request_model.dart';
 import '../models/invoice_model.dart';
 import '../models/ride_request_response_model.dart';
 import '../models/vehicle_type_model.dart';
@@ -524,6 +525,30 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
       }
       return Left(ServerFailure(
         message: body['message']?.toString() ?? AppStrings.failedToCancelTrip,
+      ));
+    } on DioException catch (e) {
+      return Left(_handleDioError(e));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, IncomingRequestModel?>> fetchPendingRequest() async {
+    try {
+      final response = await dio.get('api/v1/user');
+      final body = response.data as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['success'] == true) {
+        final data = body['data'] as Map<String, dynamic>? ?? {};
+        final metaRaw = data['metaRequest'];
+        if (metaRaw == null) return const Right(null);
+        final metaData =
+            (metaRaw is Map ? metaRaw['data'] : null) as Map<String, dynamic>?;
+        if (metaData == null) return const Right(null);
+        return Right(IncomingRequestModel.fromApi(metaData));
+      }
+      return Left(ServerFailure(
+        message: body['message']?.toString() ?? 'Failed to fetch user details',
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));

@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
 import '../models/cancel_reason_model.dart';
+import '../models/incoming_request_model.dart';
 import '../models/invoice_model.dart';
 import '../models/ride_request_response_model.dart';
 import '../models/vehicle_type_model.dart';
@@ -132,4 +133,11 @@ abstract class BookingRemoteDataSource {
     required String reason,
     String? customReason,
   });
+
+  /// Fetch pending incoming request from the user-details API.
+  ///
+  /// Calls `GET api/v1/user` and extracts `metaRequest.data` — the
+  /// backend embeds the full ride details there when a request is
+  /// pending for this driver.
+  Future<Either<Failure, IncomingRequestModel?>> fetchPendingRequest();
 }
