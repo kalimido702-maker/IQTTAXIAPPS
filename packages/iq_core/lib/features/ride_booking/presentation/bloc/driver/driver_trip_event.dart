@@ -168,6 +168,13 @@ class DriverTripLocationUpdated extends DriverTripEvent {
   List<Object?> get props => [lat, lng, bearing];
 }
 
+/// Check and restore an active trip on app startup.
+/// If the driver was in a trip and killed the app, this event
+/// restores the trip state by fetching `onTripRequest` from the API.
+class DriverTripCheckActiveTrip extends DriverTripEvent {
+  const DriverTripCheckActiveTrip();
+}
+
 /// Reset the driver trip flow.
 class DriverTripReset extends DriverTripEvent {
   const DriverTripReset();

@@ -6,6 +6,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_image.dart';
 import '../../../../core/widgets/iq_text.dart';
+import '../../data/models/ongoing_ride_model.dart';
+import 'ongoing_rides_carousel.dart';
 import 'promo_banner_card.dart';
 import 'service_category_card.dart';
 import 'quick_place_tile.dart';
@@ -78,6 +80,8 @@ class HomeBottomSheet extends StatelessWidget {
     this.promoBannerUrl,
     this.onPromoBannerTap,
     this.scrollController,
+    this.ongoingRides = const [],
+    this.onOngoingRideTap,
   });
 
   final List<ServiceCategory> categories;
@@ -94,6 +98,10 @@ class HomeBottomSheet extends StatelessWidget {
   final String? promoBannerUrl;
   final VoidCallback? onPromoBannerTap;
   final ScrollController? scrollController;
+
+  /// Active / ongoing rides to show in the carousel.
+  final List<OngoingRideModel> ongoingRides;
+  final void Function(OngoingRideModel ride)? onOngoingRideTap;
 
   @override
   Widget build(BuildContext context) {
@@ -184,6 +192,15 @@ class HomeBottomSheet extends StatelessWidget {
           if (_hasBanners)
             _buildBannerSection(),
           if (_hasBanners) SizedBox(height: 20.h),
+
+          // ─── Ongoing rides carousel ───
+          if (ongoingRides.isNotEmpty) ...[
+            OngoingRidesCarousel(
+              rides: ongoingRides,
+              onRideTap: onOngoingRideTap,
+            ),
+            SizedBox(height: 20.h),
+          ],
 
           // ─── Quick places header ───
           if (quickPlaces.isNotEmpty)

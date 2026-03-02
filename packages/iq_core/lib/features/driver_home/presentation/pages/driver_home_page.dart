@@ -81,6 +81,10 @@ class _DriverHomeBody extends StatelessWidget {
               context.read<DriverTripBloc>().add(
                 DriverTripListenRequested(driverId),
               );
+              // Check if the driver has an active trip from a previous session.
+              context.read<DriverTripBloc>().add(
+                const DriverTripCheckActiveTrip(),
+              );
             } else {
               context.read<DriverTripBloc>().add(const DriverTripReset());
             }
@@ -270,9 +274,15 @@ class _DriverHomeBody extends StatelessWidget {
                   if (tripState.status ==
                           DriverTripStatus.incomingRequest &&
                       tripState.incomingRequest != null) {
+                    final homeData = context
+                        .read<DriverHomeBloc>()
+                        .state
+                        .homeData;
                     return Positioned.fill(
                       child: IncomingRequestOverlay(
                         request: tripState.incomingRequest!,
+                        acceptDuration:
+                            homeData?.acceptDuration ?? 30,
                       ),
                     );
                   }

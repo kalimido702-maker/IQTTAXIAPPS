@@ -557,6 +557,30 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     }
   }
 
+  @override
+  Future<Either<Failure, IncomingRequestModel?>> fetchOnTripRequest() async {
+    try {
+      final response = await dio.get('api/v1/user');
+      final body = response.data as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['success'] == true) {
+        final data = body['data'] as Map<String, dynamic>? ?? {};
+        final onTripRaw = data['onTripRequest'];
+        if (onTripRaw == null) return const Right(null);
+        final tripData =
+            (onTripRaw is Map ? onTripRaw['data'] : null) as Map<String, dynamic>?;
+        if (tripData == null) return const Right(null);
+        return Right(IncomingRequestModel.fromApi(tripData));
+      }
+      return Left(ServerFailure(
+        message: body['message']?.toString() ?? 'Failed to fetch user details',
+      ));
+    } on DioException catch (e) {
+      return Left(_handleDioError(e));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
   Failure _handleDioError(DioException e) {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||

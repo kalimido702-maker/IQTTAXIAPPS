@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../data/models/ongoing_ride_model.dart';
 import '../../data/models/ride_module_model.dart';
 import '../../domain/repositories/home_repository.dart';
 import 'passenger_home_event.dart';
@@ -28,6 +29,7 @@ class PassengerHomeBloc
 
     final userResult = await repository.getUserDetails();
     final modulesResult = await repository.getRideModules();
+    final ongoingResult = await repository.getOngoingRides();
 
     userResult.fold(
       (failure) => emit(state.copyWith(
@@ -40,10 +42,16 @@ class PassengerHomeBloc
           (mods) => mods,
         );
 
+        final List<OngoingRideModel> rides = ongoingResult.fold(
+          (_) => const [],
+          (r) => r,
+        );
+
         emit(state.copyWith(
           status: HomeStatus.loaded,
           homeData: data,
           rideModules: modules,
+          ongoingRides: rides,
         ));
       },
     );

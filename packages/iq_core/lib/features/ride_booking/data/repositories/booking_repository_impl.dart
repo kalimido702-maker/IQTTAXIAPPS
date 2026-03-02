@@ -219,4 +219,8 @@ class BookingRepositoryImpl implements BookingRepository {
   @override
   Future<Either<Failure, IncomingRequestModel?>> fetchPendingRequest() =>
       dataSource.fetchPendingRequest();
+
+  @override
+  Future<Either<Failure, IncomingRequestModel?>> fetchOnTripRequest() =>
+      dataSource.fetchOnTripRequest();
 }

@@ -367,6 +367,11 @@ class AppStrings {
   // ─── Incoming Request ───
   static const String tripDetails = 'تفاصيل الرحلة';
   static const String reject = 'رفض';
+  static const String second = 'ثانية';
+  static const String rideFare = 'أجرة الركوب';
+  static const String tripAddressesLabel = 'عناوين الرحلة';
+  static const String autoCancelWarning = 'سيتم إلغاء الرحلة تلقائياً بعد';
+  static const String totalRidesCount = 'رحلة';
 
   // ─── Map Picker ───
   static const String selectLocation = 'حدد الموقع';

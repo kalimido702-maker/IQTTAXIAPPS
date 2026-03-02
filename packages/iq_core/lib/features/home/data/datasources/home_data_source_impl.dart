@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/error/failures.dart';
 import '../models/home_data_model.dart';
+import '../models/ongoing_ride_model.dart';
 import '../models/ride_module_model.dart';
 import 'home_data_source.dart';
 
@@ -113,6 +114,43 @@ class HomeDataSourceImpl implements HomeDataSource {
         ServerFailure(
           message:
               body['message']?.toString() ?? 'فشل تحميل أنواع الخدمة',
+          statusCode: response.statusCode,
+        ),
+      );
+    } on DioException catch (e) {
+      return Left(_handleDioError(e));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  // ──────────────────────────────────────────
+  //  GET ONGOING RIDES
+  //  GET api/v1/request/history?on_trip=1
+  // ──────────────────────────────────────────
+
+  @override
+  Future<Either<Failure, List<OngoingRideModel>>> getOngoingRides() async {
+    try {
+      final response = await dio.get(
+        'api/v1/request/history',
+        queryParameters: {'on_trip': '1'},
+      );
+      final body = response.data as Map<String, dynamic>;
+
+      if (response.statusCode == 200 && body['success'] == true) {
+        final rawList = body['data'] as List<dynamic>? ?? [];
+        final rides = rawList
+            .whereType<Map<String, dynamic>>()
+            .map(OngoingRideModel.fromJson)
+            .toList();
+        return Right(rides);
+      }
+
+      return Left(
+        ServerFailure(
+          message:
+              body['message']?.toString() ?? 'فشل تحميل الرحلات النشطة',
           statusCode: response.statusCode,
         ),
       );

@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../data/datasources/home_data_source.dart';
 import '../../data/models/home_data_model.dart';
+import '../../data/models/ongoing_ride_model.dart';
 import '../../data/models/ride_module_model.dart';
 import '../../domain/repositories/home_repository.dart';
 
@@ -33,4 +34,8 @@ class HomeRepositoryImpl implements HomeRepository {
   @override
   Future<Either<Failure, List<RideModuleModel>>> getRideModules() =>
       dataSource.getRideModules();
+
+  @override
+  Future<Either<Failure, List<OngoingRideModel>>> getOngoingRides() =>
+      dataSource.getOngoingRides();
 }

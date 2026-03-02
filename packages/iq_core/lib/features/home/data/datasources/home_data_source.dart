@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
 import '../models/home_data_model.dart';
+import '../models/ongoing_ride_model.dart';
 import '../models/ride_module_model.dart';
 
 /// Contract for fetching home screen data from the API.
@@ -27,4 +28,9 @@ abstract class HomeDataSource {
   ///
   /// Calls `GET api/v1/common/ride_modules`.
   Future<Either<Failure, List<RideModuleModel>>> getRideModules();
+
+  /// Fetch ongoing (active) rides for the user.
+  ///
+  /// Calls `GET api/v1/request/history?on_trip=1`.
+  Future<Either<Failure, List<OngoingRideModel>>> getOngoingRides();
 }

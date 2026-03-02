@@ -139,6 +139,10 @@ class HomeDataModel extends Equatable {
   final List<dynamic> vehicleTypes;
   final String? ownerId;
 
+  /// How many seconds the driver has to accept/reject a request.
+  /// Comes from `trip_accept_reject_duration_for_driver` in the API.
+  final int acceptDuration;
+
   const HomeDataModel({
     required this.id,
     required this.name,
@@ -179,6 +183,7 @@ class HomeDataModel extends Equatable {
     this.vehicleTypes = const [],
     this.ownerId,
     this.isApproved,
+    this.acceptDuration = 30,
   });
 
   /// Parse from `GET api/v1/user` → `response.data['data']`.
@@ -274,6 +279,8 @@ class HomeDataModel extends Equatable {
       totalRidesTaken:
           int.tryParse(json['total_rides_taken']?.toString() ?? '0') ?? 0,
       isApproved: json['approve'] == 1 || json['approve'] == true,
+      acceptDuration:
+          int.tryParse(json['trip_accept_reject_duration_for_driver']?.toString() ?? '30') ?? 30,
     );
   }
 

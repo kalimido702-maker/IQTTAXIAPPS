@@ -140,4 +140,12 @@ abstract class BookingRemoteDataSource {
   /// backend embeds the full ride details there when a request is
   /// pending for this driver.
   Future<Either<Failure, IncomingRequestModel?>> fetchPendingRequest();
+
+  /// Fetch an already-accepted active trip from the user-details API.
+  ///
+  /// Calls `GET api/v1/user` and extracts `onTripRequest.data` — the
+  /// backend returns this when the driver has an ongoing trip.
+  /// Returns the request model with the trip ID needed to start
+  /// the Firebase stream.
+  Future<Either<Failure, IncomingRequestModel?>> fetchOnTripRequest();
 }

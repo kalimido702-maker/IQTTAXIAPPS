@@ -17,7 +17,9 @@ import '../../../home/domain/repositories/home_repository.dart';
 import '../../../location/domain/repositories/location_repository.dart';
 import '../../../ride_booking/presentation/bloc/passenger/passenger_trip_bloc.dart';
 import '../../../ride_booking/presentation/bloc/passenger/passenger_trip_event.dart';
+import '../../../ride_booking/presentation/pages/passenger/passenger_active_trip_page.dart';
 import '../../../ride_booking/presentation/pages/passenger/search_destination_page.dart';
+import '../../data/models/ongoing_ride_model.dart';
 import '../bloc/passenger_home_bloc.dart';
 import '../bloc/passenger_home_event.dart';
 import '../bloc/passenger_home_state.dart';
@@ -150,6 +152,35 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
           pickupLng: lng,
           quickPlaces: quickPlaces,
         ),
+      ),
+    );
+  }
+
+  /// Tap on an ongoing ride from the carousel.
+  ///
+  /// Completed rides → TODO: navigate to invoice (not yet implemented).
+  /// Active / searching rides → set up TripBloc & navigate to active trip page.
+  void _handleOngoingRideTap(BuildContext ctx, OngoingRideModel ride) {
+    final tripBloc = sl<PassengerTripBloc>();
+
+    // Reset any previous trip state first
+    tripBloc.add(const PassengerTripReset());
+
+    // Restore as a searching/active trip — Firebase stream will
+    // pick up the real phase (driverOnWay, inProgress, etc.)
+    tripBloc.add(PassengerTripRestoreOngoing(
+      requestId: ride.id,
+      pickAddress: ride.pickAddress,
+      dropAddress: ride.dropAddress,
+      pickLat: ride.pickLat,
+      pickLng: ride.pickLng,
+      dropLat: ride.dropLat,
+      dropLng: ride.dropLng,
+    ));
+
+    Navigator.of(ctx).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const PassengerActiveTripPage(),
       ),
     );
   }
@@ -294,7 +325,8 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                       buildWhen: (prev, curr) =>
                           prev.homeData != curr.homeData ||
                           prev.rideModules != curr.rideModules ||
-                          prev.activeCategory != curr.activeCategory,
+                          prev.activeCategory != curr.activeCategory ||
+                          prev.ongoingRides != curr.ongoingRides,
                       builder: (context, state) {
                         final data = state.homeData;
 
@@ -356,6 +388,9 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                                   : null,
                           onPromoBannerTap: widget.onPromoBannerTap,
                           onQuickPlaceTap: widget.onQuickPlaceTap,
+                          ongoingRides: state.ongoingRides,
+                          onOngoingRideTap: (ride) =>
+                              _handleOngoingRideTap(context, ride),
                         );
                       },
                     );

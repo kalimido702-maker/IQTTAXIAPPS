@@ -31,6 +31,7 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     on<DriverTripCancelRequested>(_onCancelRequested);
     on<DriverTripRatingSubmitted>(_onRatingSubmitted);
     on<DriverTripLocationUpdated>(_onLocationUpdated);
+    on<DriverTripCheckActiveTrip>(_onCheckActiveTrip);
     on<DriverTripReset>(_onReset);
   }
 
@@ -182,6 +183,8 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     if (tripData == null || tripData is! ActiveTripModel) return;
 
     final phase = tripData.phase;
+    debugPrint('🚕 DriverTripBloc._onStreamUpdated: phase=$phase, '
+        'current status=${state.status}');
 
     switch (phase) {
       case TripPhase.cancelled:
@@ -331,6 +334,39 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
       lat: event.lat,
       lng: event.lng,
       bearing: event.bearing,
+    );
+  }
+
+  /// Called on startup to check if the driver has an ongoing trip.
+  /// If yes, restore state to [navigatingToPickup] and start Firebase stream.
+  Future<void> _onCheckActiveTrip(
+    DriverTripCheckActiveTrip event,
+    Emitter<DriverTripState> emit,
+  ) async {
+    // Don't check if we're already in an active trip state.
+    if (state.status != DriverTripStatus.idle) return;
+
+    debugPrint('🚕 DriverTripBloc: checking for active trip on startup...');
+
+    final result = await repository.fetchOnTripRequest();
+    result.fold(
+      (failure) {
+        debugPrint('🚕 DriverTripBloc: fetchOnTripRequest failed: ${failure.message}');
+      },
+      (onTripRequest) {
+        if (onTripRequest != null && onTripRequest.requestId.isNotEmpty) {
+          debugPrint('🚕 DriverTripBloc: found active trip ${onTripRequest.requestId}, restoring...');
+          emit(state.copyWith(
+            status: DriverTripStatus.navigatingToPickup,
+            incomingRequest: onTripRequest,
+            requestId: onTripRequest.requestId,
+          ));
+          // Start listening to Firebase for live trip updates.
+          add(DriverTripStreamStarted(onTripRequest.requestId));
+        } else {
+          debugPrint('🚕 DriverTripBloc: no active trip found.');
+        }
+      },
     );
   }
 

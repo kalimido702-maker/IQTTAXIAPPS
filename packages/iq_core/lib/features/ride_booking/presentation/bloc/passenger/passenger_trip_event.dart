@@ -158,3 +158,30 @@ class PassengerTripInstructionsChanged extends PassengerTripEvent {
   @override
   List<Object?> get props => [instructions];
 }
+
+/// Restore an ongoing trip from the home carousel.
+///
+/// Sets up the state with trip coordinates/addresses and starts
+/// the Firebase stream so the active trip page works correctly.
+class PassengerTripRestoreOngoing extends PassengerTripEvent {
+  const PassengerTripRestoreOngoing({
+    required this.requestId,
+    required this.pickAddress,
+    required this.dropAddress,
+    required this.pickLat,
+    required this.pickLng,
+    required this.dropLat,
+    required this.dropLng,
+  });
+
+  final String requestId;
+  final String pickAddress;
+  final String dropAddress;
+  final double pickLat;
+  final double pickLng;
+  final double dropLat;
+  final double dropLng;
+
+  @override
+  List<Object?> get props => [requestId];
+}

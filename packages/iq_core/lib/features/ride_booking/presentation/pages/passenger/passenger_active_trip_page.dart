@@ -10,6 +10,7 @@ import '../../../../../core/services/map_performance.dart';
 import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../core/widgets/iq_image.dart';
 import '../../../../../core/widgets/iq_map_view.dart';
 import '../../../../../core/widgets/iq_text.dart';
 import '../../../data/models/active_trip_model.dart';
@@ -18,10 +19,9 @@ import '../../bloc/passenger/passenger_trip_bloc.dart';
 import '../../bloc/passenger/passenger_trip_event.dart';
 import '../../bloc/passenger/passenger_trip_state.dart';
 import '../../widgets/cancel_reasons_sheet.dart';
-import '../../widgets/driver_info_card.dart';
+import '../../widgets/fake_car_markers.dart';
 import '../../widgets/searching_driver_animation.dart';
 import '../../widgets/trip_action_buttons.dart';
-import '../../widgets/trip_address_row.dart';
 import 'trip_invoice_page.dart';
 
 /// The main active trip page for passengers.
@@ -131,16 +131,50 @@ class _TripMapState extends State<_TripMap> {
   final MarkerPool _markerPool = MarkerPool();
   final PolylinePool _polylinePool = PolylinePool();
 
+  /// Ghost car markers shown while searching for a driver.
+  FakeCarMarkersController? _fakeCarsController;
+  Set<Marker> _fakeCarsMarkers = {};
+
   @override
   void didUpdateWidget(_TripMap old) {
     super.didUpdateWidget(old);
     _updateRoute();
+    _updateFakeCars();
   }
 
   @override
   void initState() {
     super.initState();
     _updateRoute();
+    _updateFakeCars();
+  }
+
+  @override
+  void dispose() {
+    _fakeCarsController?.dispose();
+    super.dispose();
+  }
+
+  /// Start or stop fake car markers based on trip state.
+  void _updateFakeCars() {
+    final isSearching =
+        widget.state.status == PassengerTripStatus.searchingDriver;
+
+    if (isSearching && _fakeCarsController == null && widget.state.pickLat != 0) {
+      _fakeCarsController = FakeCarMarkersController(
+        center: LatLng(widget.state.pickLat, widget.state.pickLng),
+      );
+      _fakeCarsController!.start((markers) {
+        if (mounted) {
+          setState(() => _fakeCarsMarkers = markers);
+        }
+      });
+    } else if (!isSearching && _fakeCarsController != null) {
+      _fakeCarsController!.stop();
+      _fakeCarsController!.dispose();
+      _fakeCarsController = null;
+      _fakeCarsMarkers = {};
+    }
   }
 
   void _updateRoute() {
@@ -237,7 +271,7 @@ class _TripMapState extends State<_TripMap> {
       initialTarget: widget.state.pickLat != 0
           ? LatLng(widget.state.pickLat, widget.state.pickLng)
           : null,
-      markers: _markerPool.markers,
+      markers: {..._markerPool.markers, ..._fakeCarsMarkers},
       polylines: _polylinePool.polylines,
       mapPadding: EdgeInsets.only(bottom: 320.h),
     );
@@ -265,7 +299,12 @@ class _SearchingOverlay extends StatelessWidget {
   }
 }
 
-/// Bottom sheet for active trip phases (driver on way, arrived, in progress).
+// ---------------------------------------------------------------------------
+// Bottom sheet for active trip phases (driver on way, arrived, in progress).
+// Matches the old-app design with حالة الرحلة header, coloured status badge,
+// driver info, bordered address cards, fare + payment, and cancel button.
+// ---------------------------------------------------------------------------
+
 class _ActiveTripSheet extends StatelessWidget {
   const _ActiveTripSheet({
     required this.state,
@@ -298,12 +337,11 @@ class _ActiveTripSheet extends StatelessWidget {
           ],
         ),
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(24.w, 16.h, 24.w, 24.h),
+          padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle
+              // ── Drag handle ──
               Center(
                 child: Container(
                   width: 50.w,
@@ -316,39 +354,62 @@ class _ActiveTripSheet extends StatelessWidget {
               ),
               SizedBox(height: 12.h),
 
-              // Status text
-              _StatusHeader(phase: trip.phase),
+              // ── "حالة الرحلة" title ──
+              Center(
+                child: IqText(
+                  AppStrings.tripStatus,
+                  style: AppTypography.heading3.copyWith(
+                    color: isDark ? AppColors.white : AppColors.textDark,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              SizedBox(height: 10.h),
+
+              // ── Full-width status badge ──
+              _PassengerStatusBadge(phase: trip.phase),
               SizedBox(height: 16.h),
 
-              // Waiting charge warning (driver arrived)
+              // ── Waiting charge warning (driver arrived) ──
               if (trip.phase == TripPhase.driverArrived)
                 _WaitingBanner(),
 
-              // Driver info
-              DriverInfoCard(
+              // ── Driver info ──
+              _DriverRow(
                 name: trip.driverName ?? '',
                 photoUrl: trip.driverProfilePic,
                 rating: trip.driverRatingValue,
-                carModel: trip.vehicleTypeName,
-                carColor: trip.vehicleColor,
+                vehicleInfo: trip.vehicleTypeName,
                 plateNumber: trip.vehicleNumber,
                 onChat: () {
-                  // TODO: Navigate to chat
+                  // TODO: Open chat
                 },
                 onCall: () {
-                  // TODO: Launch phone call
+                  // TODO: Call driver
                 },
               ),
               SizedBox(height: 16.h),
 
-              // Addresses
-              TripAddressRow(
-                pickAddress: state.pickAddress,
-                dropAddress: state.dropAddress,
-                compact: true,
+              // ── Addresses in bordered cards ──
+              _BorderedAddressCard(
+                address: state.pickAddress,
+                iconColor: AppColors.markerGreen,
+              ),
+              SizedBox(height: 8.h),
+              _BorderedAddressCard(
+                address: state.dropAddress,
+                iconColor: AppColors.markerRed,
+              ),
+              SizedBox(height: 16.h),
+
+              // ── Fare + payment ──
+              _FarePaymentRow(
+                amount: trip.totalAmount,
+                currencySymbol: trip.currencySymbol,
+                paymentMethod: trip.paymentMethod,
               ),
 
-              // Action buttons (in progress only)
+              // ── Action buttons (in progress) ──
               if (trip.phase == TripPhase.inProgress) ...[
                 SizedBox(height: 16.h),
                 TripActionButtons(
@@ -368,46 +429,33 @@ class _ActiveTripSheet extends StatelessWidget {
                 ),
               ],
 
-              SizedBox(height: 16.h),
-
-              // Price + cancel row
-              Row(
-                children: [
-                  // Price
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 8.h,
+              // ── Cancel (before trip starts) ──
+              if (trip.phase != TripPhase.inProgress) ...[
+                SizedBox(height: 16.h),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48.h,
+                  child: OutlinedButton(
+                    onPressed: () => _showCancelConfirmation(
+                      context,
+                      state.requestId ?? '',
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary50,
-                      borderRadius: BorderRadius.circular(8.r),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(1000.r),
+                      ),
                     ),
                     child: IqText(
-                      '${trip.totalAmount.toStringAsFixed(0)} ${trip.currencySymbol}',
-                      style: AppTypography.labelLarge.copyWith(
-                        color: AppColors.primary700,
+                      AppStrings.cancelTrip,
+                      style: AppTypography.button.copyWith(
+                        color: AppColors.error,
                       ),
-                      dir: TextDirection.ltr,
                     ),
                   ),
-                  const Spacer(),
-                  // Cancel (not during in-progress)
-                  if (trip.phase != TripPhase.inProgress)
-                    TextButton(
-                      onPressed: () => _showCancelConfirmation(
-                        context,
-                        state.requestId ?? '',
-                      ),
-                      child: IqText(
-                        AppStrings.cancel,
-                        style: AppTypography.labelMedium.copyWith(
-                          color: AppColors.error,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         ),
@@ -416,8 +464,12 @@ class _ActiveTripSheet extends StatelessWidget {
   }
 }
 
-class _StatusHeader extends StatelessWidget {
-  const _StatusHeader({required this.phase});
+// ---------------------------------------------------------------------------
+// Full-width coloured status badge for passenger trip phases.
+// ---------------------------------------------------------------------------
+
+class _PassengerStatusBadge extends StatelessWidget {
+  const _PassengerStatusBadge({required this.phase});
   final TripPhase phase;
 
   String get _text {
@@ -433,39 +485,337 @@ class _StatusHeader extends StatelessWidget {
     }
   }
 
-  IconData get _icon {
+  Color get _bgColor {
     switch (phase) {
       case TripPhase.driverOnWay:
-        return Icons.directions_car_rounded;
+        return AppColors.primary;
       case TripPhase.driverArrived:
-        return Icons.flag_rounded;
+        return AppColors.warning;
       case TripPhase.inProgress:
-        return Icons.navigation_rounded;
+        return AppColors.success;
       default:
-        return Icons.info_outline;
+        return AppColors.primary;
+    }
+  }
+
+  Color get _textColor {
+    switch (phase) {
+      case TripPhase.driverOnWay:
+        return AppColors.textDark;
+      case TripPhase.driverArrived:
+        return AppColors.white;
+      case TripPhase.inProgress:
+        return AppColors.white;
+      default:
+        return AppColors.textDark;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(vertical: 10.h),
+      decoration: BoxDecoration(
+        color: _bgColor,
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      alignment: Alignment.center,
+      child: IqText(
+        _text,
+        style: AppTypography.labelLarge.copyWith(
+          color: _textColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Driver info row with avatar, name, rating, vehicle, chat/call buttons.
+// ---------------------------------------------------------------------------
+
+class _DriverRow extends StatelessWidget {
+  const _DriverRow({
+    required this.name,
+    this.photoUrl,
+    this.rating = 0,
+    this.vehicleInfo,
+    this.plateNumber,
+    this.onChat,
+    this.onCall,
+  });
+
+  final String name;
+  final String? photoUrl;
+  final double rating;
+  final String? vehicleInfo;
+  final String? plateNumber;
+  final VoidCallback? onChat;
+  final VoidCallback? onCall;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatarSize = 52.w;
+
     return Row(
       children: [
-        Container(
-          padding: EdgeInsets.all(8.w),
-          decoration: BoxDecoration(
-            color: AppColors.primary50,
-            borderRadius: BorderRadius.circular(8.r),
+        // ── Avatar ──
+        ClipOval(
+          child: SizedBox(
+            width: avatarSize,
+            height: avatarSize,
+            child: photoUrl != null && photoUrl!.isNotEmpty
+                ? IqImage(
+                    photoUrl!,
+                    fit: BoxFit.cover,
+                    width: avatarSize,
+                    height: avatarSize,
+                  )
+                : Container(
+                    color: AppColors.grayLightBg,
+                    child: Icon(
+                      Icons.person,
+                      size: avatarSize * 0.6,
+                      color: AppColors.grayLight,
+                    ),
+                  ),
           ),
-          child: Icon(_icon, size: 20.w, color: AppColors.primary700),
         ),
-        SizedBox(width: 10.w),
-        IqText(
-          _text,
-          style: AppTypography.heading3.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
+        SizedBox(width: 12.w),
+
+        // ── Name + rating + vehicle ──
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IqText(
+                name,
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.textDark,
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 4.h),
+              Row(
+                children: [
+                  Icon(Icons.star_rounded,
+                      size: 16.w, color: AppColors.starFilled),
+                  SizedBox(width: 2.w),
+                  IqText(
+                    rating.toStringAsFixed(1),
+                    style: AppTypography.numberSmall.copyWith(
+                      color: AppColors.textDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    dir: TextDirection.ltr,
+                  ),
+                  if (vehicleInfo != null && vehicleInfo!.isNotEmpty) ...[
+                    SizedBox(width: 8.w),
+                    Container(
+                      width: 4.w,
+                      height: 4.w,
+                      decoration: const BoxDecoration(
+                        color: AppColors.grayLight,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    Flexible(
+                      child: IqText(
+                        vehicleInfo!,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (plateNumber != null && plateNumber!.isNotEmpty) ...[
+                SizedBox(height: 4.h),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 8.w, vertical: 2.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.grayLightBg,
+                    borderRadius: BorderRadius.circular(4.r),
+                  ),
+                  child: IqText(
+                    plateNumber!,
+                    style: AppTypography.numberSmall.copyWith(
+                      color: AppColors.textDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    dir: TextDirection.ltr,
+                  ),
+                ),
+              ],
+            ],
           ),
+        ),
+
+        // ── Chat + Call ──
+        _PCircleActionBtn(
+          icon: Icons.chat_bubble_outlined,
+          color: AppColors.success,
+          onTap: onChat,
+        ),
+        SizedBox(width: 8.w),
+        _PCircleActionBtn(
+          icon: Icons.phone_outlined,
+          color: AppColors.primary,
+          onTap: onCall,
         ),
       ],
+    );
+  }
+}
+
+class _PCircleActionBtn extends StatelessWidget {
+  const _PCircleActionBtn({
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(100),
+      child: Container(
+        width: 44.w,
+        height: 44.w,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Icon(icon, size: 20.w, color: color),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bordered rounded address card.
+// ---------------------------------------------------------------------------
+
+class _BorderedAddressCard extends StatelessWidget {
+  const _BorderedAddressCard({
+    required this.address,
+    required this.iconColor,
+  });
+
+  final String address;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(
+          color: isDark ? AppColors.darkDivider : AppColors.grayBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.location_on, size: 20.w, color: iconColor),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: IqText(
+              address,
+              style: AppTypography.bodySmall.copyWith(
+                color: isDark ? AppColors.white : AppColors.textDark,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fare + payment method row.
+// ---------------------------------------------------------------------------
+
+class _FarePaymentRow extends StatelessWidget {
+  const _FarePaymentRow({
+    required this.amount,
+    required this.currencySymbol,
+    this.paymentMethod,
+  });
+
+  final double amount;
+  final String currencySymbol;
+  final String? paymentMethod;
+
+  String get _paymentText {
+    if (paymentMethod == null || paymentMethod!.isEmpty) {
+      return AppStrings.cash;
+    }
+    final lower = paymentMethod!.toLowerCase();
+    if (lower.contains('wallet')) return AppStrings.walletPayment;
+    if (lower.contains('card')) return AppStrings.cardPayment;
+    return AppStrings.cash;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const fareColor = Color(0xFF669C1A);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: fareColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10.r),
+      ),
+      child: Row(
+        children: [
+          IqText(
+            '${AppStrings.rideFare} : ',
+            style: AppTypography.labelMedium.copyWith(
+              color: isDark ? AppColors.white : AppColors.textDark,
+            ),
+          ),
+          IqText(
+            '$currencySymbol ${amount.toStringAsFixed(0)}',
+            style: AppTypography.numberLarge.copyWith(
+              color: fareColor,
+              fontWeight: FontWeight.w700,
+            ),
+            dir: TextDirection.ltr,
+          ),
+          const Spacer(),
+          IqText(
+            _paymentText,
+            style: AppTypography.labelMedium.copyWith(
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

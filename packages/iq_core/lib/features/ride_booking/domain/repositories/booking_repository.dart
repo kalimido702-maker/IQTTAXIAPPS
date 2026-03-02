@@ -119,4 +119,7 @@ abstract class BookingRepository {
 
   /// Fetch pending incoming request details from the user API.
   Future<Either<Failure, IncomingRequestModel?>> fetchPendingRequest();
+
+  /// Fetch an already-accepted ongoing trip from the user API.
+  Future<Either<Failure, IncomingRequestModel?>> fetchOnTripRequest();
 }

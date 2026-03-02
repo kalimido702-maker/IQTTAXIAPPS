@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../../core/constants/app_strings.dart';
@@ -10,9 +11,8 @@ import '../../../../../core/services/google_maps_service.dart';
 import '../../../../../core/services/map_performance.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../core/widgets/iq_image.dart';
 import '../../../../../core/widgets/iq_map_view.dart';
-import '../../../../../core/widgets/iq_outlined_button.dart';
-import '../../../../../core/widgets/iq_primary_button.dart';
 import '../../../../../core/widgets/iq_text.dart';
 import '../../../data/models/active_trip_model.dart';
 import '../../../data/models/cancel_reason_model.dart';
@@ -22,8 +22,6 @@ import '../../bloc/driver/driver_trip_event.dart';
 import '../../bloc/driver/driver_trip_state.dart';
 import '../passenger/trip_invoice_page.dart';
 import '../../widgets/cancel_reasons_sheet.dart';
-import '../../widgets/driver_info_card.dart';
-import '../../widgets/trip_address_row.dart';
 import '../../widgets/waiting_timer_banner.dart';
 
 /// The main active trip page for drivers.
@@ -123,7 +121,9 @@ class _DriverTripMap extends StatefulWidget {
 
 class _DriverTripMapState extends State<_DriverTripMap> {
   List<LatLng>? _routePoints;
-  bool _hasFetched = false;
+
+  /// Track what route we last fetched to avoid re-fetching the same route.
+  String _lastRouteKey = '';
 
   /// Object pools — avoid re-creating Set<Marker>/Set<Polyline> on every frame.
   final MarkerPool _markerPool = MarkerPool();
@@ -132,36 +132,94 @@ class _DriverTripMapState extends State<_DriverTripMap> {
   @override
   void initState() {
     super.initState();
-    _fetchRouteIfNeeded();
+    _fetchRouteForPhase();
   }
 
   @override
   void didUpdateWidget(_DriverTripMap old) {
     super.didUpdateWidget(old);
-    _fetchRouteIfNeeded();
+    _fetchRouteForPhase();
   }
 
-  void _fetchRouteIfNeeded() {
+  /// Resolve which effective trip phase we are in.
+  _EffectivePhase get _phase {
+    final status = widget.state.status;
+    switch (status) {
+      case DriverTripStatus.arrivedAtPickup:
+        return _EffectivePhase.arrived;
+      case DriverTripStatus.tripInProgress:
+        return _EffectivePhase.inProgress;
+      default:
+        // navigatingToPickup, loading, or any other → treat as navigating
+        return _EffectivePhase.navigating;
+    }
+  }
+
+  /// Fetch route depending on trip phase:
+  ///  - navigating → driver current location → pickup
+  ///  - inProgress → pickup → dropoff
+  ///  - arrived   → no route needed
+  Future<void> _fetchRouteForPhase() async {
     final req = widget.state.incomingRequest;
-    if (_hasFetched || req == null) return;
-    if (req.pickLat == 0 || req.dropLat == 0) return;
-    _hasFetched = true;
-    _fetchDirections(req);
-  }
+    if (req == null) return;
 
-  Future<void> _fetchDirections(IncomingRequestModel req) async {
-    final result = await RouteHelper.fetchRoute(
-      service: sl<GoogleMapsService>(),
-      originLat: req.pickLat,
-      originLng: req.pickLng,
-      destLat: req.dropLat,
-      destLng: req.dropLng,
-    );
-    if (result != null && mounted) {
-      setState(() => _routePoints = result.polylinePoints);
-      // Fit camera to route bounds.
-      final bounds = calculateBounds(result.polylinePoints);
-      widget.mapKey.currentState?.fitBounds(bounds);
+    final phase = _phase;
+
+    if (phase == _EffectivePhase.navigating) {
+      // Route: driver → pickup
+      final routeKey = 'nav_${req.pickLat}_${req.pickLng}';
+      if (_lastRouteKey == routeKey) return;
+      _lastRouteKey = routeKey;
+
+      // Get driver's current position
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 5),
+          ),
+        );
+        final result = await RouteHelper.fetchRoute(
+          service: sl<GoogleMapsService>(),
+          originLat: pos.latitude,
+          originLng: pos.longitude,
+          destLat: req.pickLat,
+          destLng: req.pickLng,
+        );
+        if (result != null && mounted) {
+          setState(() => _routePoints = result.polylinePoints);
+          final bounds = calculateBounds(result.polylinePoints);
+          widget.mapKey.currentState?.fitBounds(bounds);
+        }
+      } catch (e) {
+        debugPrint('🗺️ DriverTripMap: failed to get driver position: $e');
+        // Fallback: just show pickup marker without route.
+      }
+    } else if (phase == _EffectivePhase.inProgress) {
+      // Route: pickup → dropoff
+      final routeKey = 'trip_${req.pickLat}_${req.dropLat}';
+      if (_lastRouteKey == routeKey) return;
+      _lastRouteKey = routeKey;
+
+      if (req.pickLat == 0 || req.dropLat == 0) return;
+      final result = await RouteHelper.fetchRoute(
+        service: sl<GoogleMapsService>(),
+        originLat: req.pickLat,
+        originLng: req.pickLng,
+        destLat: req.dropLat,
+        destLng: req.dropLng,
+      );
+      if (result != null && mounted) {
+        setState(() => _routePoints = result.polylinePoints);
+        final bounds = calculateBounds(result.polylinePoints);
+        widget.mapKey.currentState?.fitBounds(bounds);
+      }
+    } else {
+      // arrived — clear route
+      if (_routePoints != null) {
+        setState(() => _routePoints = null);
+        _polylinePool.clear();
+      }
     }
   }
 
@@ -169,32 +227,44 @@ class _DriverTripMapState extends State<_DriverTripMap> {
   Widget build(BuildContext context) {
     final req = widget.state.incomingRequest;
     final trip = widget.state.activeTripData;
+    final phase = _phase;
 
     if (req != null) {
-      // Pickup marker
+      // Always show pickup marker
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.pickup,
         position: LatLng(req.pickLat, req.pickLng),
         icon: MapIcons.pickup,
       ));
 
-      // Dropoff marker
-      _markerPool.upsert(Marker(
-        markerId: MapMarkerIds.dropoff,
-        position: LatLng(req.dropLat, req.dropLng),
-        icon: MapIcons.dropoff,
-      ));
+      // Dropoff marker — only relevant during inProgress
+      if (phase == _EffectivePhase.inProgress) {
+        _markerPool.upsert(Marker(
+          markerId: MapMarkerIds.dropoff,
+          position: LatLng(req.dropLat, req.dropLng),
+          icon: MapIcons.dropoff,
+        ));
+      } else {
+        _markerPool.remove(MapMarkerIds.dropoff.value);
+      }
 
-      // Route polyline — snap to markers so the line visually connects.
+      // Route polyline
       final routePts = _routePoints;
       if (routePts != null && routePts.length >= 2) {
-        final snapped = RouteHelper.snapToEndpoints(
-          routePts,
-          LatLng(req.pickLat, req.pickLng),
-          LatLng(req.dropLat, req.dropLng),
-        );
-        _polylinePool.upsert(MapRouteStyle.route(points: snapped));
-      } else {
+        if (phase == _EffectivePhase.navigating) {
+          // Snap end to pickup
+          _polylinePool.upsert(MapRouteStyle.route(points: routePts));
+        } else if (phase == _EffectivePhase.inProgress) {
+          final snapped = RouteHelper.snapToEndpoints(
+            routePts,
+            LatLng(req.pickLat, req.pickLng),
+            LatLng(req.dropLat, req.dropLng),
+          );
+          _polylinePool.upsert(MapRouteStyle.route(points: snapped));
+        }
+      } else if (phase == _EffectivePhase.navigating && req.pickLat != 0) {
+        // Fallback: no route yet, don't draw a bad line
+      } else if (phase == _EffectivePhase.inProgress) {
         _polylinePool.upsert(MapRouteStyle.fallbackLine(
           from: LatLng(req.pickLat, req.pickLng),
           to: LatLng(req.dropLat, req.dropLng),
@@ -202,7 +272,7 @@ class _DriverTripMapState extends State<_DriverTripMap> {
       }
     }
 
-    // Driver marker from Firebase
+    // Driver marker from Firebase (or my-location blue dot already shows)
     if (trip != null && (trip.driverLat ?? 0) != 0) {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.driver,
@@ -224,6 +294,14 @@ class _DriverTripMapState extends State<_DriverTripMap> {
   }
 }
 
+enum _EffectivePhase { navigating, arrived, inProgress }
+
+// ---------------------------------------------------------------------------
+// Bottom sheet — matches old app design (on_ride_widget).
+// Shows: حالة الرحلة header → coloured status badge → passenger info row
+// → bordered address cards → fare + payment → phase action buttons.
+// ---------------------------------------------------------------------------
+
 class _DriverTripSheet extends StatelessWidget {
   const _DriverTripSheet({required this.state});
   final DriverTripState state;
@@ -231,6 +309,7 @@ class _DriverTripSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final trip = state.activeTripData;
+    final req = state.incomingRequest;
     final phase = trip?.phase;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -247,12 +326,11 @@ class _DriverTripSheet extends StatelessWidget {
         ],
       ),
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(24.w, 16.h, 24.w, 24.h),
+        padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Drag handle
+            // ── Drag handle ──
             Center(
               child: Container(
                 width: 50.w,
@@ -265,11 +343,23 @@ class _DriverTripSheet extends StatelessWidget {
             ),
             SizedBox(height: 12.h),
 
-            // Status header
-            _DriverStatusHeader(status: state.status),
+            // ── "حالة الرحلة" title ──
+            Center(
+              child: IqText(
+                AppStrings.tripStatus,
+                style: AppTypography.heading3.copyWith(
+                  color: isDark ? AppColors.white : AppColors.textDark,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            SizedBox(height: 10.h),
+
+            // ── Full-width coloured status badge ──
+            _TripStatusBadge(status: state.status),
             SizedBox(height: 16.h),
 
-            // Waiting timer banner (arrived at pickup)
+            // ── Waiting timer (arrived phase) ──
             if (phase == TripPhase.driverArrived)
               Padding(
                 padding: EdgeInsets.only(bottom: 12.h),
@@ -280,92 +370,52 @@ class _DriverTripSheet extends StatelessWidget {
                 ),
               ),
 
-            // Distance/time banner (in progress)
-            if (phase == TripPhase.inProgress && trip != null)
-              Padding(
-                padding: EdgeInsets.only(bottom: 12.h),
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary50,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IqText(
-                        '${trip.distance.toStringAsFixed(1)} km',
-                        style: AppTypography.numberMedium.copyWith(
-                          color: AppColors.primary700,
-                        ),
-                        dir: TextDirection.ltr,
-                      ),
-                      IqText(
-                        '${trip.duration} min',
-                        style: AppTypography.numberMedium.copyWith(
-                          color: AppColors.primary700,
-                        ),
-                        dir: TextDirection.ltr,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            // User info
-            if (state.incomingRequest != null)
-              UserInfoCard(
-                name: state.incomingRequest!.userName ?? '',
-                photoUrl: state.incomingRequest!.userImage,
-                rating: double.tryParse(state.incomingRequest!.userRating ?? '') ?? 0.0,
+            // ── Passenger info row ──
+            if (req != null) ...[
+              _PassengerInfoRow(
+                name: req.userName ?? '',
+                photoUrl: req.userImage,
+                rating:
+                    double.tryParse(req.userRating ?? '') ?? 0.0,
+                totalRides: req.totalRides,
                 onChat: () {
                   // TODO: Open chat
                 },
                 onCall: () {
-                  // TODO: Call user
+                  // TODO: Call passenger
                 },
               ),
-            SizedBox(height: 16.h),
+              SizedBox(height: 16.h),
 
-            // Addresses
-            if (state.incomingRequest != null)
-              TripAddressRow(
-                pickAddress: state.incomingRequest!.pickAddress,
-                dropAddress: state.incomingRequest!.dropAddress,
-                compact: true,
+              // ── Pickup address card ──
+              _BorderedAddressCard(
+                address: req.pickAddress,
+                iconColor: AppColors.markerGreen,
               ),
+              SizedBox(height: 8.h),
 
-            // Price
-            if (state.incomingRequest != null) ...[
-              SizedBox(height: 12.h),
-              Row(
-                children: [
-                  IqText(
-                    AppStrings.priceLabel,
-                    style: AppTypography.labelMedium.copyWith(
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                  IqText(
-                    '${state.incomingRequest!.totalAmount.toStringAsFixed(0)} IQD',
-                    style: AppTypography.numberLarge.copyWith(
-                      color: AppColors.primary700,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    dir: TextDirection.ltr,
-                  ),
-                ],
+              // ── Drop address card ──
+              _BorderedAddressCard(
+                address: req.dropAddress,
+                iconColor: AppColors.markerRed,
               ),
+              SizedBox(height: 16.h),
+
+              // ── Fare + payment method ──
+              _FarePaymentRow(
+                amount: req.totalAmount,
+                currencySymbol: req.currencySymbol,
+                paymentMethod: req.paymentMethod,
+              ),
+              SizedBox(height: 20.h),
             ],
 
-            SizedBox(height: 20.h),
-
-            // Action buttons based on phase
-            _DriverActionButtons(
+            // ── Phase action buttons ──
+            _DriverPhaseButtons(
               status: state.status,
               requestId: state.requestId ?? '',
               trip: trip,
-              incomingRequest: state.incomingRequest,
+              incomingRequest: req,
             ),
           ],
         ),
@@ -374,54 +424,338 @@ class _DriverTripSheet extends StatelessWidget {
   }
 }
 
-class _DriverStatusHeader extends StatelessWidget {
-  const _DriverStatusHeader({required this.status});
+// ---------------------------------------------------------------------------
+// Full-width coloured status badge (amber / orange / green).
+// ---------------------------------------------------------------------------
+
+class _TripStatusBadge extends StatelessWidget {
+  const _TripStatusBadge({required this.status});
   final DriverTripStatus status;
 
   String get _text {
     switch (status) {
-      case DriverTripStatus.navigatingToPickup:
-        return AppStrings.onTheWay;
       case DriverTripStatus.arrivedAtPickup:
         return AppStrings.driverArrived;
       case DriverTripStatus.tripInProgress:
         return AppStrings.onWayToDropoff;
       default:
-        return AppStrings.tripStatus;
+        // navigatingToPickup, loading, or any other → "في الطريق"
+        return AppStrings.onTheWay;
     }
   }
 
-  Color get _color {
+  Color get _bgColor {
     switch (status) {
-      case DriverTripStatus.navigatingToPickup:
-        return AppColors.info;
       case DriverTripStatus.arrivedAtPickup:
         return AppColors.warning;
       case DriverTripStatus.tripInProgress:
         return AppColors.success;
       default:
-        return AppColors.info;
+        return AppColors.primary;
+    }
+  }
+
+  Color get _textColor {
+    switch (status) {
+      case DriverTripStatus.arrivedAtPickup:
+        return AppColors.white;
+      case DriverTripStatus.tripInProgress:
+        return AppColors.white;
+      default:
+        return AppColors.textDark;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(vertical: 10.h),
       decoration: BoxDecoration(
-        color: _color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8.r),
+        color: _bgColor,
+        borderRadius: BorderRadius.circular(12.r),
       ),
+      alignment: Alignment.center,
       child: IqText(
         _text,
-        style: AppTypography.labelMedium.copyWith(color: _color),
+        style: AppTypography.labelLarge.copyWith(
+          color: _textColor,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 }
 
-class _DriverActionButtons extends StatelessWidget {
-  const _DriverActionButtons({
+// ---------------------------------------------------------------------------
+// Passenger info row: avatar + name + rating + rides | chat + call buttons.
+// ---------------------------------------------------------------------------
+
+class _PassengerInfoRow extends StatelessWidget {
+  const _PassengerInfoRow({
+    required this.name,
+    this.photoUrl,
+    this.rating = 0,
+    this.totalRides,
+    this.onChat,
+    this.onCall,
+  });
+
+  final String name;
+  final String? photoUrl;
+  final double rating;
+  final String? totalRides;
+  final VoidCallback? onChat;
+  final VoidCallback? onCall;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatarSize = 52.w;
+
+    return Row(
+      children: [
+        // ── Avatar ──
+        ClipOval(
+          child: SizedBox(
+            width: avatarSize,
+            height: avatarSize,
+            child: photoUrl != null && photoUrl!.isNotEmpty
+                ? IqImage(
+                    photoUrl!,
+                    fit: BoxFit.cover,
+                    width: avatarSize,
+                    height: avatarSize,
+                  )
+                : Container(
+                    color: AppColors.grayLightBg,
+                    child: Icon(
+                      Icons.person,
+                      size: avatarSize * 0.6,
+                      color: AppColors.grayLight,
+                    ),
+                  ),
+          ),
+        ),
+        SizedBox(width: 12.w),
+
+        // ── Name + rating + rides ──
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IqText(
+                name,
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.textDark,
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 4.h),
+              Row(
+                children: [
+                  Icon(Icons.star_rounded,
+                      size: 16.w, color: AppColors.starFilled),
+                  SizedBox(width: 2.w),
+                  IqText(
+                    rating.toStringAsFixed(1),
+                    style: AppTypography.numberSmall.copyWith(
+                      color: AppColors.textDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    dir: TextDirection.ltr,
+                  ),
+                  if (totalRides != null && totalRides!.isNotEmpty) ...[
+                    SizedBox(width: 6.w),
+                    IqText(
+                      '($totalRides ${AppStrings.totalRidesCount})',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // ── Chat + Call circle buttons ──
+        _CircleActionBtn(
+          icon: Icons.chat_bubble_outlined,
+          color: AppColors.success,
+          onTap: onChat,
+        ),
+        SizedBox(width: 8.w),
+        _CircleActionBtn(
+          icon: Icons.phone_outlined,
+          color: AppColors.primary,
+          onTap: onCall,
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Small circle action button (chat / call).
+// ---------------------------------------------------------------------------
+
+class _CircleActionBtn extends StatelessWidget {
+  const _CircleActionBtn({
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(100),
+      child: Container(
+        width: 44.w,
+        height: 44.w,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Icon(icon, size: 20.w, color: color),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bordered rounded address card with coloured location icon.
+// ---------------------------------------------------------------------------
+
+class _BorderedAddressCard extends StatelessWidget {
+  const _BorderedAddressCard({
+    required this.address,
+    required this.iconColor,
+  });
+
+  final String address;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(
+          color: isDark
+              ? AppColors.darkDivider
+              : AppColors.grayBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.location_on, size: 20.w, color: iconColor),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: IqText(
+              address,
+              style: AppTypography.bodySmall.copyWith(
+                color: isDark ? AppColors.white : AppColors.textDark,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fare amount + payment method row.
+// ---------------------------------------------------------------------------
+
+class _FarePaymentRow extends StatelessWidget {
+  const _FarePaymentRow({
+    required this.amount,
+    required this.currencySymbol,
+    required this.paymentMethod,
+  });
+
+  final double amount;
+  final String currencySymbol;
+  final int paymentMethod;
+
+  String get _paymentText {
+    switch (paymentMethod) {
+      case 0:
+        return AppStrings.cardPayment;
+      case 2:
+        return AppStrings.walletPayment;
+      default:
+        return AppStrings.cash;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fareColor = const Color(0xFF669C1A); // Old app green for fare.
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: fareColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10.r),
+      ),
+      child: Row(
+        children: [
+          // Label + amount
+          IqText(
+            '${AppStrings.rideFare} : ',
+            style: AppTypography.labelMedium.copyWith(
+              color: isDark ? AppColors.white : AppColors.textDark,
+            ),
+          ),
+          IqText(
+            '$currencySymbol ${amount.toStringAsFixed(0)}',
+            style: AppTypography.numberLarge.copyWith(
+              color: fareColor,
+              fontWeight: FontWeight.w700,
+            ),
+            dir: TextDirection.ltr,
+          ),
+          const Spacer(),
+          // Payment method
+          IqText(
+            _paymentText,
+            style: AppTypography.labelMedium.copyWith(
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase-specific action buttons (cancel + arrived / start / end).
+// ---------------------------------------------------------------------------
+
+class _DriverPhaseButtons extends StatelessWidget {
+  const _DriverPhaseButtons({
     required this.status,
     required this.requestId,
     this.trip,
@@ -433,81 +767,113 @@ class _DriverActionButtons extends StatelessWidget {
   final ActiveTripModel? trip;
   final IncomingRequestModel? incomingRequest;
 
+  /// Helper to build cancel + primary action row.
+  Widget _cancelAndAction(BuildContext context, String actionText, VoidCallback onAction) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 100.w,
+          height: 52.h,
+          child: OutlinedButton(
+            onPressed: () => _showDriverCancelSheet(context, requestId),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textDark,
+              side: const BorderSide(color: AppColors.grayBorder),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(1000.r),
+              ),
+            ),
+            child: IqText(
+              AppStrings.cancel,
+              style: AppTypography.button.copyWith(color: AppColors.textDark),
+            ),
+          ),
+        ),
+        SizedBox(width: 12.w),
+        Expanded(
+          child: SizedBox(
+            height: 52.h,
+            child: ElevatedButton(
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                onAction();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.buttonYellow,
+                foregroundColor: AppColors.black,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(1000.r),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.keyboard_double_arrow_right_rounded, size: 22.w),
+                  SizedBox(width: 6.w),
+                  IqText(actionText, style: AppTypography.button),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     switch (status) {
-      case DriverTripStatus.navigatingToPickup:
-        return Row(
-          children: [
-            Expanded(
-              child: IqOutlinedButton(
-                text: AppStrings.cancel,
-                onPressed: () => _showDriverCancelSheet(context, requestId),
-              ),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              flex: 2,
-              child: IqPrimaryButton(
-                text: AppStrings.tripArrived,
-                onPressed: () {
-                  HapticFeedback.mediumImpact();
-                  context.read<DriverTripBloc>().add(
-                        DriverTripMarkArrived(requestId),
-                      );
-                },
-              ),
-            ),
-          ],
-        );
-
       case DriverTripStatus.arrivedAtPickup:
-        return Row(
-          children: [
-            Expanded(
-              child: IqOutlinedButton(
-                text: AppStrings.cancel,
-                onPressed: () => _showDriverCancelSheet(context, requestId),
-              ),
+        return _cancelAndAction(context, AppStrings.startTrip, () {
+          context.read<DriverTripBloc>().add(
+            DriverTripStartRide(
+              requestId: requestId,
+              pickLat: incomingRequest?.pickLat ?? 0,
+              pickLng: incomingRequest?.pickLng ?? 0,
             ),
-            SizedBox(width: 12.w),
-            Expanded(
-              flex: 2,
-              child: IqPrimaryButton(
-                text: AppStrings.startTrip,
-                onPressed: () {
-                  HapticFeedback.mediumImpact();
-                  context.read<DriverTripBloc>().add(
-                        DriverTripStartRide(
-                          requestId: requestId,
-                          pickLat: incomingRequest?.pickLat ?? 0,
-                          pickLng: incomingRequest?.pickLng ?? 0,
-                        ),
-                      );
-                },
-              ),
-            ),
-          ],
-        );
+          );
+        });
 
       case DriverTripStatus.tripInProgress:
-        return IqPrimaryButton(
-          text: AppStrings.endTrip,
-          onPressed: () {
-            HapticFeedback.heavyImpact();
-            context.read<DriverTripBloc>().add(
-                  DriverTripEndRide(
-                    requestId: requestId,
-                    dropLat: incomingRequest?.dropLat ?? 0,
-                    dropLng: incomingRequest?.dropLng ?? 0,
-                    distance: trip?.distance ?? 0,
-                  ),
-                );
-          },
+        return SizedBox(
+          width: double.infinity,
+          height: 52.h,
+          child: ElevatedButton(
+            onPressed: () {
+              HapticFeedback.heavyImpact();
+              context.read<DriverTripBloc>().add(
+                    DriverTripEndRide(
+                      requestId: requestId,
+                      dropLat: incomingRequest?.dropLat ?? 0,
+                      dropLng: incomingRequest?.dropLng ?? 0,
+                      distance: trip?.distance ?? 0,
+                    ),
+                  );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(1000.r),
+              ),
+            ),
+            child: IqText(
+              AppStrings.endTrip,
+              style: AppTypography.button.copyWith(color: AppColors.white),
+            ),
+          ),
         );
 
       default:
-        return const SizedBox.shrink();
+        // Default: show navigatingToPickup buttons (cancel + وصلت الرحلة)
+        // This covers loading / any transient status.
+        return _cancelAndAction(context, AppStrings.tripArrived, () {
+          context.read<DriverTripBloc>().add(
+            DriverTripMarkArrived(requestId),
+          );
+        });
     }
   }
 }

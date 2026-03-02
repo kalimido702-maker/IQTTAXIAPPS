@@ -31,6 +31,7 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
     on<PassengerTripScheduleChanged>(_onScheduleChanged);
     on<PassengerTripPreferencesChanged>(_onPreferencesChanged);
     on<PassengerTripInstructionsChanged>(_onInstructionsChanged);
+    on<PassengerTripRestoreOngoing>(_onRestoreOngoing);
   }
 
   final BookingRepository repository;
@@ -284,6 +285,31 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
     } else {
       emit(state.copyWith(instructions: event.instructions));
     }
+  }
+
+  /// Restore an ongoing trip from the home carousel.
+  ///
+  /// Sets up state with known coordinates / addresses, puts status
+  /// to [PassengerTripStatus.searchingDriver] (Firebase stream will
+  /// promote to [PassengerTripStatus.activeTrip] once data arrives),
+  /// and kicks off the Firebase stream listener.
+  void _onRestoreOngoing(
+    PassengerTripRestoreOngoing event,
+    Emitter<PassengerTripState> emit,
+  ) {
+    emit(state.copyWith(
+      status: PassengerTripStatus.searchingDriver,
+      requestId: event.requestId,
+      pickLat: event.pickLat,
+      pickLng: event.pickLng,
+      dropLat: event.dropLat,
+      dropLng: event.dropLng,
+      pickAddress: event.pickAddress,
+      dropAddress: event.dropAddress,
+    ));
+
+    // Start listening to Firebase for real-time trip updates
+    add(PassengerTripStreamStarted(event.requestId));
   }
 
   @override
