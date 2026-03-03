@@ -230,7 +230,13 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     final result = await repository.markArrived(requestId: event.requestId);
     result.fold(
       (failure) => emit(state.copyWith(errorMessage: failure.message)),
-      (_) {}, // Firebase stream will update the state
+      (_) {
+        // Update Firebase so both driver & passenger apps see the change.
+        tripStream.updateTripNode(
+          requestId: event.requestId,
+          data: {'trip_arrived': '1'},
+        );
+      },
     );
   }
 
@@ -246,7 +252,13 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     );
     result.fold(
       (failure) => emit(state.copyWith(errorMessage: failure.message)),
-      (_) {}, // Firebase stream will update the state
+      (_) {
+        // Update Firebase so both driver & passenger apps see the change.
+        tripStream.updateTripNode(
+          requestId: event.requestId,
+          data: {'trip_start': '1'},
+        );
+      },
     );
   }
 
