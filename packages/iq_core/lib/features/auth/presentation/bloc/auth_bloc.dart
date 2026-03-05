@@ -122,7 +122,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       ),
     );
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
+      (failure) {
+        if (failure.message == 'needs_otp') {
+          // Registration succeeded but OTP verification is required.
+          emit(AuthOtpSent(phone: event.phone));
+        } else {
+          emit(AuthError(message: failure.message));
+        }
+      },
       (user) => emit(AuthAuthenticated(user: user)),
     );
   }
@@ -172,8 +179,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     // Immediately logout without showing loading state
     final result = await logoutUseCase(const NoParams());
+
+    // CRITICAL: Reset the refreshing flag so new requests (login) are not
+    // queued forever. Also clear any pending request queue.
+    _authService.setRefreshing(false);
+    _authService.clearQueue();
+
     result.fold(
-      (failure) => emit(AuthError(message: 'Session expired. Please login again.')),
+      (failure) => emit(const AuthUnauthenticated()),
       (_) => emit(const AuthUnauthenticated()),
     );
   }

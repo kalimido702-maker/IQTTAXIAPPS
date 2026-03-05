@@ -261,6 +261,12 @@ class AuthDataSourceImpl implements AuthDataSource {
 
           return _fetchAndCacheUser(role: role);
         }
+
+        // Registration succeeded but needs OTP verification first.
+        // The API returned success without an access_token.
+        return const Left(
+          ServerFailure(message: 'needs_otp'),
+        );
       }
 
       return Left(

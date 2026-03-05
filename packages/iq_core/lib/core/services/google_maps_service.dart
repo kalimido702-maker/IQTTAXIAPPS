@@ -179,6 +179,99 @@ class GoogleMapsService {
     }
   }
 
+  // ─── Places Autocomplete API ─────────────────────────────────────
+
+  /// Search for places using Google Places Autocomplete.
+  ///
+  /// Returns a list of place predictions with name, address, lat, lng.
+  /// Uses [locationBias] to bias results near the user's location.
+  Future<List<Map<String, dynamic>>> searchPlaces(
+    String query, {
+    double? lat,
+    double? lng,
+    String language = 'ar',
+  }) async {
+    try {
+      final params = <String, dynamic>{
+        'input': query,
+        'key': apiKey,
+        'language': language,
+      };
+
+      // Bias results near user's location (100km radius)
+      if (lat != null && lng != null) {
+        params['location'] = '$lat,$lng';
+        params['radius'] = '100000';
+      }
+
+      final response = await _dio.get(
+        'place/autocomplete/json',
+        queryParameters: params,
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final status = data['status'] as String?;
+
+      if (status != 'OK' && status != 'ZERO_RESULTS') return [];
+
+      final predictions = data['predictions'] as List? ?? [];
+      final results = <Map<String, dynamic>>[];
+
+      for (final pred in predictions) {
+        final p = pred as Map<String, dynamic>;
+        final placeId = p['place_id'] as String?;
+        final mainText =
+            (p['structured_formatting']?['main_text'] ?? '').toString();
+        final fullText = (p['description'] ?? '').toString();
+
+        if (placeId == null) continue;
+
+        // Get lat/lng from Place Details API
+        final details = await _getPlaceDetails(placeId);
+
+        results.add({
+          'name': mainText.isNotEmpty ? mainText : fullText,
+          'address': fullText,
+          'lat': details?['lat'] ?? 0.0,
+          'lng': details?['lng'] ?? 0.0,
+          'place_id': placeId,
+        });
+      }
+
+      return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Get the lat/lng for a place by its placeId.
+  Future<Map<String, double>?> _getPlaceDetails(String placeId) async {
+    try {
+      final response = await _dio.get(
+        'place/details/json',
+        queryParameters: {
+          'place_id': placeId,
+          'fields': 'geometry',
+          'key': apiKey,
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      if (data['status'] != 'OK') return null;
+
+      final location =
+          data['result']?['geometry']?['location'] as Map<String, dynamic>?;
+      if (location == null) return null;
+
+      return {
+        'lat': (location['lat'] as num).toDouble(),
+        'lng': (location['lng'] as num).toDouble(),
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ─── Polyline Decoder ────────────────────────────────────────────
 
   /// Decodes an encoded polyline string into a list of [LatLng] points.

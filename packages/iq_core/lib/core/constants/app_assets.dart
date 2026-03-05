@@ -62,6 +62,7 @@ class AppAssets {
   static const String searchIcon = '$_svg/search.svg';
   static const String locationIcon = '$_svg/location_icon.svg';
   static const String gift = '$_images/gift.png';
+  static const String sendReceive = '$_svg/send_receive.svg';
 
   // ─── Lottie Animations ───
   static const String lottieLoading = '$_lottie/loading.json';

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/services/google_maps_service.dart';
@@ -13,6 +15,7 @@ import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/iq_image.dart';
 import '../../../../../core/widgets/iq_map_view.dart';
 import '../../../../../core/widgets/iq_text.dart';
+import '../../../../home/presentation/bloc/passenger_home_bloc.dart';
 import '../../../data/models/active_trip_model.dart';
 import '../../../data/models/cancel_reason_model.dart';
 import '../../bloc/passenger/passenger_trip_bloc.dart';
@@ -94,6 +97,8 @@ class _BodyState extends State<_Body> {
                 // Content overlay
                 if (state.status == PassengerTripStatus.searchingDriver)
                   _SearchingOverlay(state: state)
+                else if (state.status == PassengerTripStatus.cancelling)
+                  const _CancellingOverlay()
                 else
                   _ActiveTripSheet(
                     state: state,
@@ -294,6 +299,69 @@ class _SearchingOverlay extends StatelessWidget {
           HapticFeedback.mediumImpact();
           _showCancelConfirmation(context, state.requestId ?? '');
         },
+        onAutoCancel: () {
+          // Auto-cancel timeout: directly cancel trip without showing dialog
+          context.read<PassengerTripBloc>().add(
+            const PassengerTripCancelRequested(
+              reason: 'لم يتم العثور على سائق',
+              isTimerCancel: true,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Loading overlay shown while cancel API is in progress.
+class _CancellingOverlay extends StatelessWidget {
+  const _CancellingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.black.withValues(alpha: 0.08),
+              blurRadius: 24,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 48.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 40.w,
+                  height: 40.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3.w,
+                    color: AppColors.primary,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                IqText(
+                  AppStrings.cancellingTrip,
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: isDark ? AppColors.white : AppColors.textDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -382,10 +450,10 @@ class _ActiveTripSheet extends StatelessWidget {
                 vehicleInfo: trip.vehicleTypeName,
                 plateNumber: trip.vehicleNumber,
                 onChat: () {
-                  // TODO: Open chat
+                  _callPhone(context, trip.driverMobile);
                 },
                 onCall: () {
-                  // TODO: Call driver
+                  _callPhone(context, trip.driverMobile);
                 },
               ),
               SizedBox(height: 16.h),
@@ -421,10 +489,15 @@ class _ActiveTripSheet extends StatelessWidget {
                     }
                   },
                   onShareTrip: () {
-                    // TODO: Share trip link
+                    _shareTrip(
+                      context,
+                      driverName: trip.driverName ?? '',
+                      pickAddress: state.pickAddress,
+                      dropAddress: state.dropAddress,
+                    );
                   },
                   onSos: () {
-                    // TODO: SOS emergency
+                    _callSos(context);
                   },
                 ),
               ],
@@ -848,9 +921,15 @@ class _WaitingBanner extends StatelessWidget {
   }
 }
 
+/// Prevents multiple cancel dialogs from stacking.
+bool _cancelDialogOpen = false;
+
 /// Shows cancel confirmation dialog with reasons.
 void _showCancelConfirmation(BuildContext context, String requestId) {
-  // Fetch cancel reasons then show sheet
+  // Guard: prevent multiple dialogs from appearing simultaneously
+  if (_cancelDialogOpen) return;
+  _cancelDialogOpen = true;
+
   final bloc = context.read<PassengerTripBloc>();
   showModalBottomSheet(
     context: context,
@@ -865,9 +944,56 @@ void _showCancelConfirmation(BuildContext context, String requestId) {
         CancelReasonModel(id: 5, reason: AppStrings.cancelReasonOther, userType: 'user', arrivalStatus: 'before'),
       ],
       onConfirm: (reason, custom) {
+        _cancelDialogOpen = false;
         Navigator.pop(context);
         bloc.add(PassengerTripCancelRequested(reason: reason));
       },
     ),
-  );
+  ).whenComplete(() => _cancelDialogOpen = false);
+}
+
+/// Opens the phone dialer with the given phone number.
+Future<void> _callPhone(BuildContext context, String? phone) async {
+  if (phone == null || phone.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('رقم الهاتف غير متوفر')),
+    );
+    return;
+  }
+  final uri = Uri(scheme: 'tel', path: phone);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  }
+}
+
+/// Share trip details via the system share sheet.
+Future<void> _shareTrip(
+  BuildContext context, {
+  required String driverName,
+  required String pickAddress,
+  required String dropAddress,
+}) async {
+  final text = '${AppStrings.shareTrip}\n'
+      '${AppStrings.driver}: $driverName\n'
+      'من: $pickAddress\n'
+      'إلى: $dropAddress';
+  await Share.share(text);
+}
+
+/// Call the admin SOS phone number.
+Future<void> _callSos(BuildContext context) async {
+  String? phone;
+  try {
+    final homeData = context.read<PassengerHomeBloc>().state.homeData;
+    phone = homeData?.adminSosPhone;
+  } catch (_) {}
+
+  if (phone == null || phone.isEmpty) {
+    // Fallback to 911
+    phone = '911';
+  }
+  final uri = Uri(scheme: 'tel', path: phone);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  }
 }

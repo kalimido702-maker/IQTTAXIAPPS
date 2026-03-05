@@ -46,7 +46,7 @@ class PassengerHomePage extends StatelessWidget {
   final void Function(BuildContext context)? onProfileTap;
   final VoidCallback? onPromoBannerTap;
   final void Function(QuickPlace)? onQuickPlaceTap;
-  final void Function(int index)? onCategoryChanged;
+  final void Function(int index, ServiceCategory category)? onCategoryChanged;
   final int initialCategory;
 
   @override
@@ -83,7 +83,7 @@ class _PassengerHomeBody extends StatefulWidget {
   final void Function(BuildContext context)? onProfileTap;
   final VoidCallback? onPromoBannerTap;
   final void Function(QuickPlace)? onQuickPlaceTap;
-  final void Function(int index)? onCategoryChanged;
+  final void Function(int index, ServiceCategory category)? onCategoryChanged;
 
   @override
   State<_PassengerHomeBody> createState() => _PassengerHomeBodyState();
@@ -323,6 +323,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                   builder: (context, scrollController) {
                     return BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
                       buildWhen: (prev, curr) =>
+                          prev.status != curr.status ||
                           prev.homeData != curr.homeData ||
                           prev.rideModules != curr.rideModules ||
                           prev.activeCategory != curr.activeCategory ||
@@ -361,6 +362,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                                       id: m.id,
                                       label: m.name,
                                       imageUrl: m.icon,
+                                      transportType: m.transportType,
                                     ),
                                   )
                                   .toList()
@@ -368,8 +370,12 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                                 data?.enableModules ?? 'taxi',
                               );
 
+                        final isLoading = state.status == HomeStatus.initial ||
+                            state.status == HomeStatus.loading;
+
                         return HomeBottomSheet(
                           scrollController: scrollController,
+                          isLoading: isLoading,
                           categories: categories,
                           quickPlaces: quickPlaces,
                           activeCategory: state.activeCategory,
@@ -377,7 +383,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                             context.read<PassengerHomeBloc>().add(
                               PassengerHomeCategoryChanged(i),
                             );
-                            widget.onCategoryChanged?.call(i);
+                            widget.onCategoryChanged?.call(i, categories[i]);
                           },
                           onSearchTap:
                               widget.onSearchTap ?? _handleSearchTap,
@@ -425,7 +431,11 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
     if (enableModules == 'delivery' || enableModules == 'both') {
       cats.insert(
         1,
-        const ServiceCategory(label: 'مندوبك', imagePath: fallbackImage),
+        const ServiceCategory(
+          label: 'مندوبك',
+          imagePath: fallbackImage,
+          transportType: 'delivery',
+        ),
       );
     }
 

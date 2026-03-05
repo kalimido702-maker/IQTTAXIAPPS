@@ -6,6 +6,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/iq_app_bar.dart';
 import '../../../../core/widgets/iq_outlined_button.dart';
+import '../../../../core/widgets/iq_webview_page.dart';
 import '../bloc/theme_cubit.dart';
 import '../bloc/theme_state.dart';
 import '../widgets/settings_row.dart';
@@ -70,7 +71,14 @@ class SettingsPage extends StatelessWidget {
                 size: 20.w,
               ),
               onTap: () {
-                // TODO: navigate to instructions page
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const IqWebViewPage(
+                      title: AppStrings.instructionsPage,
+                      url: 'https://iqttaxi.com/api/v1/common/mobile/terms',
+                    ),
+                  ),
+                );
               },
             ),
             Divider(
@@ -89,7 +97,14 @@ class SettingsPage extends StatelessWidget {
                 size: 20.w,
               ),
               onTap: () {
-                // TODO: navigate to privacy policy page
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const IqWebViewPage(
+                      title: AppStrings.privacyPolicy,
+                      url: 'https://iqttaxi.com/api/v1/common/mobile/privacy',
+                    ),
+                  ),
+                );
               },
             ),
 

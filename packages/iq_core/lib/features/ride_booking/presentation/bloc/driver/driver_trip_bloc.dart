@@ -274,16 +274,24 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
       beforeTripWaitingTime: event.beforeTripWaitingTime,
       afterTripWaitingTime: event.afterTripWaitingTime,
     );
-    result.fold(
-      (failure) => emit(state.copyWith(errorMessage: failure.message)),
-      (_) {
-        // Notify passenger app that the trip has ended.
-        tripStream.updateTripNode(
-          requestId: event.requestId,
-          data: {'is_completed': true},
-        );
-      },
-    );
+    final failure = result.fold((l) => l, (_) => null);
+    if (failure != null) {
+      // Keep tripInProgress so the user can retry.
+      emit(state.copyWith(errorMessage: failure.message));
+      return;
+    }
+
+    // API succeeded — notify passenger via Firebase.
+    try {
+      await tripStream.updateTripNode(
+        requestId: event.requestId,
+        data: {'is_completed': true},
+      );
+    } catch (e) {
+      debugPrint('🚕 DriverTripBloc: Firebase update failed: $e');
+    }
+    // Transition to completed — navigates driver to invoice screen.
+    emit(state.copyWith(status: DriverTripStatus.tripCompleted));
   }
 
   Future<void> _onPaymentConfirmed(
@@ -350,7 +358,8 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
   }
 
   /// Called on startup to check if the driver has an ongoing trip.
-  /// If yes, restore state to [navigatingToPickup] and start Firebase stream.
+  /// If yes, restore state with loading, fetch data, then let Firebase
+  /// stream determine the correct trip phase.
   Future<void> _onCheckActiveTrip(
     DriverTripCheckActiveTrip event,
     Emitter<DriverTripState> emit,
@@ -368,12 +377,17 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
       (onTripRequest) {
         if (onTripRequest != null && onTripRequest.requestId.isNotEmpty) {
           debugPrint('🚕 DriverTripBloc: found active trip ${onTripRequest.requestId}, restoring...');
+          // Use loading status temporarily — the Firebase stream will
+          // immediately fire with the correct phase and update the status.
           emit(state.copyWith(
-            status: DriverTripStatus.navigatingToPickup,
+            status: DriverTripStatus.loading,
             incomingRequest: onTripRequest,
             requestId: onTripRequest.requestId,
           ));
           // Start listening to Firebase for live trip updates.
+          // The stream emits the current value first, which will set
+          // the correct status (navigatingToPickup / arrivedAtPickup /
+          // tripInProgress) via _onStreamUpdated.
           add(DriverTripStreamStarted(onTripRequest.requestId));
         } else {
           debugPrint('🚕 DriverTripBloc: no active trip found.');

@@ -46,6 +46,7 @@ abstract class BookingRepository {
     required String requestId,
     required String reason,
     String? customReason,
+    int? cancelMethod,
   });
 
   Future<Either<Failure, List<CancelReasonModel>>> getCancelReasons();

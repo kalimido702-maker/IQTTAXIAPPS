@@ -1,14 +1,21 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../core/error/failures.dart';
+import '../../../../core/services/google_maps_service.dart';
 import 'location_data_source.dart';
 
-/// OpenStreetMap (Nominatim) implementation for address search & reverse geocode.
+/// Location data source — uses Google Places Autocomplete for search
+/// and Nominatim for reverse geocoding.
 class LocationDataSourceImpl implements LocationDataSource {
-  LocationDataSourceImpl({required this.dio});
+  LocationDataSourceImpl({
+    required this.dio,
+    required this.googleMapsService,
+  });
 
   final Dio dio;
+  final GoogleMapsService googleMapsService;
 
   static const _nominatimBase = 'https://nominatim.openstreetmap.org';
 
@@ -16,41 +23,23 @@ class LocationDataSourceImpl implements LocationDataSource {
   Future<Either<Failure, List<Map<String, dynamic>>>> searchPlaces(
     String query,
   ) async {
+    debugPrint('🔍 [searchPlaces] query="$query" → using Google Places');
     try {
-      final response = await dio.get(
-        '$_nominatimBase/search',
-        queryParameters: {
-          'q': query,
-          'format': 'json',
-          'addressdetails': 1,
-          'limit': 10,
-        },
-        options: Options(
-          headers: const {
-            'User-Agent': 'iq_taxi_app',
-          },
-        ),
-      );
+      final results = await googleMapsService.searchPlaces(query);
+      debugPrint('🔍 [searchPlaces] Google Places returned ${results.length} results');
+      for (final r in results) {
+        debugPrint('🔍 [searchPlaces]   → ${r['name']} (${r['lat']}, ${r['lng']})');
+      }
 
-      final data = response.data;
-      if (data is List) {
-        final results = data.whereType<Map<String, dynamic>>().map((item) {
-          final display = (item['display_name'] ?? '').toString();
-          final name = display.split(',').first.trim();
-          return {
-            'name': name.isNotEmpty ? name : display,
-            'address': display,
-            'lat': double.tryParse(item['lat']?.toString() ?? '0') ?? 0.0,
-            'lng': double.tryParse(item['lon']?.toString() ?? '0') ?? 0.0,
-          };
-        }).toList();
+      if (results.isNotEmpty) {
         return Right(results);
       }
 
-      return const Left(ServerFailure(message: 'فشل البحث عن الأماكن'));
-    } on DioException catch (e) {
-      return Left(_handleDioError(e));
+      // Fallback: if Google returns empty, return empty list
+      debugPrint('🔍 [searchPlaces] Google returned 0 results');
+      return const Right([]);
     } catch (e) {
+      debugPrint('🔍 [searchPlaces] ❌ Google Places error: $e');
       return Left(ServerFailure(message: e.toString()));
     }
   }

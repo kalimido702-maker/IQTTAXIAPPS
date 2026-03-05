@@ -103,18 +103,25 @@ class _BodyState extends State<_Body> {
 
     setState(() => _isSearching = true);
     _debounce = Timer(const Duration(milliseconds: 400), () async {
+      debugPrint('🔍 [SearchDest] searching for: "${query.trim()}"');
       final repo = sl<LocationRepository>();
       final result = await repo.searchPlaces(query.trim());
       if (!mounted) return;
       result.fold(
-        (_) => setState(() {
-          _searchResults = [];
-          _isSearching = false;
-        }),
-        (places) => setState(() {
-          _searchResults = places;
-          _isSearching = false;
-        }),
+        (failure) {
+          debugPrint('🔍 [SearchDest] search failed: ${failure.message}');
+          setState(() {
+            _searchResults = [];
+            _isSearching = false;
+          });
+        },
+        (places) {
+          debugPrint('🔍 [SearchDest] search returned ${places.length} results');
+          setState(() {
+            _searchResults = places;
+            _isSearching = false;
+          });
+        },
       );
     });
   }

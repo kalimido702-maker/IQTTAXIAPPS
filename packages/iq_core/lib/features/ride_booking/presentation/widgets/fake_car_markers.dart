@@ -39,17 +39,25 @@ class FakeCarMarkersController {
 
   /// The marker icon for ghost cars — generated once.
   static BitmapDescriptor? _carIcon;
-  static bool _iconLoading = false;
+  static Completer<void>? _iconCompleter;
 
   /// Callback invoked whenever the visible markers set changes.
   void Function(Set<Marker>)? _onChange;
+  bool _disposed = false;
 
   /// Start cycling ghost cars on/off. Calls [onChange] on every change.
   Future<void> start(void Function(Set<Marker>) onChange) async {
     _onChange = onChange;
 
-    // Ensure icon is ready
+    // Ensure icon is ready (handles concurrent calls properly)
     await _ensureIcon();
+
+    // If icon creation failed, skip fake cars entirely
+    if (_carIcon == null || _disposed) return;
+
+    // Delay showing fake cars by 1 second for smoother UX
+    await Future.delayed(const Duration(seconds: 1));
+    if (_disposed) return;
 
     // Seed 3 initial cars
     for (int i = 0; i < 3; i++) {
@@ -59,6 +67,7 @@ class FakeCarMarkersController {
 
     // Periodically toggle random car visibility
     _timer = Timer.periodic(_interval, (_) {
+      if (_disposed) return;
       _toggleRandomCar();
       _onChange?.call(Set.of(markers));
     });
@@ -66,6 +75,7 @@ class FakeCarMarkersController {
 
   /// Stop and clear all ghost markers.
   void stop() {
+    _disposed = true;
     _timer?.cancel();
     _timer = null;
     markers.clear();
@@ -73,6 +83,7 @@ class FakeCarMarkersController {
   }
 
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
     _timer = null;
   }
@@ -102,6 +113,9 @@ class FakeCarMarkersController {
   }
 
   void _addRandomCar() {
+    // If icon wasn't created, skip — no ugly brown fallback markers
+    if (_carIcon == null) return;
+
     final id = 'fake_car_${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(9999)}';
     final lat = center.latitude + (_random.nextDouble() - 0.5) * 2 * _radiusDeg;
     final lng = center.longitude + (_random.nextDouble() - 0.5) * 2 * _radiusDeg;
@@ -110,7 +124,7 @@ class FakeCarMarkersController {
     markers.add(Marker(
       markerId: MarkerId(id),
       position: LatLng(lat, lng),
-      icon: _carIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+      icon: _carIcon!,
       rotation: rotation,
       anchor: const Offset(0.5, 0.5),
       flat: true,
@@ -124,15 +138,23 @@ class FakeCarMarkersController {
   }
 
   static Future<void> _ensureIcon() async {
-    if (_carIcon != null || _iconLoading) return;
-    _iconLoading = true;
+    // Already loaded
+    if (_carIcon != null) return;
 
+    // Another call is loading — wait for it instead of skipping
+    if (_iconCompleter != null) {
+      await _iconCompleter!.future;
+      return;
+    }
+
+    _iconCompleter = Completer<void>();
     try {
       _carIcon = await _createCarIcon();
     } catch (_) {
-      _carIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+      // Icon creation failed — leave _carIcon as null so fake cars are skipped
+      _carIcon = null;
     }
-    _iconLoading = false;
+    _iconCompleter!.complete();
   }
 
   /// Renders a simple white car icon with shadow.

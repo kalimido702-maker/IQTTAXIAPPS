@@ -84,11 +84,13 @@ class BookingRepositoryImpl implements BookingRepository {
     required String requestId,
     required String reason,
     String? customReason,
+    int? cancelMethod,
   }) =>
       dataSource.cancelRequest(
         requestId: requestId,
         reason: reason,
         customReason: customReason,
+        cancelMethod: cancelMethod,
       );
 
   @override

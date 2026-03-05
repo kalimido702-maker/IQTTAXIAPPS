@@ -10,6 +10,7 @@ import '../../../../core/widgets/iq_phone_input.dart';
 import '../../../../core/widgets/iq_primary_button.dart';
 import '../../../../core/widgets/iq_text.dart';
 import '../../../../core/widgets/iq_text_field.dart';
+import '../../../../core/widgets/iq_webview_page.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -25,12 +26,14 @@ class RegisterPage extends StatelessWidget {
   final String? phone;
   final void Function(BuildContext context) onRegistered;
   final void Function(BuildContext context) onLoginTap;
+  final void Function(BuildContext context, String phone)? onOtpRequired;
 
   const RegisterPage({
     super.key,
     this.phone,
     required this.onRegistered,
     required this.onLoginTap,
+    this.onOtpRequired,
   });
 
   @override
@@ -44,6 +47,11 @@ class RegisterPage extends StatelessWidget {
               listener: (context, state) {
                 if (state is AuthAuthenticated) {
                   onRegistered(context);
+                } else if (state is AuthOtpSent) {
+                  // Registration succeeded but needs OTP verification.
+                  if (onOtpRequired != null) {
+                    onOtpRequired!(context, state.phone);
+                  }
                 } else if (state is AuthError) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -231,9 +239,15 @@ class RegisterPage extends StatelessWidget {
         return Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            IqText(
-              '\u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629 \u0639\u0644\u0649 \u0627\u0644\u0634\u0631\u0648\u0637 \u0648\u0627\u0644\u0623\u062D\u0643\u0627\u0645',
-              style: AppTypography.bodyLarge,
+            GestureDetector(
+              onTap: () => _openTermsUrl(context),
+              child: IqText(
+                '\u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629 \u0639\u0644\u0649 \u0627\u0644\u0634\u0631\u0648\u0637 \u0648\u0627\u0644\u0623\u062D\u0643\u0627\u0645',
+                style: AppTypography.bodyLarge.copyWith(
+                  decoration: TextDecoration.underline,
+                  color: AppColors.primary,
+                ),
+              ),
             ),
             SizedBox(width: 8.w),
             SizedBox(
@@ -255,6 +269,17 @@ class RegisterPage extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  void _openTermsUrl(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const IqWebViewPage(
+          title: AppStrings.termsAndConditions,
+          url: 'https://iqttaxi.com/api/v1/common/mobile/terms',
+        ),
+      ),
     );
   }
 

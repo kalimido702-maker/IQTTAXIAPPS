@@ -11,3 +11,4 @@ export 'iq_primary_button.dart';
 export 'iq_sidebar.dart';
 export 'iq_text.dart';
 export 'iq_text_field.dart';
+export 'iq_webview_page.dart';

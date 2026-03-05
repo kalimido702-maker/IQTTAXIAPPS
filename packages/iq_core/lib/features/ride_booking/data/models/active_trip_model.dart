@@ -14,6 +14,8 @@ class ActiveTripModel extends Equatable {
     this.driverLat,
     this.driverLng,
     this.driverBearing,
+    this.driverMobile,
+    this.userMobile,
     this.vehicleTypeIcon,
     this.vehicleNumber,
     this.vehicleMake,
@@ -32,6 +34,8 @@ class ActiveTripModel extends Equatable {
     this.isPaymentReceived = false,
     this.paymentMethod,
     this.driverTips,
+    this.totalAmount = 0.0,
+    this.currencyCode = 'IQD',
     this.tripDistance = 0.0,
     this.distance = 0.0,
     this.duration = 0.0,
@@ -57,6 +61,8 @@ class ActiveTripModel extends Equatable {
   final double? driverLat;
   final double? driverLng;
   final double? driverBearing;
+  final String? driverMobile;
+  final String? userMobile;
   final String? vehicleTypeIcon;
   final String? vehicleNumber;
   final String? vehicleMake;
@@ -81,6 +87,12 @@ class ActiveTripModel extends Equatable {
   final bool isPaymentReceived;
   final String? paymentMethod;
   final String? driverTips;
+
+  /// Fare amount from Firebase (request_eta_amount / total_amount).
+  final double totalAmount;
+
+  /// Currency code/symbol from Firebase.
+  final String currencyCode;
 
   /// Distance & Duration
   final double tripDistance;
@@ -119,12 +131,8 @@ class ActiveTripModel extends Equatable {
   String get vehicleTypeName =>
       [vehicleMake, vehicleModel].where((e) => e != null).join(' ').trim();
 
-  /// Total estimated fare (from distance / duration — placeholder until
-  /// the real total is fetched from invoice).
-  double get totalAmount => 0;
-
-  /// Currency symbol (not stored in Firebase — UI can default).
-  String get currencySymbol => 'IQD';
+  /// Currency symbol for display.
+  String get currencySymbol => currencyCode;
 
   /// Derived trip phase for UI rendering.
   TripPhase get phase {
@@ -148,17 +156,28 @@ class ActiveTripModel extends Equatable {
     return ActiveTripModel(
       requestId: requestId,
       driverId: _parseInt(data['driver_id']),
-      driverName: data['name']?.toString(),
-      driverProfilePicture: data['profile_picture']?.toString(),
-      driverRating: data['rating']?.toString(),
+      driverName: data['driver_name']?.toString() ??
+          data['name']?.toString(),
+      driverProfilePicture: data['driver_profile_picture']?.toString() ??
+          data['profile_picture']?.toString(),
+      driverRating: data['driver_rating']?.toString() ??
+          data['rating']?.toString(),
       driverLat: _parseDouble(data['lat']),
       driverLng: _parseDouble(data['lng']),
       driverBearing: _parseDouble(data['bearing']),
+      driverMobile: data['driver_mobile']?.toString() ??
+          data['mobile']?.toString(),
+      userMobile: data['user_mobile']?.toString(),
       vehicleTypeIcon: data['vehicle_type_icon']?.toString(),
-      vehicleNumber: data['vehicle_number']?.toString(),
-      vehicleMake: data['vehicle_make']?.toString(),
-      vehicleModel: data['vehicle_model']?.toString(),
-      vehicleColor: data['vehicle_color']?.toString(),
+      vehicleNumber: data['vehicle_number']?.toString() ??
+          data['car_number']?.toString() ??
+          data['plate_number']?.toString(),
+      vehicleMake: data['vehicle_make']?.toString() ??
+          data['car_make']?.toString(),
+      vehicleModel: data['vehicle_model']?.toString() ??
+          data['car_model']?.toString(),
+      vehicleColor: data['vehicle_color']?.toString() ??
+          data['car_color']?.toString(),
       transportType: data['transport_type']?.toString(),
       tripArrived: _parseBool(data['trip_arrived']),
       tripStart: _parseBool(data['trip_start']),
@@ -170,8 +189,17 @@ class ActiveTripModel extends Equatable {
       isPaid: _parseBool(data['is_paid']),
       isUserPaid: _parseBool(data['is_user_paid']),
       isPaymentReceived: _parseBool(data['is_payment_received']),
-      paymentMethod: data['payment_method']?.toString(),
+      paymentMethod: data['payment_method']?.toString() ??
+          data['payment_opt']?.toString(),
       driverTips: data['driver_tips']?.toString(),
+      totalAmount: _parseDouble(data['request_eta_amount']) ??
+          _parseDouble(data['total_amount']) ??
+          _parseDouble(data['estimated_fare']) ??
+          0.0,
+      currencyCode: data['requested_currency_symbol']?.toString() ??
+          data['currency_symbol']?.toString() ??
+          data['currency']?.toString() ??
+          'IQD',
       tripDistance: _parseDouble(data['trip_distance']) ?? 0.0,
       distance: _parseDouble(data['distance']) ?? 0.0,
       duration: _parseDouble(data['duration']) ?? 0.0,
@@ -222,6 +250,8 @@ class ActiveTripModel extends Equatable {
       driverLat: driverLat ?? this.driverLat,
       driverLng: driverLng ?? this.driverLng,
       driverBearing: driverBearing ?? this.driverBearing,
+      driverMobile: driverMobile,
+      userMobile: userMobile,
       vehicleTypeIcon: vehicleTypeIcon,
       vehicleNumber: vehicleNumber,
       vehicleMake: vehicleMake,
@@ -239,6 +269,8 @@ class ActiveTripModel extends Equatable {
       isPaymentReceived: isPaymentReceived ?? this.isPaymentReceived,
       paymentMethod: paymentMethod,
       driverTips: driverTips,
+      totalAmount: totalAmount,
+      currencyCode: currencyCode,
       tripDistance: tripDistance ?? this.tripDistance,
       distance: distance ?? this.distance,
       duration: duration ?? this.duration,
@@ -282,6 +314,7 @@ class ActiveTripModel extends Equatable {
   List<Object?> get props => [
         requestId,
         driverId,
+        driverName,
         driverLat,
         driverLng,
         tripArrived,
@@ -290,9 +323,11 @@ class ActiveTripModel extends Equatable {
         isAccepted,
         isPaid,
         isPaymentReceived,
+        isCompleted,
         messageByDriver,
         messageByUser,
         tripDistance,
+        totalAmount,
         phase,
       ];
 }

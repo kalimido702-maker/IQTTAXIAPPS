@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
@@ -29,9 +30,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     String? promoCode,
   }) async {
     try {
-      final response = await dio.post(
-        'api/v1/request/eta',
-        data: FormData.fromMap({
+      final requestData = {
           'pick_lat': pickLat,
           'pick_lng': pickLng,
           'drop_lat': dropLat,
@@ -39,9 +38,14 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           'ride_type': rideType,
           'transport_type': transportType,
           if (promoCode != null) 'promo_code': promoCode,
-        }),
+      };
+      debugPrint('🚕 [RideETA] REQUEST: $requestData');
+      final response = await dio.post(
+        'api/v1/request/eta',
+        data: FormData.fromMap(requestData),
       );
       final body = response.data as Map<String, dynamic>;
+      debugPrint('🚕 [RideETA] RESPONSE: $body');
       if (response.statusCode == 200 && body['success'] == true) {
         final list = (body['data'] as List? ?? [])
             .whereType<Map<String, dynamic>>()
@@ -126,6 +130,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     required String requestId,
     required String reason,
     String? customReason,
+    int? cancelMethod,
   }) async {
     try {
       final response = await dio.post(
@@ -134,6 +139,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           'request_id': requestId,
           'reason': reason,
           if (customReason != null) 'custom_reason': customReason,
+          if (cancelMethod != null) 'cancel_method': cancelMethod,
         }),
       );
       final body = response.data as Map<String, dynamic>;

@@ -18,6 +18,7 @@ class AppStrings {
   static const String joinUs = 'إنضم إلينا';
   static const String welcomeBack = 'مرحباً بك,';
   static const String loginSubtitle = 'سجّل دخولك لحسابك, عن طريق رقم جوالك';
+  static const String recipientSubtitle = 'ادخل بيانات استلام الطرد';
 
   // ─── OTP ───
   static const String confirmCode = 'تأكيد الكود';
@@ -146,6 +147,10 @@ class AppStrings {
 
   // ─── Package Delivery ───
   static const String sendReceivePackage = 'إرسال واستقبال الطرود';
+  static const String sendReceiveSubtitle =
+      'خدمات الطرود لدينا تجعل إرسال واستقبال الطرود أمرًا بسيطًا ومريحًا';
+  static const String sendParcel = 'إرسال طرد';
+  static const String receiveParcel = 'استقبال طرد';
   static const String pickupAddress = 'عنوان استلام الطرد';
   static const String deliveryAddress = 'عنوان التسليم';
   static const String home = 'البيت';
@@ -155,6 +160,24 @@ class AppStrings {
   static const String receiveSelf = 'استقبل بنفسي';
   static const String senderName = 'إسم المرسل';
   static const String instructions = 'تعليمات';
+  static const String serviceType = 'نوع الخدمة';
+  static const String delegateDelivery = 'مندوب (توصيل أغراض)';
+  static const String selectGoodsType = 'حدد نوع البضائع';
+  static const String quantity = 'الكمية';
+  static const String specifyQuantity = 'تحديد الكمية';
+  static const String noQuantity = 'لا تحدد الكمية';
+  static const String enterQuantity = 'أدخل الكمية';
+  static const String whoPays = 'من سيدفع';
+  static const String theSender = 'المرسل';
+  static const String theReceiver = 'المستلم';
+  static const String noVehiclesAvailable = 'لا توجد مركبات متاحة لهذا المسار';
+  static const String sendParcels = 'إرسال الطرود';
+  static const String receiveParcels = 'تلقي الطرود';
+  static const String freeLoadingTime =
+      'متضمنة 20 دقيقة مجاناً من وقت التحميل والتفريغ';
+  static const String amountDue = 'المبلغ المستحق :';
+  static const String parcelType = 'نوع الطرد';
+  static const String invalidPromoCode = 'كود الخصم غير صالح';
 
   // ─── Driver App ───
   static const String connected = 'متصل';
@@ -315,6 +338,7 @@ class AppStrings {
   static const String failedToEndTrip = 'فشل في إنهاء الرحلة';
   static const String failedToConfirmPayment = 'فشل في تأكيد الدفع';
   static const String failedToCancelTrip = 'فشل في إلغاء الرحلة';
+  static const String cancellingTrip = 'جاري إلغاء الرحلة...';
   static const String connectionTimeout = 'انتهت مهلة الاتصال';
   static const String noInternetConnection = 'لا يوجد اتصال بالإنترنت';
   static const String unauthorized = 'غير مصرح';
@@ -398,4 +422,5 @@ class AppStrings {
   static const String deleteFavouriteConfirm = 'هل أنت متأكد من حذف هذا العنوان؟';
   static const String add = 'إضافة';
   static const String delete = 'حذف';
+  static const String termsAndConditions = 'الشروط والأحكام';
 }

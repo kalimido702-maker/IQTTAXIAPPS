@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:iq_core/core/constants/app_assets.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -19,9 +20,10 @@ class ServiceCategory {
     this.imagePath,
     this.imageUrl,
     this.id,
+    this.transportType,
   });
 
-  final int? id;
+  final String? id;
   final String label;
 
   /// Local asset path (fallback).
@@ -29,6 +31,9 @@ class ServiceCategory {
 
   /// Network image URL from backend.
   final String? imageUrl;
+
+  /// `"taxi"` or `"delivery"` — from the API ride module.
+  final String? transportType;
 }
 
 /// Quick place data model.
@@ -72,6 +77,7 @@ class HomeBottomSheet extends StatelessWidget {
     super.key,
     required this.categories,
     required this.quickPlaces,
+    this.isLoading = false,
     this.activeCategory = 0,
     this.onCategoryTap,
     this.onSearchTap,
@@ -83,6 +89,9 @@ class HomeBottomSheet extends StatelessWidget {
     this.ongoingRides = const [],
     this.onOngoingRideTap,
   });
+
+  /// When true, shows shimmer placeholders instead of real content.
+  final bool isLoading;
 
   final List<ServiceCategory> categories;
   final List<QuickPlace> quickPlaces;
@@ -115,127 +124,256 @@ class HomeBottomSheet extends StatelessWidget {
       shadowColor: AppColors.shadow,
       borderRadius: BorderRadius.vertical(top: Radius.circular(40.r)),
       color: surfaceColor,
-      child: ListView(
-        controller: scrollController,
-        padding: EdgeInsets.zero,
-        cacheExtent: 300,
-        children: [
-          // ─── Drag handle ───
-          Center(
-            child: Container(
-              margin: EdgeInsets.only(top: 12.h, bottom: 16.h),
-              width: 50.w,
-              height: 6.h,
-              decoration: BoxDecoration(
-                color: AppColors.black.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(100.r),
+      child: isLoading
+          ? _buildShimmerContent(surfaceColor)
+          : _buildRealContent(surfaceColor),
+    );
+  }
+
+  /// Shimmer placeholder shown while home data is loading.
+  Widget _buildShimmerContent(Color surfaceColor) {
+    return ListView(
+      controller: scrollController,
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        // ─── Drag handle ───
+        Center(
+          child: Container(
+            margin: EdgeInsets.only(top: 12.h, bottom: 16.h),
+            width: 50.w,
+            height: 6.h,
+            decoration: BoxDecoration(
+              color: AppColors.black.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(100.r),
+            ),
+          ),
+        ),
+        Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.w),
+            child: SizedBox(
+              height: 110.h,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: List.generate(3, (_) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12.w),
+                    child: Container(
+                      width: 90.w,
+                      height: 100.h,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                    ),
+                  );
+                }),
               ),
             ),
           ),
+        ),
+        SizedBox(height: 16.h),
+        // Search bar shimmer
+        Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Container(
+              height: 54.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 16.h),
+        // Banner shimmer
+        Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Container(
+              height: 120.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 20.h),
+        // Quick places shimmer
+        Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 100.w,
+                  height: 18.h,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4.r),
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                ...List.generate(3, (_) {
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: Container(
+                      height: 44.h,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-          // ─── Service categories ───
-          SizedBox(
+  /// Real content shown after data has loaded.
+  Widget _buildRealContent(Color surfaceColor) {
+    return ListView(
+      controller: scrollController,
+      padding: EdgeInsets.zero,
+      cacheExtent: 300,
+      children: [
+        // ─── Drag handle ───
+        Center(
+          child: Container(
+            margin: EdgeInsets.only(top: 12.h, bottom: 16.h),
+            width: 50.w,
+            height: 6.h,
+            decoration: BoxDecoration(
+              color: AppColors.black.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(100.r),
+            ),
+          ),
+        ),
+
+        // ─── Service categories ───
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          child: SizedBox(
             height: 110.h,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: List.generate(categories.length, (i) {
-                return ServiceCategoryCard(
-                  label: categories[i].label,
-                  imagePath: categories[i].imagePath,
-                  imageUrl: categories[i].imageUrl,
-                  isActive: i == activeCategory,
-                  onTap: () => onCategoryTap?.call(i),
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12.w),
+                  child: ServiceCategoryCard(
+                    label: categories[i].label,
+                    imagePath: categories[i].imagePath,
+                    imageUrl: categories[i].imageUrl,
+                    isActive: i == activeCategory,
+                    onTap: () => onCategoryTap?.call(i),
+                  ),
                 );
               }),
             ),
           ),
-          SizedBox(height: 16.h),
+        ),
+        SizedBox(height: 16.h),
 
-          // ─── Search bar ───
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.w),
-            child: GestureDetector(
-              onTap: onSearchTap,
-              child: Container(
-                height: 54.h,
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                decoration: BoxDecoration(
-                  color: surfaceColor,
-                  borderRadius: BorderRadius.circular(8.r),
-                  border: Border.all(color: AppColors.buttonYellow, width: 1.5),
-                ),
-                child: Row(
-                  children: [
-                    IqImage(
-                      AppAssets.searchIcon,
-                      width: 20.w,
-                      height: 20.w,
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: IqText(
-                        AppStrings.whereToGo,
-                        style: AppTypography.bodyLarge.copyWith(
-                          color: AppColors.textHint,
-                          fontSize: 16.sp,
-                        ),
+        // ─── Search bar ───
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24.w),
+          child: GestureDetector(
+            onTap: onSearchTap,
+            child: Container(
+              height: 54.h,
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                borderRadius: BorderRadius.circular(8.r),
+                border: Border.all(color: AppColors.buttonYellow, width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  IqImage(
+                    AppAssets.searchIcon,
+                    width: 20.w,
+                    height: 20.w,
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: IqText(
+                      AppStrings.whereToGo,
+                      style: AppTypography.bodyLarge.copyWith(
+                        color: AppColors.textHint,
+                        fontSize: 16.sp,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-          SizedBox(height: 16.h),
+        ),
+        SizedBox(height: 16.h),
 
-          // ─── Promo banners ───
-          if (_hasBanners)
-            _buildBannerSection(),
-          if (_hasBanners) SizedBox(height: 20.h),
+        // ─── Promo banners ───
+        if (_hasBanners)
+          _buildBannerSection(),
+        if (_hasBanners) SizedBox(height: 20.h),
 
-          // ─── Ongoing rides carousel ───
-          if (ongoingRides.isNotEmpty) ...[
-            OngoingRidesCarousel(
-              rides: ongoingRides,
-              onRideTap: onOngoingRideTap,
-            ),
-            SizedBox(height: 20.h),
-          ],
-
-          // ─── Quick places header ───
-          if (quickPlaces.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: IqText(
-                AppStrings.quickPlaces,
-                style: AppTypography.heading3,
-              ),
-            ),
-          if (quickPlaces.isNotEmpty) SizedBox(height: 8.h),
-
-          // ─── Quick places list ───
-          ...quickPlaces.map((place) {
-            final isLast = place == quickPlaces.last;
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: Column(
-                children: [
-                  QuickPlaceTile(
-                    name: place.name,
-                    onTap: () => onQuickPlaceTap?.call(place),
-                  ),
-                  if (!isLast)
-                    Divider(
-                      height: 1,
-                      color: AppColors.grayDivider,
-                    ),
-                ],
-              ),
-            );
-          }),
-          SizedBox(height: 24.h),
+        // ─── Ongoing rides carousel ───
+        if (ongoingRides.isNotEmpty) ...[
+          OngoingRidesCarousel(
+            rides: ongoingRides,
+            onRideTap: onOngoingRideTap,
+          ),
+          SizedBox(height: 20.h),
         ],
-      ),
+
+        // ─── Quick places header ───
+        if (quickPlaces.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: IqText(
+              AppStrings.quickPlaces,
+              style: AppTypography.heading3,
+            ),
+          ),
+        if (quickPlaces.isNotEmpty) SizedBox(height: 8.h),
+
+        // ─── Quick places list ───
+        ...quickPlaces.map((place) {
+          final isLast = place == quickPlaces.last;
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Column(
+              children: [
+                QuickPlaceTile(
+                  name: place.name,
+                  onTap: () => onQuickPlaceTap?.call(place),
+                ),
+                if (!isLast)
+                  Divider(
+                    height: 1,
+                    color: AppColors.grayDivider,
+                  ),
+              ],
+            ),
+          );
+        }),
+        SizedBox(height: 24.h),
+      ],
     );
   }
 

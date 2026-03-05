@@ -30,6 +30,9 @@ enum PassengerTripStatus {
   /// User submitted rating — flow done.
   rated,
 
+  /// Cancellation in progress (API call pending).
+  cancelling,
+
   /// Trip was cancelled.
   cancelled,
 

@@ -29,6 +29,7 @@ class IncomingRequestModel extends Equatable {
     this.isBidRide = false,
     this.offerAmount,
     this.expiresAt,
+    this.userMobile,
   });
 
   final String requestId;
@@ -37,6 +38,7 @@ class IncomingRequestModel extends Equatable {
   final String? userImage;
   final String? userRating;
   final String? totalRides;
+  final String? userMobile;
   final double pickLat;
   final double pickLng;
   final double dropLat;
@@ -91,6 +93,8 @@ class IncomingRequestModel extends Equatable {
       isBidRide: data['is_bid_ride'] == 1 || data['is_bid_ride'] == true,
       offerAmount: _d(data['offer_amount']),
       expiresAt: _i(data['expires_at']),
+      userMobile: data['user_mobile']?.toString() ??
+          data['mobile']?.toString(),
     );
   }
 
@@ -141,6 +145,8 @@ class IncomingRequestModel extends Equatable {
       transportType: (json['transport_type'] ?? 'taxi').toString(),
       isBidRide: json['is_bid_ride'] == 1 || json['is_bid_ride'] == true,
       offerAmount: _d(json['offer_amount']),
+      userMobile: userDetail['mobile']?.toString() ??
+          json['user_mobile']?.toString(),
       // API does not return expiresAt — overlay will use default 60s timer.
     );
   }

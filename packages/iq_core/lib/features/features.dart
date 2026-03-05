@@ -13,6 +13,7 @@ export 'trip/trip.dart';
 export 'notification/notification.dart';
 export 'chat/chat.dart';
 export 'location/location.dart';
+export 'package_delivery/package_delivery.dart';
 export 'splash/splash.dart';
 export 'onboarding/onboarding.dart';
 export 'wallet/wallet.dart';

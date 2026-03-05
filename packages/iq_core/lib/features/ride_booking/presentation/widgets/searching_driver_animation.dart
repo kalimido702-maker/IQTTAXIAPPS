@@ -22,11 +22,15 @@ class SearchingDriverSheet extends StatefulWidget {
   const SearchingDriverSheet({
     super.key,
     required this.onCancel,
+    this.onAutoCancel,
     this.autoCancel = true,
     this.autoCancelSeconds = 120,
   });
 
   final VoidCallback onCancel;
+
+  /// Called when auto-cancel timer expires. If null, [onCancel] is used.
+  final VoidCallback? onAutoCancel;
   final bool autoCancel;
   final int autoCancelSeconds;
 
@@ -53,7 +57,11 @@ class _SearchingDriverSheetState extends State<SearchingDriverSheet>
       setState(() => _elapsedSeconds++);
       if (widget.autoCancel &&
           _elapsedSeconds >= widget.autoCancelSeconds) {
-        widget.onCancel();
+        // Stop timer FIRST to prevent calling onCancel every second.
+        _timer?.cancel();
+        _timer = null;
+        // Use dedicated auto-cancel callback (skips dialog, cancels directly)
+        (widget.onAutoCancel ?? widget.onCancel).call();
       }
     });
   }

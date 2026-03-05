@@ -67,6 +67,10 @@ import '../../features/location/data/datasources/location_data_source.dart';
 import '../../features/location/data/datasources/location_data_source_impl.dart';
 import '../../features/location/data/repositories/location_repository_impl.dart';
 import '../../features/location/domain/repositories/location_repository.dart';
+import '../../features/package_delivery/data/datasources/package_delivery_data_source.dart';
+import '../../features/package_delivery/data/repositories/package_delivery_repository_impl.dart';
+import '../../features/package_delivery/domain/repositories/package_delivery_repository.dart';
+import '../../features/package_delivery/presentation/bloc/package_delivery_bloc.dart';
 import '../services/google_maps_service.dart';
 
 /// Google Maps API key.
@@ -177,7 +181,10 @@ Future<void> initCoreDependencies() async {
 
   // ── Location: Data sources ──
   sl.registerLazySingleton<LocationDataSource>(
-    () => LocationDataSourceImpl(dio: sl<ApiClient>().dio),
+    () => LocationDataSourceImpl(
+      dio: sl<ApiClient>().dio,
+      googleMapsService: sl<GoogleMapsService>(),
+    ),
   );
 
   // ── Location: Repository ──
@@ -307,5 +314,22 @@ Future<void> initCoreDependencies() async {
       repository: sl<BookingRepository>(),
       tripStream: sl<TripStreamDataSource>(),
     ),
+  );
+
+  // ── Package Delivery: Data source ──
+  sl.registerLazySingleton<PackageDeliveryDataSource>(
+    () => PackageDeliveryDataSourceImpl(dio: sl<ApiClient>().dio),
+  );
+
+  // ── Package Delivery: Repository ──
+  sl.registerLazySingleton<PackageDeliveryRepository>(
+    () => PackageDeliveryRepositoryImpl(
+        dataSource: sl<PackageDeliveryDataSource>()),
+  );
+
+  // ── Package Delivery: BLoC ──
+  sl.registerFactory(
+    () => PackageDeliveryBloc(
+        repository: sl<PackageDeliveryRepository>()),
   );
 }

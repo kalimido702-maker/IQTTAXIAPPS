@@ -96,8 +96,8 @@ class ServiceCategoryCard extends StatelessWidget {
     if (source != null) {
       return IqImage(
         source,
-        width: 70.w,
-        height: 50.h,
+        width: 90.w,
+        height: 60.h,
         fit: BoxFit.contain,
         errorWidget: _fallbackIcon(),
       );

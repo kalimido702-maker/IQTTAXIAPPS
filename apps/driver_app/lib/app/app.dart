@@ -266,14 +266,18 @@ class _AppHome extends StatelessWidget {
       IqSidebarItem(
         icon: Icons.card_giftcard_rounded,
         label: AppStrings.solveAndWin,
-        onTap: (ctx) => Navigator.of(ctx).push(
-          MaterialPageRoute<void>(
-            builder: (_) => BlocProvider(
-              create: (_) => ReferralCubit(referralCode: ''),
-              child: const ReferralPage(),
+        onTap: (ctx) {
+          final code =
+              ctx.read<DriverHomeBloc>().state.homeData?.refferalCode ?? '';
+          Navigator.of(ctx).push(
+            MaterialPageRoute<void>(
+              builder: (_) => BlocProvider(
+                create: (_) => ReferralCubit(referralCode: code),
+                child: const ReferralPage(),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
       IqSidebarItem(
         icon: Icons.language,
@@ -322,7 +326,11 @@ class _AppHome extends StatelessWidget {
           MaterialPageRoute<void>(
             builder: (_) => BlocProvider.value(
               value: sl<ThemeCubit>(),
-              child: const SettingsPage(),
+              child: SettingsPage(
+                onLogout: () {
+                  ctx.read<AuthBloc>().add(const AuthLogoutEvent());
+                },
+              ),
             ),
           ),
         ),
@@ -330,8 +338,8 @@ class _AppHome extends StatelessWidget {
       IqSidebarItem(
         icon: Icons.logout,
         label: AppStrings.logout,
-        onTap: (_) {
-          // TODO: handle logout
+        onTap: (ctx) {
+          ctx.read<AuthBloc>().add(const AuthLogoutEvent());
         },
       ),
     ];

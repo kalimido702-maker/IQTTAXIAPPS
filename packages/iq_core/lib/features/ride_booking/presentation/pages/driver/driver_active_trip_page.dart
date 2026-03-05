@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/di/injection_container.dart';
@@ -56,7 +57,9 @@ class _BodyState extends State<_Body> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<DriverTripBloc, DriverTripState>(
-      listenWhen: (prev, curr) => prev.status != curr.status,
+      listenWhen: (prev, curr) =>
+          prev.status != curr.status ||
+          prev.errorMessage != curr.errorMessage,
       listener: (context, state) {
         if (state.status == DriverTripStatus.tripCompleted) {
           Navigator.pushReplacement(
@@ -71,6 +74,15 @@ class _BodyState extends State<_Body> {
         }
         if (state.status == DriverTripStatus.cancelled) {
           Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+        // Show error feedback via SnackBar
+        if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.errorMessage!),
+              backgroundColor: AppColors.error,
+            ),
+          );
         }
       },
       buildWhen: (prev, curr) =>
@@ -379,10 +391,11 @@ class _DriverTripSheet extends StatelessWidget {
                     double.tryParse(req.userRating ?? '') ?? 0.0,
                 totalRides: req.totalRides,
                 onChat: () {
-                  // TODO: Open chat
+                  // Open phone dialer for passenger (chat not built yet)
+                  _callPhone(context, req.userMobile);
                 },
                 onCall: () {
-                  // TODO: Call passenger
+                  _callPhone(context, req.userMobile);
                 },
               ),
               SizedBox(height: 16.h),
@@ -917,4 +930,18 @@ void _showDriverCancelSheet(BuildContext context, String requestId) {
       },
     ),
   );
+}
+
+/// Opens the phone dialer with the given phone number.
+Future<void> _callPhone(BuildContext context, String? phone) async {
+  if (phone == null || phone.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('رقم الهاتف غير متوفر')),
+    );
+    return;
+  }
+  final uri = Uri(scheme: 'tel', path: phone);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  }
 }

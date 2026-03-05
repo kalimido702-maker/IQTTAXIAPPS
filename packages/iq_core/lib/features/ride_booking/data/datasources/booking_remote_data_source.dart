@@ -50,6 +50,7 @@ abstract class BookingRemoteDataSource {
     required String requestId,
     required String reason,
     String? customReason,
+    int? cancelMethod,
   });
 
   /// Get cancel reasons.

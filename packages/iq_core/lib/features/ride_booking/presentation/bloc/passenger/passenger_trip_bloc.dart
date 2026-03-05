@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:dartz/dartz.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/datasources/trip_stream_data_source.dart';
@@ -206,22 +209,52 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
     PassengerTripCancelRequested event,
     Emitter<PassengerTripState> emit,
   ) async {
-    if (state.requestId == null) return;
+    final requestId = state.requestId;
+    if (requestId == null) return;
 
-    final result = await repository.cancelRequest(
-      requestId: state.requestId!,
-      reason: event.reason,
-      customReason: event.customReason,
-    );
+    // 1) Show loading immediately
+    emit(state.copyWith(status: PassengerTripStatus.cancelling));
 
-    result.fold(
-      (failure) => emit(state.copyWith(
-        errorMessage: failure.message,
-      )),
-      (_) => emit(state.copyWith(
-        status: PassengerTripStatus.cancelled,
-      )),
-    );
+    // 2) Stop listening to Firebase so stale events don't interfere
+    await _tripSubscription?.cancel();
+    _tripSubscription = null;
+
+    // 3) Write cancelled_by_user to Firebase (same as old app)
+    try {
+      await FirebaseDatabase.instance
+          .ref('requests')
+          .child(requestId)
+          .update({'cancelled_by_user': true});
+    } catch (e) {
+      debugPrint('⚠️ Failed to write cancelled_by_user to Firebase: $e');
+    }
+
+    // 4) Call backend API with timeout
+    try {
+      final result = await repository
+          .cancelRequest(
+            requestId: requestId,
+            reason: event.reason,
+            customReason: event.customReason,
+            cancelMethod: event.isTimerCancel ? 0 : null,
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => const Right(true), // treat timeout as success
+          );
+
+      result.fold(
+        (failure) {
+          debugPrint('⚠️ Cancel API failed: ${failure.message}');
+          // Still treat as cancelled since Firebase was updated
+          emit(state.copyWith(status: PassengerTripStatus.cancelled));
+        },
+        (_) => emit(state.copyWith(status: PassengerTripStatus.cancelled)),
+      );
+    } catch (_) {
+      // Even if everything fails, pop the user out
+      emit(state.copyWith(status: PassengerTripStatus.cancelled));
+    }
   }
 
   Future<void> _onRatingSubmitted(
@@ -297,7 +330,13 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
     PassengerTripRestoreOngoing event,
     Emitter<PassengerTripState> emit,
   ) {
-    emit(state.copyWith(
+    // Cancel any previous subscription to avoid ghost data.
+    _tripSubscription?.cancel();
+    _tripSubscription = null;
+
+    // Emit a FRESH state — do NOT use copyWith so stale activeTripData
+    // (e.g. driver marker from a previous trip) is discarded.
+    emit(PassengerTripState(
       status: PassengerTripStatus.searchingDriver,
       requestId: event.requestId,
       pickLat: event.pickLat,

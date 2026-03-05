@@ -91,13 +91,17 @@ class PassengerTripCancelRequested extends PassengerTripEvent {
   const PassengerTripCancelRequested({
     required this.reason,
     this.customReason,
+    this.isTimerCancel = false,
   });
 
   final String reason;
   final String? customReason;
 
+  /// True when the auto-cancel timer expired (sends cancel_method: 0).
+  final bool isTimerCancel;
+
   @override
-  List<Object?> get props => [reason];
+  List<Object?> get props => [reason, isTimerCancel];
 }
 
 /// User submits a rating.
