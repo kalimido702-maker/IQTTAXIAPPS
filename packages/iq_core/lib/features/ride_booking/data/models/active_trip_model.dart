@@ -51,6 +51,9 @@ class ActiveTripModel extends Equatable {
     this.modifiedByDriver,
     this.modifiedByUser,
     this.destinationChange,
+    this.enableShipmentLoad = false,
+    this.enableShipmentUnload = false,
+    this.enableDigitalSignature = false,
   });
 
   final String requestId;
@@ -118,6 +121,14 @@ class ActiveTripModel extends Equatable {
   final int? modifiedByDriver;
   final int? modifiedByUser;
   final int? destinationChange;
+
+  /// Delivery feature flags
+  final bool enableShipmentLoad;
+  final bool enableShipmentUnload;
+  final bool enableDigitalSignature;
+
+  /// Whether this is a delivery-type trip.
+  bool get isDelivery => transportType == 'delivery';
 
   // ─── Convenience getters for UI ───
   /// Short alias for profile picture URL.
@@ -219,6 +230,18 @@ class ActiveTripModel extends Equatable {
       modifiedByDriver: _parseInt(data['modified_by_driver']),
       modifiedByUser: _parseInt(data['modified_by_user']),
       destinationChange: _parseInt(data['destination_change']),
+      enableShipmentLoad:
+          data['enable_shipment_load_feature'] == '1' ||
+              data['enable_shipment_load_feature'] == 1 ||
+              data['enable_shipment_load_feature'] == true,
+      enableShipmentUnload:
+          data['enable_shipment_unload_feature'] == '1' ||
+              data['enable_shipment_unload_feature'] == 1 ||
+              data['enable_shipment_unload_feature'] == true,
+      enableDigitalSignature:
+          data['enable_digital_signature'] == '1' ||
+              data['enable_digital_signature'] == 1 ||
+              data['enable_digital_signature'] == true,
     );
   }
 
@@ -352,6 +375,9 @@ class ActiveTripModel extends Equatable {
         totalAmount,
         currencyCode,
         phase,
+        enableShipmentLoad,
+        enableShipmentUnload,
+        enableDigitalSignature,
       ];
 }
 

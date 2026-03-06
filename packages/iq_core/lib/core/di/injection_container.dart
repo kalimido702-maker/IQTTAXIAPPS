@@ -81,6 +81,8 @@ import '../../features/incentive/data/datasources/incentive_data_source_impl.dar
 import '../../features/incentive/data/repositories/incentive_repository_impl.dart';
 import '../../features/incentive/domain/repositories/incentive_repository.dart';
 import '../../features/incentive/presentation/bloc/incentive_bloc.dart';
+import '../../features/profile/data/datasources/driver_documents_data_source.dart';
+import '../../features/profile/presentation/bloc/driver_documents_bloc.dart';
 import '../services/google_maps_service.dart';
 
 /// Google Maps API key.
@@ -372,5 +374,15 @@ Future<void> initCoreDependencies() async {
   // ── Incentive: BLoC ──
   sl.registerFactory(
     () => IncentiveBloc(repository: sl<IncentiveRepository>()),
+  );
+
+  // ── Driver Documents: Data source ──
+  sl.registerLazySingleton<DriverDocumentsDataSource>(
+    () => DriverDocumentsDataSourceImpl(dio: sl<ApiClient>().dio),
+  );
+
+  // ── Driver Documents: BLoC ──
+  sl.registerFactory(
+    () => DriverDocumentsBloc(dataSource: sl<DriverDocumentsDataSource>()),
   );
 }

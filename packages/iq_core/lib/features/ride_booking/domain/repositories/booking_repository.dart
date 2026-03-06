@@ -138,4 +138,11 @@ abstract class BookingRepository {
   /// (Passenger) Fetch active trip details with driver info and fare.
   Future<Either<Failure, Map<String, dynamic>>>
       fetchPassengerActiveTripDetails({required String requestId});
+
+  /// Upload shipment proof image (before/after loading).
+  Future<Either<Failure, bool>> uploadShipmentProof({
+    required String requestId,
+    required String imagePath,
+    required bool isBefore,
+  });
 }

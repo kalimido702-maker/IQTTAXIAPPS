@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_text.dart';
 
-/// Waiting timer banner shown when driver is waiting at pickup.
-/// Displays a countdown or count-up timer with a warning message.
+/// Dark overlay timer banner shown on top of the map.
+/// Displays a countdown or count-up timer with a message label.
+/// Used for waiting time at pickup and ETA during trip.
 class WaitingTimerBanner extends StatefulWidget {
   const WaitingTimerBanner({
     super.key,
@@ -44,7 +44,9 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
       setState(() {
         if (widget.isCountdown && widget.totalSeconds != null) {
           _seconds = widget.totalSeconds! -
-              DateTime.now().difference(widget.startTime ?? DateTime.now()).inSeconds;
+              DateTime.now()
+                  .difference(widget.startTime ?? DateTime.now())
+                  .inSeconds;
           if (_seconds < 0) _seconds = 0;
         } else {
           _seconds++;
@@ -70,45 +72,50 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
       decoration: BoxDecoration(
-        color: AppColors.primary50,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.primary200),
+        color: const Color(0xCC000000), // dark semi-transparent
+        borderRadius: BorderRadius.circular(16.r),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
+          // ── Message label ──
           IqText(
             widget.message,
             style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textDark,
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 13.sp,
             ),
           ),
-          SizedBox(height: 6.h),
+          SizedBox(height: 8.h),
+          // ── Timer ──
           IqText(
             _formattedTime,
             style: AppTypography.numberLarge.copyWith(
-              color: AppColors.primary700,
+              color: Colors.white,
               fontWeight: FontWeight.w700,
+              fontSize: 22.sp,
             ),
             dir: TextDirection.ltr,
           ),
           if (widget.warningMessage != null) ...[
-            SizedBox(height: 6.h),
+            SizedBox(height: 8.h),
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.warning_amber_rounded,
-                  size: 16.w,
-                  color: AppColors.warning,
+                  size: 14.w,
+                  color: const Color(0xFFFFC107),
                 ),
                 SizedBox(width: 4.w),
-                Expanded(
+                Flexible(
                   child: IqText(
                     widget.warningMessage!,
                     style: AppTypography.caption.copyWith(
-                      color: AppColors.warning,
+                      color: const Color(0xFFFFC107),
+                      fontSize: 11.sp,
                     ),
                   ),
                 ),

@@ -48,3 +48,5 @@ export 'presentation/pages/passenger/trip_rating_page.dart';
 // ── Driver Pages ──
 export 'presentation/pages/driver/incoming_request_overlay.dart';
 export 'presentation/pages/driver/driver_active_trip_page.dart';
+export 'presentation/pages/driver/shipment_proof_page.dart';
+export 'presentation/pages/driver/customer_signature_page.dart';

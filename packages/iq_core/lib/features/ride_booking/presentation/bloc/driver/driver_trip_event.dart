@@ -183,3 +183,19 @@ class DriverTripCheckActiveTrip extends DriverTripEvent {
 class DriverTripReset extends DriverTripEvent {
   const DriverTripReset();
 }
+
+/// Upload a shipment proof image (before-load or after-load).
+class DriverTripUploadShipmentProof extends DriverTripEvent {
+  const DriverTripUploadShipmentProof({
+    required this.requestId,
+    required this.imagePath,
+    required this.isBefore,
+  });
+
+  final String requestId;
+  final String imagePath;
+  final bool isBefore;
+
+  @override
+  List<Object?> get props => [requestId, imagePath, isBefore];
+}

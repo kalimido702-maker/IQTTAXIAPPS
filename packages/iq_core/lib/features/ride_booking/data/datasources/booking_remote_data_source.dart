@@ -12,8 +12,9 @@ abstract class BookingRemoteDataSource {
   // ─── Passenger APIs ───
 
   /// Get ETA with vehicle types and pricing.
-  /// Pass [distance] (metres), [duration] (seconds) and [polyline]
-  /// from Google Directions so the server can compute the correct fare.
+  /// Pass [distance] (metres) and [duration] (**minutes**, not seconds)
+  /// along with [polyline] from Google Directions so the server can
+  /// compute the correct fare.
   Future<Either<Failure, List<VehicleTypeModel>>> getEta({
     required double pickLat,
     required double pickLng,
@@ -171,4 +172,16 @@ abstract class BookingRemoteDataSource {
   /// [ActiveTripModel.copyWith].
   Future<Either<Failure, Map<String, dynamic>>>
       fetchPassengerActiveTripDetails({required String requestId});
+
+  // ─── Delivery / Shipment APIs ───
+
+  /// Upload shipment proof image (before/after loading).
+  ///
+  /// Calls `POST api/v1/request/upload-proof` with the image file
+  /// and a flag indicating whether it's before-load or after-load.
+  Future<Either<Failure, bool>> uploadShipmentProof({
+    required String requestId,
+    required String imagePath,
+    required bool isBefore,
+  });
 }

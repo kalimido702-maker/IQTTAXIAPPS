@@ -45,6 +45,12 @@ class DriverTripState extends Equatable {
     this.activeTripData,
     this.errorMessage,
     this.driverId,
+    this.tripDistance = 0.0,
+    this.lastLat,
+    this.lastLng,
+    this.latLngArray = const [],
+    this.waitingTimeBeforeStart = 0,
+    this.waitingTimeAfterStart = 0,
   });
 
   final DriverTripStatus status;
@@ -64,6 +70,24 @@ class DriverTripState extends Equatable {
   /// The driver's own ID.
   final String? driverId;
 
+  /// GPS-accumulated trip distance in kilometres.
+  final double tripDistance;
+
+  /// Last known latitude (for distance accumulation).
+  final double? lastLat;
+
+  /// Last known longitude (for distance accumulation).
+  final double? lastLng;
+
+  /// Trail of lat/lng pairs recorded during the trip.
+  final List<String> latLngArray;
+
+  /// Waiting time (in seconds) before the trip started (driver arrived → trip start).
+  final int waitingTimeBeforeStart;
+
+  /// Waiting time (in seconds) after the trip started (if the driver pauses / idles).
+  final int waitingTimeAfterStart;
+
   DriverTripState copyWith({
     DriverTripStatus? status,
     IncomingRequestModel? incomingRequest,
@@ -71,6 +95,12 @@ class DriverTripState extends Equatable {
     ActiveTripModel? activeTripData,
     String? errorMessage,
     String? driverId,
+    double? tripDistance,
+    double? lastLat,
+    double? lastLng,
+    List<String>? latLngArray,
+    int? waitingTimeBeforeStart,
+    int? waitingTimeAfterStart,
   }) {
     return DriverTripState(
       status: status ?? this.status,
@@ -79,6 +109,14 @@ class DriverTripState extends Equatable {
       activeTripData: activeTripData ?? this.activeTripData,
       errorMessage: errorMessage,
       driverId: driverId ?? this.driverId,
+      tripDistance: tripDistance ?? this.tripDistance,
+      lastLat: lastLat ?? this.lastLat,
+      lastLng: lastLng ?? this.lastLng,
+      latLngArray: latLngArray ?? this.latLngArray,
+      waitingTimeBeforeStart:
+          waitingTimeBeforeStart ?? this.waitingTimeBeforeStart,
+      waitingTimeAfterStart:
+          waitingTimeAfterStart ?? this.waitingTimeAfterStart,
     );
   }
 
@@ -89,5 +127,11 @@ class DriverTripState extends Equatable {
         requestId,
         activeTripData,
         errorMessage,
+        tripDistance,
+        lastLat,
+        lastLng,
+        latLngArray,
+        waitingTimeBeforeStart,
+        waitingTimeAfterStart,
       ];
 }

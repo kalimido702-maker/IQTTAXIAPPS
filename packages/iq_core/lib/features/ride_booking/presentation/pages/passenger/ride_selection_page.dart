@@ -163,6 +163,8 @@ class _BodyState extends State<_Body> {
       _mapKey.currentState?.fitBounds(bounds);
 
       // Fire ETA with full route data so the server can price correctly.
+      // Duration must be in MINUTES (not seconds) — the server uses it
+      // directly in its fare formula (time × price_per_time).
       if (!mounted) return;
       context.read<PassengerTripBloc>().add(PassengerTripEtaRequested(
             pickLat: widget.pickupLat,
@@ -172,7 +174,7 @@ class _BodyState extends State<_Body> {
             pickAddress: widget.pickupAddress,
             dropAddress: widget.dropoffAddress,
             distance: result.distanceMeters.toDouble(),
-            duration: result.durationSeconds.toDouble(),
+            duration: result.durationSeconds / 60.0,
             polyline: result.encodedPolyline,
           ));
     } else {

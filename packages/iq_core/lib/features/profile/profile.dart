@@ -5,3 +5,8 @@ export 'data/repositories/profile_repository_impl.dart';
 export 'presentation/bloc/profile_bloc.dart';
 export 'presentation/pages/profile_page.dart';
 export 'presentation/pages/edit_profile_page.dart';
+export 'presentation/pages/vehicle_info_page.dart';
+export 'presentation/pages/document_verification_page.dart';
+export 'data/datasources/driver_documents_data_source.dart';
+export 'data/models/needed_document_model.dart';
+export 'presentation/bloc/driver_documents_bloc.dart';

@@ -26,6 +26,8 @@ import '../../bloc/driver/driver_trip_state.dart';
 import '../passenger/trip_invoice_page.dart';
 import '../../widgets/cancel_reasons_sheet.dart';
 import '../../widgets/waiting_timer_banner.dart';
+import 'shipment_proof_page.dart';
+import 'customer_signature_page.dart';
 
 /// The main active trip page for drivers.
 /// Shows different UI based on trip phase:
@@ -158,6 +160,27 @@ class _BodyState extends State<_Body> {
                     state: state,
                   ),
                 ),
+                // ── Dark timer overlay on map ──
+                if (state.activeTripData?.phase == TripPhase.driverArrived ||
+                    state.activeTripData?.phase == TripPhase.inProgress)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 12.h,
+                    left: 20.w,
+                    right: 20.w,
+                    child: WaitingTimerBanner(
+                      key: ValueKey(state.activeTripData?.phase),
+                      message: state.activeTripData?.phase ==
+                              TripPhase.driverArrived
+                          ? AppStrings.remainingWaitTime
+                          : AppStrings.tripElapsedTime,
+                      warningMessage:
+                          state.activeTripData?.phase ==
+                                  TripPhase.driverArrived
+                              ? AppStrings.waitingChargeWarning
+                              : null,
+                      startTime: DateTime.now(),
+                    ),
+                  ),
                 // Bottom sheet
                 Positioned(
                   left: 0,
@@ -395,7 +418,6 @@ class _DriverTripSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final trip = state.activeTripData;
     final req = state.incomingRequest;
-    final phase = trip?.phase;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -444,17 +466,6 @@ class _DriverTripSheet extends StatelessWidget {
             _TripStatusBadge(status: state.status),
             SizedBox(height: 16.h),
 
-            // ── Waiting timer (arrived phase) ──
-            if (phase == TripPhase.driverArrived)
-              Padding(
-                padding: EdgeInsets.only(bottom: 12.h),
-                child: WaitingTimerBanner(
-                  message: AppStrings.remainingWaitTime,
-                  warningMessage: AppStrings.waitingChargeWarning,
-                  startTime: DateTime.now(),
-                ),
-              ),
-
             // ── Passenger info row ──
             if (req != null) ...[
               _PassengerInfoRow(
@@ -502,6 +513,7 @@ class _DriverTripSheet extends StatelessWidget {
               requestId: state.requestId ?? '',
               trip: trip,
               incomingRequest: req,
+              accumulatedDistance: state.tripDistance,
             ),
           ],
         ),
@@ -846,12 +858,14 @@ class _DriverPhaseButtons extends StatelessWidget {
     required this.requestId,
     this.trip,
     this.incomingRequest,
+    this.accumulatedDistance = 0.0,
   });
 
   final DriverTripStatus status;
   final String requestId;
   final ActiveTripModel? trip;
   final IncomingRequestModel? incomingRequest;
+  final double accumulatedDistance;
 
   /// Helper to build cancel + primary action row.
   Widget _cancelAndAction(BuildContext context, String actionText, VoidCallback onAction) {
@@ -911,6 +925,15 @@ class _DriverPhaseButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (status) {
       case DriverTripStatus.arrivedAtPickup:
+        // For delivery trips with shipment-load enabled, show proof
+        // upload page before starting the ride.
+        if (trip?.isDelivery == true && trip?.enableShipmentLoad == true) {
+          return _cancelAndAction(
+            context,
+            AppStrings.pickGoods,
+            () => _handleShipmentLoadBeforeStart(context),
+          );
+        }
         return _cancelAndAction(context, AppStrings.startTrip, () {
           context.read<DriverTripBloc>().add(
             DriverTripStartRide(
@@ -922,22 +945,24 @@ class _DriverPhaseButtons extends StatelessWidget {
         });
 
       case DriverTripStatus.tripInProgress:
+        // For delivery trips, the end-trip flow may include unload proof
+        // and/or customer signature before actually ending the ride.
+        final bool isDeliveryTrip = trip?.isDelivery == true;
+        final String endLabel = isDeliveryTrip
+            ? AppStrings.dispatchGoods
+            : AppStrings.endTrip;
+
         return SizedBox(
           width: double.infinity,
           height: 52.h,
           child: ElevatedButton(
             onPressed: () {
               HapticFeedback.heavyImpact();
-              context.read<DriverTripBloc>().add(
-                    DriverTripEndRide(
-                      requestId: requestId,
-                      dropLat: incomingRequest?.dropLat ?? 0,
-                      dropLng: incomingRequest?.dropLng ?? 0,
-                      dropAddress: incomingRequest?.dropAddress ?? '',
-                      distance: trip?.distance ?? 0,
-                      polyLine: trip?.polyline ?? '',
-                    ),
-                  );
+              if (isDeliveryTrip) {
+                _handleDeliveryEndFlow(context);
+              } else {
+                _endRide(context);
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -948,7 +973,7 @@ class _DriverPhaseButtons extends StatelessWidget {
               ),
             ),
             child: IqText(
-              AppStrings.endTrip,
+              endLabel,
               style: AppTypography.button.copyWith(color: AppColors.white),
             ),
           ),
@@ -963,6 +988,94 @@ class _DriverPhaseButtons extends StatelessWidget {
           );
         });
     }
+  }
+
+  // ─── Delivery Flow Helpers ───
+
+  void _endRide(BuildContext context) {
+    context.read<DriverTripBloc>().add(
+          DriverTripEndRide(
+            requestId: requestId,
+            dropLat: incomingRequest?.dropLat ?? 0,
+            dropLng: incomingRequest?.dropLng ?? 0,
+            dropAddress: incomingRequest?.dropAddress ?? '',
+            distance: accumulatedDistance > 0
+                ? accumulatedDistance
+                : (trip?.distance ?? 0),
+            polyLine: trip?.polyline ?? '',
+          ),
+        );
+  }
+
+  /// Before starting ride: upload shipment load proof → then start ride.
+  Future<void> _handleShipmentLoadBeforeStart(BuildContext context) async {
+    final proofPath = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => const ShipmentProofPage(isBefore: true),
+      ),
+    );
+    if (proofPath == null || !context.mounted) return;
+
+    // Upload the proof image
+    final bloc = context.read<DriverTripBloc>();
+    bloc.add(DriverTripUploadShipmentProof(
+      requestId: requestId,
+      imagePath: proofPath,
+      isBefore: true,
+    ));
+
+    // Start the ride after proof uploaded
+    bloc.add(DriverTripStartRide(
+      requestId: requestId,
+      pickLat: incomingRequest?.pickLat ?? 0,
+      pickLng: incomingRequest?.pickLng ?? 0,
+    ));
+  }
+
+  /// Before ending ride: optionally upload unload proof → optionally
+  /// get customer signature → upload both → end ride.
+  Future<void> _handleDeliveryEndFlow(BuildContext context) async {
+    final bloc = context.read<DriverTripBloc>();
+
+    // Step 1: Shipment unload proof (if feature enabled)
+    if (trip?.enableShipmentUnload == true) {
+      final proofPath = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => const ShipmentProofPage(isBefore: false),
+        ),
+      );
+      if (proofPath == null || !context.mounted) return;
+
+      bloc.add(DriverTripUploadShipmentProof(
+        requestId: requestId,
+        imagePath: proofPath,
+        isBefore: false,
+      ));
+    }
+
+    if (!context.mounted) return;
+
+    // Step 2: Customer digital signature (if feature enabled)
+    if (trip?.enableDigitalSignature == true) {
+      final sigPath = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => const CustomerSignaturePage(),
+        ),
+      );
+      if (sigPath == null || !context.mounted) return;
+
+      // Upload signature as unload proof
+      bloc.add(DriverTripUploadShipmentProof(
+        requestId: requestId,
+        imagePath: sigPath,
+        isBefore: false,
+      ));
+    }
+
+    if (!context.mounted) return;
+
+    // Step 3: End the ride
+    _endRide(context);
   }
 }
 

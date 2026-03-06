@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../core/utils/geo_utils.dart';
 import '../../../data/datasources/trip_stream_data_source.dart';
 import '../../../data/models/active_trip_model.dart';
 import '../../../data/models/incoming_request_model.dart';
@@ -33,12 +34,20 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     on<DriverTripLocationUpdated>(_onLocationUpdated);
     on<DriverTripCheckActiveTrip>(_onCheckActiveTrip);
     on<DriverTripReset>(_onReset);
+    on<_WaitingTimeTick>(_onWaitingTimeTick);
+    on<DriverTripUploadShipmentProof>(_onUploadShipmentProof);
   }
 
   final BookingRepository repository;
   final TripStreamDataSource tripStream;
   StreamSubscription<IncomingRequestModel?>? _incomingSubscription;
   StreamSubscription<ActiveTripModel?>? _tripSubscription;
+
+  /// Periodic timer that increments waiting time each second.
+  Timer? _waitingTimer;
+
+  /// Minimum distance threshold (in km) to avoid GPS jitter.
+  static const double _minDistanceThresholdKm = 0.01; // ~10 metres
 
   Future<void> _onListenRequested(
     DriverTripListenRequested event,
@@ -136,7 +145,10 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
             requestId: fullRequest.requestId,
           ));
         } else {
-          // metaRequest is null — request may have been cancelled/expired
+          // metaRequest is null — request may have been cancelled/expired.
+          // Clean up the stale request-meta entry so it doesn't
+          // trigger a wasted API call on every app open.
+          tripStream.deleteRequestMeta(event.firebaseRequestId);
           emit(state.copyWith(status: DriverTripStatus.idle));
         }
       },
@@ -256,6 +268,8 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
           requestId: event.requestId,
           data: {'trip_arrived': '1'},
         );
+        // Start the "before trip" waiting timer.
+        _startWaitingTimer(isBeforeTrip: true);
       },
     );
   }
@@ -264,6 +278,10 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     DriverTripStartRide event,
     Emitter<DriverTripState> emit,
   ) async {
+    // Stop the "before trip" waiting timer.
+    _waitingTimer?.cancel();
+    _waitingTimer = null;
+
     final result = await repository.startRide(
       requestId: event.requestId,
       pickLat: event.pickLat,
@@ -276,7 +294,10 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
         // Update Firebase so both driver & passenger apps see the change.
         tripStream.updateTripNode(
           requestId: event.requestId,
-          data: {'trip_start': '1'},
+          data: {
+            'trip_start': '1',
+            'waiting_time_before_start': state.waitingTimeBeforeStart,
+          },
         );
       },
     );
@@ -286,15 +307,35 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     DriverTripEndRide event,
     Emitter<DriverTripState> emit,
   ) async {
+    // Stop any running waiting timer.
+    _waitingTimer?.cancel();
+    _waitingTimer = null;
+
+    // Use the BLoC's accumulated trip distance if the event distance is 0.
+    final distance = event.distance > 0
+        ? event.distance
+        : double.parse(state.tripDistance.toStringAsFixed(2));
+
+    final beforeWait = event.beforeTripWaitingTime > 0
+        ? event.beforeTripWaitingTime
+        : state.waitingTimeBeforeStart;
+
+    final afterWait = event.afterTripWaitingTime > 0
+        ? event.afterTripWaitingTime
+        : state.waitingTimeAfterStart;
+
+    debugPrint('🚕 EndRide: distance=${distance}km, '
+        'beforeWait=${beforeWait}s, afterWait=${afterWait}s');
+
     final result = await repository.endRide(
       requestId: event.requestId,
       dropLat: event.dropLat,
       dropLng: event.dropLng,
       dropAddress: event.dropAddress,
-      distance: event.distance,
+      distance: distance,
       polyLine: event.polyLine,
-      beforeTripWaitingTime: event.beforeTripWaitingTime,
-      afterTripWaitingTime: event.afterTripWaitingTime,
+      beforeTripWaitingTime: beforeWait,
+      afterTripWaitingTime: afterWait,
     );
     final failure = result.fold((l) => l, (_) => null);
     if (failure != null) {
@@ -309,6 +350,10 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
         requestId: event.requestId,
         data: {
           'is_completed': true,
+          'trip_distance': distance,
+          'waiting_time_before_start': beforeWait,
+          'waiting_time_after_start': afterWait,
+          if (state.latLngArray.isNotEmpty) 'lat_lng_array': state.latLngArray,
           if (event.polyLine.isNotEmpty) 'polyline': event.polyLine,
         },
       );
@@ -373,12 +418,70 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     Emitter<DriverTripState> emit,
   ) async {
     if (state.requestId == null) return;
-    // Fire-and-forget — don't block UI for location updates
+
+    // Always push live location to Firebase.
     tripStream.updateDriverLocation(
       requestId: state.requestId!,
       lat: event.lat,
       lng: event.lng,
       bearing: event.bearing,
+    );
+
+    // ── Trip distance accumulation (only while trip is in progress) ──
+    if (state.status == DriverTripStatus.tripInProgress) {
+      final lastLat = state.lastLat;
+      final lastLng = state.lastLng;
+
+      if (lastLat != null && lastLng != null) {
+        final segmentKm = GeoUtils.haversineDistance(
+          lastLat,
+          lastLng,
+          event.lat,
+          event.lng,
+        );
+
+        // Filter out GPS jitter — only add meaningful movement.
+        if (segmentKm >= _minDistanceThresholdKm) {
+          final newDistance = state.tripDistance + segmentKm;
+          final newArray = [
+            ...state.latLngArray,
+            '${event.lat},${event.lng}',
+          ];
+
+          emit(state.copyWith(
+            tripDistance: newDistance,
+            lastLat: event.lat,
+            lastLng: event.lng,
+            latLngArray: newArray,
+          ));
+
+          // Sync trip distance + trail to Firebase periodically.
+          _syncTripTrackingToFirebase(newDistance, newArray);
+        }
+      } else {
+        // First location update during trip — just record the start point.
+        emit(state.copyWith(
+          lastLat: event.lat,
+          lastLng: event.lng,
+          latLngArray: ['${event.lat},${event.lng}'],
+        ));
+      }
+    }
+  }
+
+  /// Write trip tracking data to Firebase so the passenger app can see
+  /// real-time distance and the backend has the GPS trail.
+  void _syncTripTrackingToFirebase(
+    double distanceKm,
+    List<String> latLngArray,
+  ) {
+    if (state.requestId == null) return;
+    tripStream.updateTripNode(
+      requestId: state.requestId!,
+      data: {
+        'trip_distance': double.parse(distanceKm.toStringAsFixed(2)),
+        'lat_lng_array': latLngArray,
+      },
     );
   }
 
@@ -425,16 +528,100 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     DriverTripReset event,
     Emitter<DriverTripState> emit,
   ) {
+    final driverId = state.driverId;
     _tripSubscription?.cancel();
     _tripSubscription = null;
+    _waitingTimer?.cancel();
+    _waitingTimer = null;
     emit(const DriverTripState());
+
+    // Re-subscribe to incoming requests so that any request that arrived
+    // while the driver was in tripCompleted/rated state gets picked up.
+    // The .onValue stream fires the current value on first listen.
+    if (driverId != null) {
+      add(DriverTripListenRequested(driverId));
+    }
+  }
+
+  /// Upload a shipment proof image (fire-and-forget — errors logged).
+  Future<void> _onUploadShipmentProof(
+    DriverTripUploadShipmentProof event,
+    Emitter<DriverTripState> emit,
+  ) async {
+    final result = await repository.uploadShipmentProof(
+      requestId: event.requestId,
+      imagePath: event.imagePath,
+      isBefore: event.isBefore,
+    );
+    result.fold(
+      (failure) => debugPrint(
+          '⚠️ [DriverTrip] Shipment proof upload failed: ${failure.message}'),
+      (_) => debugPrint('✅ [DriverTrip] Shipment proof uploaded'),
+    );
   }
 
   @override
   Future<void> close() {
     _incomingSubscription?.cancel();
     _tripSubscription?.cancel();
+    _waitingTimer?.cancel();
     return super.close();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Waiting-time helpers
+  // ---------------------------------------------------------------------------
+
+  /// Whether the current waiting timer is for "before trip" or "after trip".
+  bool _waitingIsBeforeTrip = true;
+
+  /// Start a periodic timer that dispatches a tick event every second.
+  ///
+  /// [isBeforeTrip] = true  → increments `waitingTimeBeforeStart`
+  /// [isBeforeTrip] = false → increments `waitingTimeAfterStart`
+  void _startWaitingTimer({required bool isBeforeTrip}) {
+    _waitingTimer?.cancel();
+    _waitingIsBeforeTrip = isBeforeTrip;
+    _waitingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!isClosed) {
+        add(_WaitingTimeTick(isBeforeTrip: _waitingIsBeforeTrip));
+      }
+    });
+  }
+
+  /// Handler for the waiting-time tick event.
+  void _onWaitingTimeTick(
+    _WaitingTimeTick event,
+    Emitter<DriverTripState> emit,
+  ) {
+    if (event.isBeforeTrip) {
+      emit(state.copyWith(
+        waitingTimeBeforeStart: state.waitingTimeBeforeStart + 1,
+      ));
+    } else {
+      emit(state.copyWith(
+        waitingTimeAfterStart: state.waitingTimeAfterStart + 1,
+      ));
+    }
+
+    // Sync waiting time to Firebase every 60 seconds.
+    final totalWait =
+        state.waitingTimeBeforeStart + state.waitingTimeAfterStart;
+    if (totalWait > 0 && totalWait % 60 == 0) {
+      _syncWaitingTimeToFirebase();
+    }
+  }
+
+  /// Write current waiting times to Firebase.
+  void _syncWaitingTimeToFirebase() {
+    if (state.requestId == null) return;
+    tripStream.updateTripNode(
+      requestId: state.requestId!,
+      data: {
+        'waiting_time_before_start': state.waitingTimeBeforeStart,
+        'waiting_time_after_start': state.waitingTimeAfterStart,
+      },
+    );
   }
 }
 
@@ -445,4 +632,13 @@ class _FetchPendingRequestDetails extends DriverTripEvent {
 
   @override
   List<Object?> get props => [firebaseRequestId];
+}
+
+/// Internal event: Waiting timer tick.
+class _WaitingTimeTick extends DriverTripEvent {
+  const _WaitingTimeTick({required this.isBeforeTrip});
+  final bool isBeforeTrip;
+
+  @override
+  List<Object?> get props => [isBeforeTrip];
 }

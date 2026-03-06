@@ -46,7 +46,8 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           'transport_type': transportType,
           if (promoCode != null) 'promo_code': promoCode,
           // Distance-based fare — mirrors old app behaviour:
-          // without these the server falls back to the minimum fare.
+          // distance in METRES, duration in MINUTES.
+          // Without these the server falls back to the minimum fare.
           if (distance != null) 'distance': distance.toStringAsFixed(0),
           if (duration != null) 'duration': duration.toStringAsFixed(0),
           if (polyline != null) 'polyline': polyline,
@@ -752,6 +753,39 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         message:
             body['message']?.toString() ?? 'Failed to fetch trip details',
       ));
+    } on DioException catch (e) {
+      return Left(_handleDioError(e));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  // ─── Delivery / Shipment APIs ───
+
+  @override
+  Future<Either<Failure, bool>> uploadShipmentProof({
+    required String requestId,
+    required String imagePath,
+    required bool isBefore,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'request_id': requestId,
+        if (isBefore) 'before_load': 1,
+        if (!isBefore) 'after_load': 1,
+      });
+
+      formData.files.add(MapEntry(
+        'proof_image',
+        await MultipartFile.fromFile(imagePath),
+      ));
+
+      final response = await dio.post(
+        'api/v1/request/upload-proof',
+        data: formData,
+      );
+      final body = response.data;
+      return Right(body['success'] == true || body['success'] == 1);
     } on DioException catch (e) {
       return Left(_handleDioError(e));
     } catch (e) {

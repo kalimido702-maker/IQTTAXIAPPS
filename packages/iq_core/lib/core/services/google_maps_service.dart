@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 /// Result from a Google Directions API call.
@@ -47,11 +48,11 @@ class DirectionsResult {
 
 /// High-performance Google Maps web service client.
 ///
-/// Uses the **Directions API** for accurate routing, distances, durations,
-/// and encoded polylines — exactly like Uber.
+/// Uses the **Routes API v2** for accurate routing, distances, durations,
+/// and encoded polylines — exactly like the old app and backend server.
 ///
 /// Performance notes:
-/// - Uses a dedicated [Dio] instance with short timeouts.
+/// - Uses dedicated [Dio] instances with short timeouts.
 /// - Responses are parsed once; polyline is decoded in O(n).
 /// - Singleton in DI — no re-creation overhead.
 class GoogleMapsService {
@@ -60,21 +61,26 @@ class GoogleMapsService {
           baseUrl: 'https://maps.googleapis.com/maps/api/',
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
+        )),
+        _routesDio = Dio(BaseOptions(
+          baseUrl: 'https://routes.googleapis.com/',
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
         ));
 
   final String apiKey;
   final Dio _dio;
+  final Dio _routesDio;
 
-  // ─── Directions API ──────────────────────────────────────────────
+  // ─── Routes API v2 ──────────────────────────────────────────────
 
-  /// Get driving directions between two points.
+  /// Get driving directions between two points using Google Routes API v2.
+  ///
+  /// This matches the exact API used by the old app and the backend server,
+  /// ensuring consistent routes and fare calculations.
   ///
   /// Returns accurate route polyline, distance, and duration
-  /// calculated by Google's routing engine.
-  ///
-  /// [waypoints] — optional intermediate stops (max 25).
-  /// [alternatives] — whether to return alternative routes.
-  /// [avoidTolls], [avoidHighways] — routing preferences.
+  /// calculated by Google's routing engine with TRAFFIC_AWARE preference.
   Future<DirectionsResult?> getDirections({
     required double originLat,
     required double originLng,
@@ -87,94 +93,107 @@ class GoogleMapsService {
     String language = 'ar',
   }) async {
     try {
-      final avoid = <String>[];
-      if (avoidTolls) avoid.add('tolls');
-      if (avoidHighways) avoid.add('highways');
-
-      final params = <String, dynamic>{
-        'origin': '$originLat,$originLng',
-        'destination': '$destLat,$destLng',
-        'mode': 'driving',
-        'language': language,
-        'key': apiKey,
-      };
-
-      if (alternatives) params['alternatives'] = 'true';
-      if (avoid.isNotEmpty) params['avoid'] = avoid.join('|');
-
+      // Build intermediates (waypoints) if any.
+      final intermediates = <Map<String, dynamic>>[];
       if (waypoints != null && waypoints.isNotEmpty) {
-        params['waypoints'] = waypoints
-            .map((w) => '${w.latitude},${w.longitude}')
-            .join('|');
+        for (final wp in waypoints) {
+          intermediates.add({
+            'location': {
+              'latLng': {
+                'latitude': wp.latitude,
+                'longitude': wp.longitude,
+              },
+            },
+          });
+        }
       }
 
-      final response = await _dio.get(
-        'directions/json',
-        queryParameters: params,
+      final body = <String, dynamic>{
+        'origin': {
+          'location': {
+            'latLng': {'latitude': originLat, 'longitude': originLng},
+          },
+        },
+        'destination': {
+          'location': {
+            'latLng': {'latitude': destLat, 'longitude': destLng},
+          },
+        },
+        if (intermediates.isNotEmpty) 'intermediates': intermediates,
+        'travelMode': 'DRIVE',
+        'routingPreference': 'TRAFFIC_AWARE',
+        'computeAlternativeRoutes': alternatives,
+        'routeModifiers': {
+          'avoidTolls': avoidTolls,
+          'avoidHighways': avoidHighways,
+          'avoidFerries': false,
+        },
+        'languageCode': language,
+        'units': 'METRIC',
+      };
+
+      // Build platform-specific headers for API key restrictions.
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask':
+            'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.viewport',
+      };
+
+      final response = await _routesDio.post(
+        'directions/v2:computeRoutes',
+        data: body,
+        options: Options(headers: headers),
       );
 
       final data = response.data as Map<String, dynamic>;
-      final status = data['status'] as String?;
-
-      if (status != 'OK') return null;
-
       final routes = data['routes'] as List?;
       if (routes == null || routes.isEmpty) return null;
 
       final route = routes.first as Map<String, dynamic>;
-      final legs = route['legs'] as List?;
-      if (legs == null || legs.isEmpty) return null;
 
-      // Aggregate distance and duration across all legs.
-      int totalDistanceM = 0;
-      int totalDurationS = 0;
-      String distanceText = '';
-      String durationText = '';
+      // Distance in meters.
+      final distanceMeters = (route['distanceMeters'] as num?)?.toInt() ?? 0;
 
-      for (final leg in legs) {
-        final legMap = leg as Map<String, dynamic>;
-        totalDistanceM +=
-            (legMap['distance']?['value'] as int?) ?? 0;
-        totalDurationS +=
-            (legMap['duration']?['value'] as int?) ?? 0;
-      }
+      // Duration — comes as a string like "1436s".
+      final durationStr = (route['duration'] as String?) ?? '0s';
+      final durationSeconds =
+          int.tryParse(durationStr.replaceAll('s', '')) ?? 0;
 
-      // Use the summary texts from the first leg.
-      final firstLeg = legs.first as Map<String, dynamic>;
-      distanceText =
-          firstLeg['distance']?['text']?.toString() ?? '${(totalDistanceM / 1000).toStringAsFixed(1)} km';
-      durationText =
-          firstLeg['duration']?['text']?.toString() ?? '${(totalDurationS / 60).round()} min';
+      // Encoded polyline.
+      final encodedPolyline =
+          (route['polyline']?['encodedPolyline'] as String?) ?? '';
+      final polylinePoints = decodePolyline(encodedPolyline);
 
-      // Overview polyline — accurate enough and much lighter than
-      // concatenating per-step polylines.
-      final overviewPoly =
-          route['overview_polyline']?['points'] as String? ?? '';
+      // Viewport bounds.
+      final viewport = route['viewport'] as Map<String, dynamic>?;
+      final low = viewport?['low'] as Map<String, dynamic>?;
+      final high = viewport?['high'] as Map<String, dynamic>?;
 
-      final polylinePoints = decodePolyline(overviewPoly);
-
-      // Bounds
-      final bounds = route['bounds'] as Map<String, dynamic>?;
-      final ne = bounds?['northeast'] as Map<String, dynamic>?;
-      final sw = bounds?['southwest'] as Map<String, dynamic>?;
+      // Generate human-readable texts.
+      final distanceText =
+          '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+      final durationText =
+          '${(durationSeconds / 60).round()} min';
 
       return DirectionsResult(
         polylinePoints: polylinePoints,
-        encodedPolyline: overviewPoly,
-        distanceMeters: totalDistanceM,
+        encodedPolyline: encodedPolyline,
+        distanceMeters: distanceMeters,
         distanceText: distanceText,
-        durationSeconds: totalDurationS,
+        durationSeconds: durationSeconds,
         durationText: durationText,
         boundsNE: LatLng(
-          (ne?['lat'] as num?)?.toDouble() ?? destLat,
-          (ne?['lng'] as num?)?.toDouble() ?? destLng,
+          (high?['latitude'] as num?)?.toDouble() ?? destLat,
+          (high?['longitude'] as num?)?.toDouble() ?? destLng,
         ),
         boundsSW: LatLng(
-          (sw?['lat'] as num?)?.toDouble() ?? originLat,
-          (sw?['lng'] as num?)?.toDouble() ?? originLng,
+          (low?['latitude'] as num?)?.toDouble() ?? originLat,
+          (low?['longitude'] as num?)?.toDouble() ?? originLng,
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('❌ [GoogleMapsService] Routes API v2 failed: $e');
       return null;
     }
   }

@@ -297,6 +297,31 @@ class _AppHome extends StatelessWidget {
         },
       ),
       IqSidebarItem(
+        icon: Icons.directions_car_outlined,
+        label: AppStrings.vehicleInfo,
+        onTap: (ctx) => Navigator.of(ctx).push(
+          MaterialPageRoute<void>(
+            builder: (_) => BlocProvider.value(
+              value: ctx.read<DriverHomeBloc>(),
+              child: const VehicleInfoPage(),
+            ),
+          ),
+        ),
+      ),
+      IqSidebarItem(
+        icon: Icons.verified_user_outlined,
+        label: AppStrings.documentVerification,
+        onTap: (ctx) => Navigator.of(ctx).push(
+          MaterialPageRoute<void>(
+            builder: (_) => BlocProvider(
+              create: (_) => sl<DriverDocumentsBloc>()
+                ..add(const DriverDocumentsLoadRequested()),
+              child: const DocumentVerificationPage(),
+            ),
+          ),
+        ),
+      ),
+      IqSidebarItem(
         icon: Icons.card_giftcard_rounded,
         label: AppStrings.solveAndWin,
         onTap: (ctx) {

@@ -398,6 +398,7 @@ class AppStrings {
   static const String onWayToDropoff = 'في الطريق إلى موقع الإنزال';
   static const String tripStatus = 'حالة الرحلة';
   static const String remainingWaitTime = 'الوقت المتبقي لانتظار الراكب';
+  static const String tripElapsedTime = 'الوقت المنقضي من الرحلة';
   static const String tripArrived = 'وصلت الرحلة';
   static const String startTrip = 'إبدأ الرحلة';
   static const String endTrip = 'نهاية الرحلة';
@@ -442,4 +443,55 @@ class AppStrings {
   static const String add = 'إضافة';
   static const String delete = 'حذف';
   static const String termsAndConditions = 'الشروط والأحكام';
+
+  // ─── Shipment / Delivery ───
+  static const String shipmentVerification = 'إثبات الشحن';
+  static const String uploadShipmentProofBefore =
+      'رفع إثبات الشحن قبل أو أثناء الرحلة';
+  static const String uploadShipmentProofAfter =
+      'رفع إثبات الشحن بعد التوصيل';
+  static const String uploadImageJpgPng = 'رفع صورة JPG, PNG';
+  static const String continueText = 'متابعة';
+  static const String getCustomerSignature =
+      'الحصول على توقيع العميل عند التسليم';
+  static const String resetSignature = 'إعادة التوقيع';
+  static const String confirmSignature = 'تأكيد التوقيع';
+  static const String pickGoods = 'استلام البضاعة';
+  static const String dispatchGoods = 'تسليم البضاعة';
+  static const String proofUploadedSuccess = 'تم رفع الإثبات بنجاح';
+  static const String signatureRequired = 'يرجى الحصول على التوقيع أولاً';
+  static const String proofRequired = 'يرجى رفع إثبات الشحن أولاً';
+
+  // ─── Vehicle Info ───
+  static const String vehicleInfo = 'معلومات السيارة';
+  static const String vehicleType = 'نوع المركبة';
+  static const String vehicleMake = 'ماركة السيارة';
+  static const String vehicleModel = 'طراز السيارة';
+  static const String vehicleNumber = 'رقم السيارة';
+  static const String vehicleColor = 'لون السيارة';
+  static const String edit = 'تحرير';
+
+  static const String vehicleUpdatedSuccess = 'تم تحديث معلومات السيارة بنجاح';
+  static const String vehicleUpdateFailed = 'فشل تحديث معلومات السيارة';
+  static const String updating = 'جاري التحديث...';
+
+  // ─── Document Verification ───
+  static const String documentVerification = 'قائمة التوثيق';
+  static const String verified = 'تم التوثيق';
+  static const String uploadRequired = 'مطلوب الرفع';
+  static const String pending = 'قيد المراجعة';
+  static const String declined = 'مرفوض';
+  static const String tapToUpload = 'اضغط للرفع';
+  static const String tapToView = 'اضغط للعرض';
+  static const String frontImage = 'الصورة الأمامية';
+  static const String backImage = 'الصورة الخلفية';
+  static const String chooseImage = 'اختر صورة';
+  static const String camera = 'الكاميرا';
+  static const String gallery = 'المعرض';
+  static const String documentUploading = 'جاري رفع المستند...';
+  static const String documentUploadedSuccess = 'تم رفع المستند بنجاح';
+  static const String documentUnderReview =
+      'تم رفع المستند بنجاح وهو قيد المراجعة من الإدارة';
+  static const String idNumber = 'الرقم التعريفي';
+  static const String expiryDate = 'تاريخ الانتهاء';
 }

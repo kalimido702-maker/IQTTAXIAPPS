@@ -37,6 +37,9 @@ abstract class TripStreamDataSource {
     required Map<String, dynamic> data,
   });
 
+  /// Delete a stale `request-meta/{metaId}` entry.
+  Future<void> deleteRequestMeta(String metaId);
+
   /// Remove trip listener (cleanup).
   void dispose();
 }
@@ -144,6 +147,13 @@ class TripStreamDataSourceImpl implements TripStreamDataSource {
       ...data,
       'updated_at': ServerValue.timestamp,
     });
+  }
+
+  @override
+  Future<void> deleteRequestMeta(String metaId) async {
+    if (!_isFirebaseReady) return;
+    debugPrint('🔥 deleteRequestMeta: removing stale entry $metaId');
+    await _db.ref('request-meta/$metaId').remove();
   }
 
   @override

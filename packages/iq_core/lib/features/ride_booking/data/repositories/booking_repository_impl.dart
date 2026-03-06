@@ -252,4 +252,16 @@ class BookingRepositoryImpl implements BookingRepository {
   Future<Either<Failure, Map<String, dynamic>>>
       fetchPassengerActiveTripDetails({required String requestId}) =>
           dataSource.fetchPassengerActiveTripDetails(requestId: requestId);
+
+  @override
+  Future<Either<Failure, bool>> uploadShipmentProof({
+    required String requestId,
+    required String imagePath,
+    required bool isBefore,
+  }) =>
+      dataSource.uploadShipmentProof(
+        requestId: requestId,
+        imagePath: imagePath,
+        isBefore: isBefore,
+      );
 }
