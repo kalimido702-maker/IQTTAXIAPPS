@@ -24,6 +24,11 @@ class BookingRepositoryImpl implements BookingRepository {
     int rideType = 1,
     String transportType = 'taxi',
     String? promoCode,
+    double? distance,
+    double? duration,
+    String? polyline,
+    String? pickAddress,
+    String? dropAddress,
   }) =>
       dataSource.getEta(
         pickLat: pickLat,
@@ -33,6 +38,11 @@ class BookingRepositoryImpl implements BookingRepository {
         rideType: rideType,
         transportType: transportType,
         promoCode: promoCode,
+        distance: distance,
+        duration: duration,
+        polyline: polyline,
+        pickAddress: pickAddress,
+        dropAddress: dropAddress,
       );
 
   @override
@@ -56,6 +66,10 @@ class BookingRepositoryImpl implements BookingRepository {
     int isLater = 0,
     String? tripStartTime,
     List<Map<String, dynamic>>? selectedPreferences,
+    String? distance,
+    String? duration,
+    String? promocodeId,
+    double? discountedTotal,
   }) =>
       dataSource.createRideRequest(
         pickLat: pickLat,
@@ -77,6 +91,10 @@ class BookingRepositoryImpl implements BookingRepository {
         isLater: isLater,
         tripStartTime: tripStartTime,
         selectedPreferences: selectedPreferences,
+        distance: distance,
+        duration: duration,
+        promocodeId: promocodeId,
+        discountedTotal: discountedTotal,
       );
 
   @override
@@ -180,6 +198,8 @@ class BookingRepositoryImpl implements BookingRepository {
     required String requestId,
     required double dropLat,
     required double dropLng,
+    String dropAddress = '',
+    String polyLine = '',
     required double distance,
     int beforeTripWaitingTime = 0,
     int afterTripWaitingTime = 0,
@@ -188,6 +208,8 @@ class BookingRepositoryImpl implements BookingRepository {
         requestId: requestId,
         dropLat: dropLat,
         dropLng: dropLng,
+        dropAddress: dropAddress,
+        polyLine: polyLine,
         distance: distance,
         beforeTripWaitingTime: beforeTripWaitingTime,
         afterTripWaitingTime: afterTripWaitingTime,
@@ -225,4 +247,9 @@ class BookingRepositoryImpl implements BookingRepository {
   @override
   Future<Either<Failure, IncomingRequestModel?>> fetchOnTripRequest() =>
       dataSource.fetchOnTripRequest();
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>>
+      fetchPassengerActiveTripDetails({required String requestId}) =>
+          dataSource.fetchPassengerActiveTripDetails(requestId: requestId);
 }

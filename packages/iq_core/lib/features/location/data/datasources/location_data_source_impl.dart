@@ -53,8 +53,8 @@ class LocationDataSourceImpl implements LocationDataSource {
       final response = await dio.post(
         'api/v1/user/update-location',
         data: {
-          'latitude': latitude,
-          'longitude': longitude,
+          'current_lat': latitude,
+          'current_lng': longitude,
         },
       );
 

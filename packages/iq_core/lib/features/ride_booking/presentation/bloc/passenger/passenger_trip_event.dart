@@ -20,6 +20,9 @@ class PassengerTripEtaRequested extends PassengerTripEvent {
     required this.pickAddress,
     required this.dropAddress,
     this.promoCode,
+    this.distance,
+    this.duration,
+    this.polyline,
   });
 
   final double pickLat;
@@ -30,8 +33,20 @@ class PassengerTripEtaRequested extends PassengerTripEvent {
   final String dropAddress;
   final String? promoCode;
 
+  /// Route distance in metres (from Google Directions).
+  final double? distance;
+
+  /// Route duration in seconds (from Google Directions).
+  final double? duration;
+
+  /// Encoded polyline string (from Google Directions).
+  final String? polyline;
+
   @override
-  List<Object?> get props => [pickLat, pickLng, dropLat, dropLng, promoCode];
+  List<Object?> get props => [
+        pickLat, pickLng, dropLat, dropLng, promoCode,
+        distance, duration, polyline,
+      ];
 }
 
 /// User selects a vehicle type.
@@ -188,4 +203,29 @@ class PassengerTripRestoreOngoing extends PassengerTripEvent {
 
   @override
   List<Object?> get props => [requestId];
+}
+
+/// User requested to change the drop-off location during an active trip.
+class PassengerTripChangeDropRequested extends PassengerTripEvent {
+  const PassengerTripChangeDropRequested({
+    required this.dropLat,
+    required this.dropLng,
+    required this.dropAddress,
+  });
+
+  final double dropLat;
+  final double dropLng;
+  final String dropAddress;
+
+  @override
+  List<Object?> get props => [dropLat, dropLng, dropAddress];
+}
+
+/// Internal: API returned driver info + fare enrichment data.
+class PassengerTripDetailsFetched extends PassengerTripEvent {
+  const PassengerTripDetailsFetched(this.enrichment);
+  final Map<String, dynamic> enrichment;
+
+  @override
+  List<Object?> get props => [enrichment];
 }

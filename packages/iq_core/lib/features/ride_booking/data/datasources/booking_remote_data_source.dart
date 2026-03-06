@@ -12,6 +12,8 @@ abstract class BookingRemoteDataSource {
   // ─── Passenger APIs ───
 
   /// Get ETA with vehicle types and pricing.
+  /// Pass [distance] (metres), [duration] (seconds) and [polyline]
+  /// from Google Directions so the server can compute the correct fare.
   Future<Either<Failure, List<VehicleTypeModel>>> getEta({
     required double pickLat,
     required double pickLng,
@@ -20,6 +22,11 @@ abstract class BookingRemoteDataSource {
     int rideType = 1,
     String transportType = 'taxi',
     String? promoCode,
+    double? distance,
+    double? duration,
+    String? polyline,
+    String? pickAddress,
+    String? dropAddress,
   });
 
   /// Create a ride request.
@@ -43,6 +50,10 @@ abstract class BookingRemoteDataSource {
     int isLater = 0,
     String? tripStartTime,
     List<Map<String, dynamic>>? selectedPreferences,
+    String? distance,
+    String? duration,
+    String? promocodeId,
+    double? discountedTotal,
   });
 
   /// Cancel a ride request.
@@ -112,6 +123,8 @@ abstract class BookingRemoteDataSource {
     required String requestId,
     required double dropLat,
     required double dropLng,
+    String dropAddress = '',
+    String polyLine = '',
     required double distance,
     int beforeTripWaitingTime = 0,
     int afterTripWaitingTime = 0,
@@ -149,4 +162,13 @@ abstract class BookingRemoteDataSource {
   /// Returns the request model with the trip ID needed to start
   /// the Firebase stream.
   Future<Either<Failure, IncomingRequestModel?>> fetchOnTripRequest();
+
+  /// (Passenger) Fetch active trip details including driver info and fare.
+  ///
+  /// Calls `GET api/v1/request/history/{requestId}` which returns full
+  /// trip details with nested `driverDetail` and `requestBill`.
+  /// Returns a map of enrichment fields compatible with
+  /// [ActiveTripModel.copyWith].
+  Future<Either<Failure, Map<String, dynamic>>>
+      fetchPassengerActiveTripDetails({required String requestId});
 }

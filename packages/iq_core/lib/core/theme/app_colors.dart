@@ -133,6 +133,11 @@ class AppColors {
   static const Color chatInputHint = Color(0xFFB8B8B8);
   static const Color chatShadow = Color(0x11000000);
 
+  // ─── Incentive Page ───
+  static const Color incentiveHeaderDark = Color(0xFF0A1F2E);
+  static const Color incentiveSuccess = Color(0xFF2E7D32);
+  static const Color incentivePartial = Color(0xFFE65100);
+
   // ─── Dark Mode Surfaces ───
   static const Color darkSurface = Color(0xFF1E1E1E);
   static const Color darkBackground = Color(0xFF121212);

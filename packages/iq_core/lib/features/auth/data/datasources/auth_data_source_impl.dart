@@ -290,6 +290,7 @@ class AuthDataSourceImpl implements AuthDataSource {
     try {
       await prefs.remove(_tokenKey);
       await prefs.remove(_userKey);
+      await prefs.remove('skipSubscription');
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(message: e.toString()));

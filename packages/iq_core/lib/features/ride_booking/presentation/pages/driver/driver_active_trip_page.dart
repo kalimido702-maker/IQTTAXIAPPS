@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -53,6 +55,70 @@ class _Body extends StatefulWidget {
 
 class _BodyState extends State<_Body> {
   final _mapKey = GlobalKey<IqMapViewState>();
+  StreamSubscription<Position>? _locationSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _startLocationStream();
+
+    // If the page opens and the trip is already completed (restored from
+    // _onCheckActiveTrip), the BlocConsumer listener won't fire because
+    // there's no state *change*. Handle this edge case explicitly.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final status = context.read<DriverTripBloc>().state.status;
+      if (status == DriverTripStatus.tripCompleted) {
+        _navigateToInvoice();
+      } else if (status == DriverTripStatus.cancelled) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _locationSub?.cancel();
+    super.dispose();
+  }
+
+  /// Continuously stream GPS position to Firebase so the passenger app
+  /// can show the driver marker on the map in real-time.
+  void _startLocationStream() {
+    _locationSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // metres — avoid spamming Firebase
+      ),
+    ).listen(
+      (pos) {
+        if (!mounted) return;
+        context.read<DriverTripBloc>().add(
+              DriverTripLocationUpdated(
+                lat: pos.latitude,
+                lng: pos.longitude,
+                bearing: pos.heading,
+              ),
+            );
+      },
+      onError: (e) {
+        debugPrint('📍 DriverActiveTripPage: location stream error: $e');
+      },
+    );
+  }
+
+  void _navigateToInvoice() {
+    final requestId = context.read<DriverTripBloc>().state.requestId ?? '';
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TripInvoicePage(
+          requestId: requestId,
+          isDriver: true,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,15 +128,7 @@ class _BodyState extends State<_Body> {
           prev.errorMessage != curr.errorMessage,
       listener: (context, state) {
         if (state.status == DriverTripStatus.tripCompleted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TripInvoicePage(
-                requestId: state.requestId ?? '',
-                isDriver: true,
-              ),
-            ),
-          );
+          _navigateToInvoice();
         }
         if (state.status == DriverTripStatus.cancelled) {
           Navigator.of(context).popUntil((route) => route.isFirst);
@@ -225,6 +283,21 @@ class _DriverTripMapState extends State<_DriverTripMap> {
         setState(() => _routePoints = result.polylinePoints);
         final bounds = calculateBounds(result.polylinePoints);
         widget.mapKey.currentState?.fitBounds(bounds);
+
+        // Write the encoded polyline to Firebase so the passenger can
+        // see the real route in real-time AND it's available at end-ride.
+        final encoded = result.encodedPolyline;
+        if (encoded.isNotEmpty) {
+          final reqId = widget.state.requestId;
+          if (reqId != null && reqId.isNotEmpty) {
+            try {
+              context.read<DriverTripBloc>().tripStream.updateTripNode(
+                    requestId: reqId,
+                    data: {'polyline': encoded},
+                  );
+            } catch (_) {}
+          }
+        }
       }
     } else {
       // arrived — clear route
@@ -860,7 +933,9 @@ class _DriverPhaseButtons extends StatelessWidget {
                       requestId: requestId,
                       dropLat: incomingRequest?.dropLat ?? 0,
                       dropLng: incomingRequest?.dropLng ?? 0,
+                      dropAddress: incomingRequest?.dropAddress ?? '',
                       distance: trip?.distance ?? 0,
+                      polyLine: trip?.polyline ?? '',
                     ),
                   );
             },

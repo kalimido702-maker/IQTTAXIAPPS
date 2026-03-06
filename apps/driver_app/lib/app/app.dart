@@ -246,9 +246,15 @@ class _AppHome extends StatelessWidget {
       IqSidebarItem(
         icon: Icons.emoji_events_outlined,
         label: AppStrings.incentives,
-        onTap: (_) {
-          // TODO: navigate to incentives page
-        },
+        onTap: (ctx) => Navigator.of(ctx).push(
+          MaterialPageRoute<void>(
+            builder: (_) => BlocProvider(
+              create: (_) => sl<IncentiveBloc>()
+                ..add(const IncentiveLoadRequested(type: 0)),
+              child: const IncentivePage(),
+            ),
+          ),
+        ),
       ),
       IqSidebarItem(
         icon: Icons.account_balance_wallet_outlined,
@@ -262,6 +268,33 @@ class _AppHome extends StatelessWidget {
             ),
           ),
         ),
+      ),
+      IqSidebarItem(
+        icon: Icons.card_membership_rounded,
+        label: AppStrings.subscription,
+        onTap: (ctx) {
+          final homeData = ctx.read<DriverHomeBloc>().state.homeData;
+          final activeSub = homeData?.subscriptionData != null
+              ? ActiveSubscription.fromJson(homeData!.subscriptionData!)
+              : null;
+          Navigator.of(ctx).push(
+            MaterialPageRoute<void>(
+              builder: (_) => BlocProvider(
+                create: (_) => sl<SubscriptionBloc>()
+                  ..add(SubscriptionLoadPlans(
+                    activeSubscription: activeSub,
+                    hasSubscription: homeData?.hasSubscription ?? false,
+                    isExpired: homeData?.isSubscriptionExpired ?? false,
+                    walletBalance:
+                        homeData?.wallet.balance ?? 0,
+                    currencySymbol:
+                        homeData?.currencySymbol ?? 'IQD',
+                  )),
+                child: const SubscriptionPage(),
+              ),
+            ),
+          );
+        },
       ),
       IqSidebarItem(
         icon: Icons.card_giftcard_rounded,

@@ -7,16 +7,14 @@ import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_dimens.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../core/widgets/iq_image.dart';
 import '../../../../../core/widgets/iq_primary_button.dart';
 import '../../../../../core/widgets/iq_text.dart';
 import '../../../../wallet/presentation/pages/payment_web_view_page.dart';
 import '../../../data/datasources/trip_stream_data_source.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../domain/repositories/booking_repository.dart';
-import '../../widgets/driver_info_card.dart';
-import '../../widgets/trip_address_row.dart';
 import '../../widgets/trip_fare_breakdown.dart';
-import '../../widgets/trip_info_row.dart';
 import 'trip_rating_page.dart';
 
 /// Trip invoice / summary page (Figma 7:894).
@@ -165,13 +163,21 @@ class _InvoiceContentState extends State<_InvoiceContent> {
   }
 
   void _navigateToRating() {
+    // When driver views: show passenger info. When passenger views: show driver info.
+    final otherName = widget.isDriver
+        ? (widget.invoice.userName ?? '')
+        : (widget.invoice.driverName ?? '');
+    final otherPhoto = widget.isDriver
+        ? widget.invoice.userImage
+        : widget.invoice.driverImage;
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (_) => TripRatingPage(
           requestId: widget.requestId,
-          otherPersonName: widget.invoice.driverName ?? '',
-          otherPersonPhoto: widget.invoice.driverImage,
+          otherPersonName: otherName,
+          otherPersonPhoto: otherPhoto,
           isDriver: widget.isDriver,
         ),
       ),
@@ -200,6 +206,20 @@ class _InvoiceContentState extends State<_InvoiceContent> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final onSurface = Theme.of(context).colorScheme.onSurface;
+    final cardBorder = isDark ? AppColors.darkDivider : AppColors.grayBorder;
+    final cardBg = isDark ? AppColors.darkCard : AppColors.white;
+
+    // When driver views: show passenger info. When passenger views: show driver info.
+    final otherPersonName = widget.isDriver
+        ? (widget.invoice.userName ?? '')
+        : (widget.invoice.driverName ?? '');
+    final otherPersonImage = widget.isDriver
+        ? widget.invoice.userImage
+        : widget.invoice.driverImage;
+    final otherPersonRating = widget.isDriver
+        ? (widget.invoice.userRating ?? '0.0')
+        : (widget.invoice.driverRating ?? '0.0');
+
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(
         horizontal: AppDimens.paddingLG,
@@ -208,48 +228,346 @@ class _InvoiceContentState extends State<_InvoiceContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: 16.h),
-          // Header
-          Center(
-            child: IqText(
-              AppStrings.tripSummary,
-              style: AppTypography.heading2.copyWith(color: onSurface),
-            ),
+          // ── Back + Title ──
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => _navigateToRating(),
+                child: Icon(Icons.arrow_back, size: 24.w, color: onSurface),
+              ),
+              const Spacer(),
+              IqText(
+                AppStrings.tripSummary,
+                style: AppTypography.heading2.copyWith(
+                  color: onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              SizedBox(width: 24.w), // balance
+            ],
           ),
           SizedBox(height: 24.h),
 
-          // Driver/User info
-          if (widget.invoice.driverName != null)
-            DriverInfoCard(
-              name: widget.invoice.driverName!,
-              photoUrl: widget.invoice.driverImage,
-              rating: 0,
-              carModel: null,
-              showActions: false,
+          // ── Driver Card (bordered) ──
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(12.r),
+              // border: Border.all(color: cardBorder),
             ),
-          SizedBox(height: 20.h),
-
-          // Trip info row
-          TripInfoRow(
-            duration: '${widget.invoice.duration} ${AppStrings.minute}',
-            distance:
-                '${widget.invoice.distance.toStringAsFixed(2)} ${AppStrings.km}',
-            rideType: AppStrings.regular,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    // Avatar
+                    ClipOval(
+                      child: SizedBox(
+                        width: 64.w,
+                        height: 64.w,
+                        child: otherPersonImage != null &&
+                                otherPersonImage.isNotEmpty
+                            ? IqImage(
+                                otherPersonImage,
+                                fit: BoxFit.cover,
+                                width: 64.w,
+                                height: 64.w,
+                              )
+                            : Container(
+                                color: AppColors.grayLightBg,
+                                child: Icon(Icons.person,
+                                    size: 36.w, color: AppColors.grayLight),
+                              ),
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    // Name + rating
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: IqText(
+                                  otherPersonName,
+                                  style: AppTypography.heading3.copyWith(
+                                    color: onSurface,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              SizedBox(width: 6.w),
+                              Icon(Icons.star_rounded,
+                                  size: 16.w, color: AppColors.starFilled),
+                              SizedBox(width: 2.w),
+                              IqText(
+                                otherPersonRating,
+                                style: AppTypography.numberSmall.copyWith(
+                                  color: onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                dir: TextDirection.ltr,
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4.h),
+                          // Vehicle info row
+                          Row(
+                            children: [
+                              if (widget.invoice.vehicleMake != null) ...[
+                                IqText(
+                                  widget.invoice.vehicleMake!,
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                                SizedBox(width: 6.w),
+                              ],
+                              if (widget.invoice.vehicleNumber != null)
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 6.w,
+                                    vertical: 2.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? AppColors.darkInputBg
+                                        : AppColors.grayLightBg,
+                                    borderRadius: BorderRadius.circular(4.r),
+                                  ),
+                                  child: IqText(
+                                    widget.invoice.vehicleNumber!,
+                                    style: AppTypography.numberSmall.copyWith(
+                                      color: onSurface,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 11.sp,
+                                    ),
+                                    dir: TextDirection.ltr,
+                                  ),
+                                ),
+                              if (widget.invoice.vehicleColor != null) ...[
+                                SizedBox(width: 6.w),
+                                IqText(
+                                  'Color:',
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                                SizedBox(width: 4.w),
+                                Container(
+                                  width: 14.w,
+                                  height: 14.w,
+                                  decoration: BoxDecoration(
+                                    color: _parseColor(
+                                        widget.invoice.vehicleColor!),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppColors.grayBorder,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    // Taxi badge + request number
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IqText(
+                              AppStrings.taxi,
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(width: 4.w),
+                            Icon(Icons.local_taxi_rounded,
+                                size: 16.w, color: AppColors.primary),
+                          ],
+                        ),
+                        SizedBox(height: 6.h),
+                        IqText(
+                          AppStrings.orderNumber,
+                          style: AppTypography.caption.copyWith(
+                            color: onSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        IqText(
+                          widget.invoice.requestNumber,
+                          style: AppTypography.numberSmall.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                          dir: TextDirection.ltr,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           SizedBox(height: 20.h),
 
-          // Addresses
-          TripAddressRow(
-            pickAddress: widget.invoice.pickAddress,
-            dropAddress: widget.invoice.dropAddress,
+          // ── Trip Info Section Header ──
+          IqText(
+            AppStrings.tripInfo,
+            style: AppTypography.heading3.copyWith(
+              color: onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 10.h),
+
+          // ── Trip Info Card (bordered yellow-ish) ──
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              children: [
+                // Duration + Distance
+                Row(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.access_time_rounded,
+                              size: 18.w, color: AppColors.textMuted),
+                          SizedBox(width: 6.w),
+                          IqText(
+                            '${AppStrings.duration} : ',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          IqText(
+                            '${widget.invoice.duration.toStringAsFixed(0)} ${AppStrings.minute}',
+                            style: AppTypography.labelMedium.copyWith(
+                              color: onSurface,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 24.h,
+                      color: cardBorder,
+                    ),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.straighten_rounded,
+                              size: 18.w, color: AppColors.textMuted),
+                          SizedBox(width: 6.w),
+                          IqText(
+                            '${AppStrings.distance} : ',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          IqText(
+                            '${widget.invoice.distance.toStringAsFixed(2)} ${AppStrings.km}',
+                            style: AppTypography.labelMedium.copyWith(
+                              color: onSurface,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10.h),
+                // Ride type
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.local_taxi_rounded,
+                        size: 18.w, color: AppColors.textMuted),
+                    SizedBox(width: 6.w),
+                    IqText(
+                      '${AppStrings.tripType} : ',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    IqText(
+                      widget.invoice.rideType ?? AppStrings.regular,
+                      style: AppTypography.labelMedium.copyWith(
+                        color: onSurface,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           SizedBox(height: 20.h),
 
-          // Divider
-          Divider(color: isDark ? AppColors.darkDivider : AppColors.grayBorder),
-          SizedBox(height: 12.h),
+          // ── Addresses Section Header ──
+          IqText(
+            AppStrings.tripAddresses,
+            style: AppTypography.heading3.copyWith(
+              color: onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 10.h),
 
-          // Fare breakdown
+          // ── Pickup Address ──
+          _InvoiceAddressCard(
+            address: widget.invoice.pickAddress,
+            iconColor: AppColors.markerGreen,
+          ),
+          SizedBox(height: 8.h),
+
+          // ── Drop Address ──
+          _InvoiceAddressCard(
+            address: widget.invoice.dropAddress,
+            iconColor: AppColors.markerRed,
+          ),
+          SizedBox(height: 20.h),
+
+          // ── Fare Details Section Header ──
+          IqText(
+            AppStrings.fareDetails,
+            style: AppTypography.heading3.copyWith(
+              color: onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 10.h),
+
+          // ── Fare Breakdown ──
           TripFareBreakdown(
             baseFare: widget.invoice.baseFare,
             distanceFare: widget.invoice.distanceFare,
@@ -262,35 +580,43 @@ class _InvoiceContentState extends State<_InvoiceContent> {
             currency: widget.invoice.currency,
             currencySymbol: widget.invoice.currencySymbol,
           ),
-          SizedBox(height: 20.h),
+          SizedBox(height: 24.h),
 
-          // Payment method
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkInputBg : AppColors.grayLightBg,
-              borderRadius: BorderRadius.circular(12.r),
-            ),
+          // ── Payment method with change option ──
+          Center(
             child: Row(
               children: [
                 Icon(
-                  Icons.payments_outlined,
-                  size: 22.w,
-                  color: onSurface,
+                  _paymentIcon(widget.invoice.paymentMethod),
+                  size: 28.w,
+                  color: AppColors.success,
                 ),
-                SizedBox(width: 10.w),
-                IqText(
-                  widget.invoice.paymentMethodName,
-                  style: AppTypography.labelMedium.copyWith(
-                    color: onSurface,
-                  ),
+                SizedBox(width: 12.w),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    IqText(
+                      widget.invoice.paymentMethodName,
+                      style: AppTypography.heading3.copyWith(
+                        color: onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    IqText(
+                      AppStrings.changePaymentMethod,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          SizedBox(height: 32.h),
+          SizedBox(height: 24.h),
 
-          // Action button
+          // ── Action Button ──
           IqPrimaryButton(
             text: widget.isDriver
                 ? AppStrings.paymentReceived
@@ -304,5 +630,90 @@ class _InvoiceContentState extends State<_InvoiceContent> {
         ],
       ),
     );
+  }
+}
+
+// ── Bordered address card for invoice ──
+class _InvoiceAddressCard extends StatelessWidget {
+  const _InvoiceAddressCard({
+    required this.address,
+    required this.iconColor,
+  });
+
+  final String address;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.white,
+        borderRadius: BorderRadius.circular(30.r),
+        border: Border.all(
+          color: isDark ? AppColors.darkDivider : AppColors.grayBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.location_on, size: 20.w, color: iconColor),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: IqText(
+              address,
+              style: AppTypography.bodySmall.copyWith(
+                color: isDark ? AppColors.white : AppColors.textDark,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Color parser for vehicle color names.
+Color _parseColor(String colorName) {
+  final lower = colorName.toLowerCase();
+  const map = <String, Color>{
+    'red': Colors.red,
+    'blue': Colors.blue,
+    'green': Colors.green,
+    'black': Colors.black,
+    'white': Colors.white,
+    'silver': Colors.grey,
+    'gray': Colors.grey,
+    'grey': Colors.grey,
+    'yellow': Colors.amber,
+    'orange': Colors.orange,
+    'brown': Colors.brown,
+    'gold': Color(0xFFFFD700),
+    'أحمر': Colors.red,
+    'أزرق': Colors.blue,
+    'أخضر': Colors.green,
+    'أسود': Colors.black,
+    'أبيض': Colors.white,
+    'فضي': Colors.grey,
+    'رمادي': Colors.grey,
+    'أصفر': Colors.amber,
+    'برتقالي': Colors.orange,
+    'بني': Colors.brown,
+  };
+  return map[lower] ?? Colors.grey;
+}
+
+/// Payment icon based on method code.
+IconData _paymentIcon(int method) {
+  switch (method) {
+    case 0:
+      return Icons.credit_card;
+    case 2:
+      return Icons.account_balance_wallet_outlined;
+    default:
+      return Icons.payments_outlined;
   }
 }

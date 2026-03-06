@@ -1,3 +1,4 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,13 +19,16 @@ import '../../../../../core/widgets/iq_text.dart';
 import '../../../../home/presentation/bloc/passenger_home_bloc.dart';
 import '../../../data/models/active_trip_model.dart';
 import '../../../data/models/cancel_reason_model.dart';
+import '../../../domain/repositories/booking_repository.dart';
 import '../../bloc/passenger/passenger_trip_bloc.dart';
 import '../../bloc/passenger/passenger_trip_event.dart';
 import '../../bloc/passenger/passenger_trip_state.dart';
 import '../../widgets/cancel_reasons_sheet.dart';
 import '../../widgets/fake_car_markers.dart';
+import '../../widgets/ride_bottom_sheets.dart';
 import '../../widgets/searching_driver_animation.dart';
 import '../../widgets/trip_action_buttons.dart';
+import 'map_picker_page.dart';
 import 'trip_invoice_page.dart';
 
 /// The main active trip page for passengers.
@@ -79,7 +83,11 @@ class _BodyState extends State<_Body> {
         }
       },
       buildWhen: (prev, curr) =>
-          prev.status != curr.status || prev.activeTripData != curr.activeTripData,
+          prev.status != curr.status ||
+          prev.activeTripData != curr.activeTripData ||
+          prev.dropAddress != curr.dropAddress ||
+          prev.dropLat != curr.dropLat ||
+          prev.dropLng != curr.dropLng,
       builder: (context, state) {
         return PopScope(
           canPop: false,
@@ -143,6 +151,15 @@ class _TripMapState extends State<_TripMap> {
   @override
   void didUpdateWidget(_TripMap old) {
     super.didUpdateWidget(old);
+
+    // If the drop location changed (destination change), reset the route
+    // so that it re-fetches directions for the new drop coordinates.
+    if (old.state.dropLat != widget.state.dropLat ||
+        old.state.dropLng != widget.state.dropLng) {
+      _routePoints = null;
+      _lastPolylineSource = null;
+    }
+
     _updateRoute();
     _updateFakeCars();
   }
@@ -225,8 +242,20 @@ class _TripMapState extends State<_TripMap> {
   @override
   Widget build(BuildContext context) {
     final trip = widget.state.activeTripData;
+    final phase = trip?.phase;
+    final isDriverApproaching =
+        phase == TripPhase.driverOnWay || phase == TripPhase.driverArrived;
+    final hasDriverPos = trip != null && (trip.driverLat ?? 0) != 0;
 
-    // Pickup marker
+    if (trip != null && !hasDriverPos) {
+      debugPrint('⚠️ [Map] Driver lat/lng missing: lat=${trip.driverLat}, lng=${trip.driverLng}, phase=${trip.phase}');
+    }
+
+    // ── Markers ──
+
+    // During driver-on-way/arrived: show only pickup + driver car.
+    // During in-progress: show pickup + dropoff + driver car.
+    // During searching: show pickup + dropoff (fake cars handled separately).
     if (widget.state.pickLat != 0) {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.pickup,
@@ -235,40 +264,57 @@ class _TripMapState extends State<_TripMap> {
       ));
     }
 
-    // Dropoff marker
-    if (widget.state.dropLat != 0) {
+    if (!isDriverApproaching && widget.state.dropLat != 0) {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.dropoff,
         position: LatLng(widget.state.dropLat, widget.state.dropLng),
         icon: MapIcons.dropoff,
       ));
+    } else if (isDriverApproaching) {
+      // Remove dropoff marker during driver-approaching phase.
+      _markerPool.remove(MapMarkerIds.dropoff.value);
     }
 
-    // Driver marker
-    if (trip != null && (trip.driverLat ?? 0) != 0) {
+    // Driver car marker
+    if (hasDriverPos) {
+      debugPrint('🚗 [Map] Driver pos: ${trip.driverLat}, ${trip.driverLng}, bearing: ${trip.driverBearing}');
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.driver,
         position: LatLng(trip.driverLat ?? 0.0, trip.driverLng ?? 0.0),
-        icon: MapIcons.driver,
+        icon: MapIcons.car,
         rotation: trip.driverBearing ?? 0.0,
         anchor: const Offset(0.5, 0.5),
         flat: true,
       ));
     }
 
-    // Route polyline — use decoded Google route if available.
-    final routePts = _routePoints;
-    final pickup = LatLng(widget.state.pickLat, widget.state.pickLng);
-    final dropoff = LatLng(widget.state.dropLat, widget.state.dropLng);
-    if (routePts != null && routePts.length >= 2) {
-      final snapped = RouteHelper.snapToEndpoints(routePts, pickup, dropoff);
-      _polylinePool.upsert(MapRouteStyle.route(points: snapped));
-    } else if (widget.state.pickLat != 0 && widget.state.dropLat != 0) {
-      // Fallback straight line
+    // ── Polyline ──
+
+    if (isDriverApproaching && hasDriverPos) {
+      // Driver → Pickup polyline
+      final driverPos = LatLng(trip.driverLat!, trip.driverLng!);
+      final pickupPos = LatLng(widget.state.pickLat, widget.state.pickLng);
       _polylinePool.upsert(MapRouteStyle.fallbackLine(
-        from: LatLng(widget.state.pickLat, widget.state.pickLng),
-        to: LatLng(widget.state.dropLat, widget.state.dropLng),
+        from: driverPos,
+        to: pickupPos,
       ));
+    } else if (isDriverApproaching && !hasDriverPos) {
+      // Driver approaching but no position yet — clear any old polyline.
+      _polylinePool.clear();
+    } else {
+      // Pickup → Dropoff polyline
+      final routePts = _routePoints;
+      final pickup = LatLng(widget.state.pickLat, widget.state.pickLng);
+      final dropoff = LatLng(widget.state.dropLat, widget.state.dropLng);
+      if (routePts != null && routePts.length >= 2) {
+        final snapped = RouteHelper.snapToEndpoints(routePts, pickup, dropoff);
+        _polylinePool.upsert(MapRouteStyle.route(points: snapped));
+      } else if (widget.state.pickLat != 0 && widget.state.dropLat != 0) {
+        _polylinePool.upsert(MapRouteStyle.fallbackLine(
+          from: pickup,
+          to: dropoff,
+        ));
+      }
     }
 
     return IqMapView(
@@ -278,6 +324,8 @@ class _TripMapState extends State<_TripMap> {
           : null,
       markers: {..._markerPool.markers, ..._fakeCarsMarkers},
       polylines: _polylinePool.polylines,
+      myLocationEnabled: true,
+      myLocationButtonEnabled: false,
       mapPadding: EdgeInsets.only(bottom: 320.h),
     );
   }
@@ -404,132 +452,111 @@ class _ActiveTripSheet extends StatelessWidget {
             ),
           ],
         ),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Drag handle ──
-              Center(
-                child: Container(
-                  width: 50.w,
-                  height: 5.h,
-                  decoration: BoxDecoration(
-                    color: AppColors.black.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10.r),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 16.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Drag handle ──
+                Center(
+                  child: Container(
+                    width: 50.w,
+                    height: 5.h,
+                    decoration: BoxDecoration(
+                      color: AppColors.black.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(height: 12.h),
+                SizedBox(height: 12.h),
 
-              // ── "حالة الرحلة" title ──
-              Center(
-                child: IqText(
-                  AppStrings.tripStatus,
-                  style: AppTypography.heading3.copyWith(
-                    color: isDark ? AppColors.white : AppColors.textDark,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10.h),
-
-              // ── Full-width status badge ──
-              _PassengerStatusBadge(phase: trip.phase),
-              SizedBox(height: 16.h),
-
-              // ── Waiting charge warning (driver arrived) ──
-              if (trip.phase == TripPhase.driverArrived)
-                _WaitingBanner(),
-
-              // ── Driver info ──
-              _DriverRow(
-                name: trip.driverName ?? '',
-                photoUrl: trip.driverProfilePic,
-                rating: trip.driverRatingValue,
-                vehicleInfo: trip.vehicleTypeName,
-                plateNumber: trip.vehicleNumber,
-                onChat: () {
-                  _callPhone(context, trip.driverMobile);
-                },
-                onCall: () {
-                  _callPhone(context, trip.driverMobile);
-                },
-              ),
-              SizedBox(height: 16.h),
-
-              // ── Addresses in bordered cards ──
-              _BorderedAddressCard(
-                address: state.pickAddress,
-                iconColor: AppColors.markerGreen,
-              ),
-              SizedBox(height: 8.h),
-              _BorderedAddressCard(
-                address: state.dropAddress,
-                iconColor: AppColors.markerRed,
-              ),
-              SizedBox(height: 16.h),
-
-              // ── Fare + payment ──
-              _FarePaymentRow(
-                amount: trip.totalAmount,
-                currencySymbol: trip.currencySymbol,
-                paymentMethod: trip.paymentMethod,
-              ),
-
-              // ── Action buttons (in progress) ──
-              if (trip.phase == TripPhase.inProgress) ...[
+                // ── Phase-specific ETA header ──
+                _TripPhaseHeader(trip: trip),
                 SizedBox(height: 16.h),
-                TripActionButtons(
-                  onLocate: () {
-                    if ((trip.driverLat ?? 0) != 0) {
-                      mapKey.currentState?.animateTo(
-                        LatLng(trip.driverLat ?? 0.0, trip.driverLng ?? 0.0),
-                      );
-                    }
-                  },
-                  onShareTrip: () {
-                    _shareTrip(
+
+                // ── Waiting charge warning (driver arrived) ──
+                if (trip.phase == TripPhase.driverArrived) _WaitingBanner(),
+
+                // ── Driver info ──
+                _DriverRow(
+                  name: trip.driverName ?? '',
+                  photoUrl: trip.driverProfilePic,
+                  rating: trip.driverRatingValue,
+                  vehicleInfo: trip.vehicleTypeName,
+                  plateNumber: trip.vehicleNumber,
+                  vehicleColor: trip.vehicleColor,
+                  onChat: () => _callPhone(context, trip.driverMobile),
+                  onCall: () => _callPhone(context, trip.driverMobile),
+                ),
+                SizedBox(height: 16.h),
+
+                // ── Pickup address ──
+                _BorderedAddressCard(
+                  address: state.pickAddress,
+                  iconColor: AppColors.markerRed,
+                ),
+                SizedBox(height: 8.h),
+
+                // ── Drop address with change button ──
+                _BorderedAddressCard(
+                  address: state.dropAddress,
+                  iconColor: AppColors.circleBlue,
+                  showChange: true,
+                  onChangeTap: () => _changeDropLocation(
+                    context,
+                    currentDropLat: state.dropLat,
+                    currentDropLng: state.dropLng,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+
+                // ── Payment method ──
+                _PaymentMethodRow(
+                  paymentMethod: trip.paymentMethod,
+                  onTap: () => _showChangePaymentSheet(
+                    context,
+                    state.requestId ?? '',
+                    currentPayment: int.tryParse(trip.paymentMethod ?? '1') ?? 1,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+
+                // ── Action buttons (in progress) ──
+                if (trip.phase == TripPhase.inProgress) ...[
+                  TripActionButtons(
+                    onLocate: () {
+                      if ((trip.driverLat ?? 0) != 0) {
+                        mapKey.currentState?.animateTo(
+                          LatLng(
+                              trip.driverLat ?? 0.0, trip.driverLng ?? 0.0),
+                        );
+                      }
+                    },
+                    onShareTrip: () => _shareTrip(
                       context,
                       driverName: trip.driverName ?? '',
                       pickAddress: state.pickAddress,
                       dropAddress: state.dropAddress,
-                    );
-                  },
-                  onSos: () {
-                    _callSos(context);
-                  },
-                ),
-              ],
+                    ),
+                    onSos: () => _callSos(context),
+                  ),
+                ],
 
-              // ── Cancel (before trip starts) ──
-              if (trip.phase != TripPhase.inProgress) ...[
-                SizedBox(height: 16.h),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48.h,
-                  child: OutlinedButton(
-                    onPressed: () => _showCancelConfirmation(
+                // ── Bottom: Cancel + Fare (before trip starts) ──
+                if (trip.phase != TripPhase.inProgress) ...[
+                  _CancelFareRow(
+                    fareAmount: trip.totalAmount,
+                    currencySymbol: trip.currencySymbol,
+                    onCancel: () => _showCancelConfirmation(
                       context,
                       state.requestId ?? '',
                     ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(1000.r),
-                      ),
-                    ),
-                    child: IqText(
-                      AppStrings.cancelTrip,
-                      style: AppTypography.button.copyWith(
-                        color: AppColors.error,
-                      ),
-                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -538,70 +565,81 @@ class _ActiveTripSheet extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Full-width coloured status badge for passenger trip phases.
+// Phase-specific header: ETA for on-way, status text for arrived/in-progress.
 // ---------------------------------------------------------------------------
 
-class _PassengerStatusBadge extends StatelessWidget {
-  const _PassengerStatusBadge({required this.phase});
-  final TripPhase phase;
-
-  String get _text {
-    switch (phase) {
-      case TripPhase.driverOnWay:
-        return AppStrings.driverOnWay;
-      case TripPhase.driverArrived:
-        return AppStrings.driverArrived;
-      case TripPhase.inProgress:
-        return AppStrings.arrivingToDestination;
-      default:
-        return '';
-    }
-  }
-
-  Color get _bgColor {
-    switch (phase) {
-      case TripPhase.driverOnWay:
-        return AppColors.primary;
-      case TripPhase.driverArrived:
-        return AppColors.warning;
-      case TripPhase.inProgress:
-        return AppColors.success;
-      default:
-        return AppColors.primary;
-    }
-  }
-
-  Color get _textColor {
-    switch (phase) {
-      case TripPhase.driverOnWay:
-        return AppColors.textDark;
-      case TripPhase.driverArrived:
-        return AppColors.white;
-      case TripPhase.inProgress:
-        return AppColors.white;
-      default:
-        return AppColors.textDark;
-    }
-  }
+class _TripPhaseHeader extends StatelessWidget {
+  const _TripPhaseHeader({required this.trip});
+  final ActiveTripModel trip;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(vertical: 10.h),
-      decoration: BoxDecoration(
-        color: _bgColor,
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      alignment: Alignment.center,
-      child: IqText(
-        _text,
-        style: AppTypography.labelLarge.copyWith(
-          color: _textColor,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    switch (trip.phase) {
+      case TripPhase.driverOnWay:
+        // Show ETA: "سيصلك السائق خلال X دقائق"
+        final minutes =
+            (trip.pickupDuration > 0) ? trip.pickupDuration.toInt() : 1;
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+          child: Center(
+            child: Text.rich(
+              TextSpan(
+                style: AppTypography.heading2.copyWith(
+                  color: isDark ? AppColors.white : AppColors.textDark,
+                ),
+                children: [
+                  TextSpan(text: '${AppStrings.driverArrivingIn} '),
+                  TextSpan(
+                    text: '$minutes',
+                    style: AppTypography.heading3.copyWith(
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  TextSpan(text: ' ${AppStrings.minutesPlural}'),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        );
+
+      case TripPhase.driverArrived:
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+          child: Center(
+            child: IqText(
+              AppStrings.driverArrived,
+              style: AppTypography.heading3.copyWith(
+                color: AppColors.black,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+
+      case TripPhase.inProgress:
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+          child: Center(
+            child: IqText(
+              AppStrings.onWayToDropoff,
+              style: AppTypography.heading3.copyWith(
+                color: AppColors.black,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
   }
 }
 
@@ -616,6 +654,7 @@ class _DriverRow extends StatelessWidget {
     this.rating = 0,
     this.vehicleInfo,
     this.plateNumber,
+    this.vehicleColor,
     this.onChat,
     this.onCall,
   });
@@ -625,12 +664,46 @@ class _DriverRow extends StatelessWidget {
   final double rating;
   final String? vehicleInfo;
   final String? plateNumber;
+  final String? vehicleColor;
   final VoidCallback? onChat;
   final VoidCallback? onCall;
+
+  /// Try to parse a vehicle colour name into a Flutter [Color].
+  Color? get _parsedColor {
+    if (vehicleColor == null || vehicleColor!.isEmpty) return null;
+    final lower = vehicleColor!.toLowerCase();
+    const map = <String, Color>{
+      'red': Colors.red,
+      'blue': Colors.blue,
+      'green': Colors.green,
+      'black': Colors.black,
+      'white': Colors.white,
+      'silver': Colors.grey,
+      'gray': Colors.grey,
+      'grey': Colors.grey,
+      'yellow': Colors.amber,
+      'orange': Colors.orange,
+      'brown': Colors.brown,
+      'gold': Color(0xFFFFD700),
+      'beige': Color(0xFFF5F5DC),
+      'أحمر': Colors.red,
+      'أزرق': Colors.blue,
+      'أخضر': Colors.green,
+      'أسود': Colors.black,
+      'أبيض': Colors.white,
+      'فضي': Colors.grey,
+      'رمادي': Colors.grey,
+      'أصفر': Colors.amber,
+      'برتقالي': Colors.orange,
+      'بني': Colors.brown,
+    };
+    return map[lower];
+  }
 
   @override
   Widget build(BuildContext context) {
     final avatarSize = 52.w;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Row(
       children: [
@@ -658,45 +731,49 @@ class _DriverRow extends StatelessWidget {
         ),
         SizedBox(width: 12.w),
 
-        // ── Name + rating + vehicle ──
+        // ── Name + rating + vehicle info ──
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IqText(
-                name,
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.textDark,
-                  fontWeight: FontWeight.w700,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              SizedBox(height: 4.h),
+              // Driver name
               Row(
                 children: [
-                  Icon(Icons.star_rounded,
-                      size: 16.w, color: AppColors.starFilled),
-                  SizedBox(width: 2.w),
                   IqText(
-                    rating.toStringAsFixed(1),
-                    style: AppTypography.numberSmall.copyWith(
-                      color: AppColors.textDark,
-                      fontWeight: FontWeight.w600,
+                    name,
+                    style: AppTypography.labelLarge.copyWith(
+                      color: isDark ? AppColors.white : AppColors.textDark,
+                      fontWeight: FontWeight.w700,
                     ),
-                    dir: TextDirection.ltr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (vehicleInfo != null && vehicleInfo!.isNotEmpty) ...[
-                    SizedBox(width: 8.w),
-                    Container(
-                      width: 4.w,
-                      height: 4.w,
-                      decoration: const BoxDecoration(
-                        color: AppColors.grayLight,
-                        shape: BoxShape.circle,
+                  SizedBox(width: 8.h),
+                  
+                  // Rating
+                  Row(
+                    children: [
+                      IqText(
+                        rating.toStringAsFixed(1),
+                        style: AppTypography.numberSmall.copyWith(
+                          color: isDark ? AppColors.white : AppColors.textDark,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        dir: TextDirection.ltr,
                       ),
-                    ),
-                    SizedBox(width: 8.w),
+                      SizedBox(width: 2.w),
+                      Icon(Icons.star_rounded,
+                          size: 16.w, color: AppColors.starFilled),
+                    ],
+                  ),
+                ],
+              ),
+              SizedBox(height: 4.h),
+
+              // Vehicle make + plate number + color dot
+              Row(
+                children: [
+                  if (vehicleInfo != null && vehicleInfo!.isNotEmpty) ...[
                     Flexible(
                       child: IqText(
                         vehicleInfo!,
@@ -708,42 +785,60 @@ class _DriverRow extends StatelessWidget {
                       ),
                     ),
                   ],
+                  if (plateNumber != null && plateNumber!.isNotEmpty) ...[
+                    SizedBox(width: 6.w),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 6.w, vertical: 2.h),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.darkInputBg
+                            : AppColors.grayLightBg,
+                        borderRadius: BorderRadius.circular(4.r),
+                      ),
+                      child: IqText(
+                        plateNumber!,
+                        style: AppTypography.numberSmall.copyWith(
+                          color: isDark ? AppColors.white : AppColors.textDark,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11.sp,
+                        ),
+                        dir: TextDirection.ltr,
+                      ),
+                    ),
+                  ],
+                  if (_parsedColor != null) ...[
+                    SizedBox(width: 6.w),
+                    Container(
+                      width: 12.w,
+                      height: 12.w,
+                      decoration: BoxDecoration(
+                        color: _parsedColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.grayBorder,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              if (plateNumber != null && plateNumber!.isNotEmpty) ...[
-                SizedBox(height: 4.h),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 8.w, vertical: 2.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.grayLightBg,
-                    borderRadius: BorderRadius.circular(4.r),
-                  ),
-                  child: IqText(
-                    plateNumber!,
-                    style: AppTypography.numberSmall.copyWith(
-                      color: AppColors.textDark,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    dir: TextDirection.ltr,
-                  ),
-                ),
-              ],
             ],
           ),
         ),
 
         // ── Chat + Call ──
         _PCircleActionBtn(
-          icon: Icons.chat_bubble_outlined,
-          color: AppColors.success,
-          onTap: onChat,
-        ),
-        SizedBox(width: 8.w),
-        _PCircleActionBtn(
           icon: Icons.phone_outlined,
           color: AppColors.primary,
           onTap: onCall,
+        ),
+        SizedBox(width: 8.w),
+        _PCircleActionBtn(
+          icon: Icons.chat_bubble_outlined,
+          color: AppColors.primary,
+          onTap: onChat,
         ),
       ],
     );
@@ -771,10 +866,10 @@ class _PCircleActionBtn extends StatelessWidget {
         height: 44.w,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: color.withValues(alpha: 0.12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: color,
+          border: Border.all(color: color),
         ),
-        child: Icon(icon, size: 20.w, color: color),
+        child: Icon(icon, size: 20.w, color: AppColors.black),
       ),
     );
   }
@@ -788,10 +883,14 @@ class _BorderedAddressCard extends StatelessWidget {
   const _BorderedAddressCard({
     required this.address,
     required this.iconColor,
+    this.showChange = false,
+    this.onChangeTap,
   });
 
   final String address;
   final Color iconColor;
+  final bool showChange;
+  final VoidCallback? onChangeTap;
 
   @override
   Widget build(BuildContext context) {
@@ -802,7 +901,7 @@ class _BorderedAddressCard extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.white,
-        borderRadius: BorderRadius.circular(10.r),
+        borderRadius: BorderRadius.circular(30.r),
         border: Border.all(
           color: isDark ? AppColors.darkDivider : AppColors.grayBorder,
         ),
@@ -821,6 +920,19 @@ class _BorderedAddressCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (showChange) ...[
+            SizedBox(width: 8.w),
+            GestureDetector(
+              onTap: onChangeTap,
+              child: IqText(
+                AppStrings.changeText,
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.primaryDark,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -828,67 +940,141 @@ class _BorderedAddressCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Fare + payment method row.
+// Payment method row — tappable to change payment.
 // ---------------------------------------------------------------------------
 
-class _FarePaymentRow extends StatelessWidget {
-  const _FarePaymentRow({
-    required this.amount,
-    required this.currencySymbol,
+class _PaymentMethodRow extends StatelessWidget {
+  const _PaymentMethodRow({
     this.paymentMethod,
+    this.onTap,
   });
 
-  final double amount;
-  final String currencySymbol;
   final String? paymentMethod;
+  final VoidCallback? onTap;
 
-  String get _paymentText {
+  String get _paymentLabel {
     if (paymentMethod == null || paymentMethod!.isEmpty) {
       return AppStrings.cash;
     }
-    final lower = paymentMethod!.toLowerCase();
+    final lower = paymentMethod!.toLowerCase().trim();
+    // Handle integer payment_opt: 1=cash, 2=wallet, 3+=card
+    if (lower == '1') return AppStrings.cash;
+    if (lower == '2') return AppStrings.walletPayment;
     if (lower.contains('wallet')) return AppStrings.walletPayment;
     if (lower.contains('card')) return AppStrings.cardPayment;
     return AppStrings.cash;
   }
 
+  IconData get _paymentIcon {
+    if (paymentMethod == null || paymentMethod!.isEmpty) {
+      return Icons.payments_outlined;
+    }
+    final lower = paymentMethod!.toLowerCase().trim();
+    if (lower == '2' || lower.contains('wallet')) {
+      return Icons.account_balance_wallet_outlined;
+    }
+    if (lower.contains('card')) return Icons.credit_card;
+    return Icons.payments_outlined;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    const fareColor = Color(0xFF669C1A);
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-      decoration: BoxDecoration(
-        color: fareColor.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(10.r),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16.r),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 20.h),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.white,
+          borderRadius: BorderRadius.circular(10.r),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadow.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(_paymentIcon, size: 22.w, color: AppColors.success),
+            SizedBox(width: 10.w),
+            IqText(
+              _paymentLabel,
+              style: AppTypography.labelMedium.copyWith(
+                color: isDark ? AppColors.white : AppColors.textDark,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            IqText(
+              AppStrings.changePaymentMethod,
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+            SizedBox(width: 4.w),
+            Icon(Icons.chevron_left, size: 18.w, color: AppColors.textMuted),
+          ],
+        ),
       ),
-      child: Row(
-        children: [
-          IqText(
-            '${AppStrings.rideFare} : ',
-            style: AppTypography.labelMedium.copyWith(
-              color: isDark ? AppColors.white : AppColors.textDark,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cancel button + fare amount row at the bottom.
+// ---------------------------------------------------------------------------
+
+class _CancelFareRow extends StatelessWidget {
+  const _CancelFareRow({
+    required this.fareAmount,
+    required this.currencySymbol,
+    required this.onCancel,
+  });
+
+  final double fareAmount;
+  final String currencySymbol;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        // Fare amount (start = right in RTL)
+        IqText(
+          '${fareAmount.toStringAsFixed(0)} $currencySymbol',
+          style: AppTypography.heading2.copyWith(
+            color: AppColors.primaryDark,
+            fontWeight: FontWeight.w800,
+          ),
+          dir: TextDirection.ltr,
+        ),
+        const Spacer(),
+        // Cancel button (end = left in RTL)
+        OutlinedButton(
+          onPressed: onCancel,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.error,
+            side: const BorderSide(color: AppColors.error),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(1000.r),
+            ),
+            padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 10.h),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: IqText(
+            AppStrings.cancelTrip,
+            style: AppTypography.button.copyWith(
+              color: AppColors.error,
             ),
           ),
-          IqText(
-            '$currencySymbol ${amount.toStringAsFixed(0)}',
-            style: AppTypography.numberLarge.copyWith(
-              color: fareColor,
-              fontWeight: FontWeight.w700,
-            ),
-            dir: TextDirection.ltr,
-          ),
-          const Spacer(),
-          IqText(
-            _paymentText,
-            style: AppTypography.labelMedium.copyWith(
-              color: AppColors.textMuted,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -901,7 +1087,7 @@ class _WaitingBanner extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 12.h),
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.1),
+        color: AppColors.transparent,
         borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
       ),
@@ -912,7 +1098,7 @@ class _WaitingBanner extends StatelessWidget {
           Expanded(
             child: IqText(
               AppStrings.waitingChargeWarning,
-              style: AppTypography.bodySmall.copyWith(color: AppColors.warning),
+              style: AppTypography.bodyMedium.copyWith(color: AppColors.black),
             ),
           ),
         ],
@@ -923,6 +1109,33 @@ class _WaitingBanner extends StatelessWidget {
 
 /// Prevents multiple cancel dialogs from stacking.
 bool _cancelDialogOpen = false;
+
+/// Navigate to the map picker and dispatch change-drop event on return.
+Future<void> _changeDropLocation(
+  BuildContext context, {
+  required double currentDropLat,
+  required double currentDropLng,
+}) async {
+  final result = await Navigator.push<MapPickResult>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => MapPickerPage(
+        initialLat: currentDropLat,
+        initialLng: currentDropLng,
+      ),
+    ),
+  );
+
+  if (result != null && context.mounted) {
+    context.read<PassengerTripBloc>().add(
+      PassengerTripChangeDropRequested(
+        dropLat: result.lat,
+        dropLng: result.lng,
+        dropAddress: result.address,
+      ),
+    );
+  }
+}
 
 /// Shows cancel confirmation dialog with reasons.
 void _showCancelConfirmation(BuildContext context, String requestId) {
@@ -950,6 +1163,40 @@ void _showCancelConfirmation(BuildContext context, String requestId) {
       },
     ),
   ).whenComplete(() => _cancelDialogOpen = false);
+}
+
+/// Shows the shared payment method sheet and calls the change-payment API.
+Future<void> _showChangePaymentSheet(
+  BuildContext context,
+  String requestId, {
+  int currentPayment = 1,
+}) async {
+  // Parse current payment from the trip's paymentMethod string
+  final result = await showPaymentMethodSheet(
+    context,
+    currentPayment: currentPayment,
+  );
+  if (result != null && context.mounted) {
+    final apiResult = await sl<BookingRepository>().changePaymentMethod(
+      requestId: requestId,
+      paymentOpt: result,
+    );
+    if (context.mounted) {
+      apiResult.fold(
+        (f) => ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(f.message)),
+        ),
+        (_) {
+          // Update Firebase so the stream pushes the new payment method
+          // to ActiveTripModel.paymentMethod → UI rebuilds.
+          FirebaseDatabase.instance
+              .ref('requests')
+              .child(requestId)
+              .update({'payment_opt': result.toString()});
+        },
+      );
+    }
+  }
 }
 
 /// Opens the phone dialer with the given phone number.
@@ -997,3 +1244,5 @@ Future<void> _callSos(BuildContext context) async {
     await launchUrl(uri);
   }
 }
+
+// end of file

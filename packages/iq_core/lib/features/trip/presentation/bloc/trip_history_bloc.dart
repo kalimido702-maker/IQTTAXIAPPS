@@ -102,12 +102,14 @@ class TripHistoryBloc extends Bloc<TripHistoryEvent, TripHistoryState> {
         activeTab: activeTab,
         message: failure.message,
       )),
-      (response) => emit(TripHistoryLoaded(
-        activeTab: activeTab,
-        trips: response.trips,
-        currentPage: response.currentPage,
-        hasMore: response.hasMore,
-      )),
+      (response) {
+        emit(TripHistoryLoaded(
+          activeTab: activeTab,
+          trips: response.trips,
+          currentPage: response.currentPage,
+          hasMore: response.hasMore,
+        ));
+      },
     );
   }
 }

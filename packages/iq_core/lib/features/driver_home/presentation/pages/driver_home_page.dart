@@ -20,6 +20,7 @@ import '../../../ride_booking/presentation/bloc/driver/driver_trip_event.dart';
 import '../../../ride_booking/presentation/bloc/driver/driver_trip_state.dart';
 import '../../../ride_booking/presentation/pages/driver/driver_active_trip_page.dart';
 import '../../../ride_booking/presentation/pages/driver/incoming_request_overlay.dart';
+import '../../../subscription/presentation/widgets/subscription_prompt_sheet.dart';
 import '../bloc/driver_home_bloc.dart';
 import '../bloc/driver_home_event.dart';
 import '../bloc/driver_home_state.dart';
@@ -60,11 +61,20 @@ class DriverHomePage extends StatelessWidget {
   }
 }
 
-class _DriverHomeBody extends StatelessWidget {
+class _DriverHomeBody extends StatefulWidget {
   const _DriverHomeBody({required this.sidebarItems, this.onProfileTap});
 
   final List<IqSidebarItem> sidebarItems;
   final void Function(BuildContext context)? onProfileTap;
+
+  @override
+  State<_DriverHomeBody> createState() => _DriverHomeBodyState();
+}
+
+class _DriverHomeBodyState extends State<_DriverHomeBody> {
+  /// Tracks whether the subscription bottom sheet was already shown
+  /// in this session (prevents re-showing on rebuilds).
+  bool _subscriptionPromptShown = false;
 
   @override
   Widget build(BuildContext context) {
@@ -90,18 +100,53 @@ class _DriverHomeBody extends StatelessWidget {
             }
           },
         ),
-        // When driver accepts a request, navigate to active trip page
+
+        // Subscription prompt — show bottom sheet once when home data loads
+        BlocListener<DriverHomeBloc, DriverHomeState>(
+          listenWhen: (prev, curr) =>
+              prev.homeData == null && curr.homeData != null,
+          listener: (context, state) async {
+            if (_subscriptionPromptShown) return;
+            final data = state.homeData;
+            if (!shouldShowSubscriptionPrompt(data)) return;
+
+            // Check SharedPreferences skip status
+            final skipped = await getSubscriptionSkipStatus();
+            if (skipped) return;
+
+            _subscriptionPromptShown = true;
+
+            if (!context.mounted) return;
+            await showSubscriptionPromptSheet(context, homeData: data!);
+
+            // After subscription flow → refresh user data
+            if (!context.mounted) return;
+            context.read<DriverHomeBloc>().add(const DriverHomeLoadRequested());
+          },
+        ),
+
+        // When driver accepts a request or restores an active trip, navigate to active trip page
         BlocListener<DriverTripBloc, DriverTripState>(
-          listenWhen: (prev, curr) => prev.status != curr.status,
+          listenWhen: (prev, curr) {
+            if (prev.status == curr.status) return false;
+            const activeStatuses = {
+              DriverTripStatus.navigatingToPickup,
+              DriverTripStatus.arrivedAtPickup,
+              DriverTripStatus.tripInProgress,
+              DriverTripStatus.tripCompleted,
+            };
+            // Only navigate when transitioning INTO an active status
+            // from a non-active status (idle, loading, incomingRequest, etc.)
+            return !activeStatuses.contains(prev.status) &&
+                activeStatuses.contains(curr.status);
+          },
           listener: (context, tripState) {
-            if (tripState.status == DriverTripStatus.navigatingToPickup) {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  maintainState: false,
-                  builder: (_) => const DriverActiveTripPage(),
-                ),
-              );
-            }
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                maintainState: false,
+                builder: (_) => const DriverActiveTripPage(),
+              ),
+            );
           },
         ),
       ],
@@ -119,12 +164,12 @@ class _DriverHomeBody extends StatelessWidget {
         builder: (context, state) {
           final data = state.homeData;
           return IqSidebar(
-            items: sidebarItems,
+            items: widget.sidebarItems,
             userName: data?.name ?? '',
             userSubtitle: data?.driverSubtitle ?? '',
             userRating: data?.rating ?? 0.0,
             avatarUrl: data?.avatarUrl,
-            onProfileTap: onProfileTap,
+            onProfileTap: widget.onProfileTap,
           );
         },
       ),

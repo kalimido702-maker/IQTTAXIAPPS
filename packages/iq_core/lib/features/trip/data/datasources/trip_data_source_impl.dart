@@ -29,6 +29,7 @@ class TripDataSourceImpl implements TripDataSource {
       final body = response.data as Map<String, dynamic>;
 
       if (response.statusCode == 200 && body['success'] == true) {
+        // print('Fetched trip history page $page: ${body['data']}');
         return Right(TripHistoryResponse.fromJson(body));
       }
 

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../theme/app_colors.dart';
@@ -77,6 +78,46 @@ class MarkerIconCache {
   }
 
   // ─── Internal rendering ────────────────────────────────────────
+
+  /// Get or create a marker icon from an SVG asset.
+  ///
+  /// Loads the SVG via flutter_svg, renders it to a [Canvas] at
+  /// [targetWidth] (height is auto-calculated from aspect ratio),
+  /// then converts to [BitmapDescriptor].
+  Future<BitmapDescriptor> getSvgMarker({
+    required String key,
+    required String assetPath,
+    double targetWidth = 80,
+  }) async {
+    if (_cache.containsKey(key)) return _cache[key]!;
+
+    final loader = SvgAssetLoader(assetPath);
+    final info = await vg.loadPicture(loader, null);
+
+    final ratio = info.size.height / info.size.width;
+    final targetHeight = targetWidth * ratio;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.scale(
+      targetWidth / info.size.width,
+      targetHeight / info.size.height,
+    );
+    canvas.drawPicture(info.picture);
+
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(
+      targetWidth.toInt(),
+      targetHeight.toInt(),
+    );
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    info.picture.dispose();
+
+    final descriptor = BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
+    _cache[key] = descriptor;
+    return descriptor;
+  }
 
   static Future<BitmapDescriptor> _createCircleMarker({
     required Color color,
@@ -436,6 +477,7 @@ class MapIcons {
   static BitmapDescriptor _pickup = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
   static BitmapDescriptor _dropoff = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
   static BitmapDescriptor _driver = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+  static BitmapDescriptor _car = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
   static BitmapDescriptor _user = BitmapDescriptor.defaultMarker;
   static bool _precached = false;
 
@@ -447,6 +489,9 @@ class MapIcons {
 
   /// Driver marker — orange (consistent across passenger & driver apps).
   static BitmapDescriptor get driver => _driver;
+
+  /// Car marker — SVG car icon for driver on map.
+  static BitmapDescriptor get car => _car;
 
   /// User location marker — teal with arrow indicator.
   static BitmapDescriptor get user => _user;
@@ -482,12 +527,18 @@ class MapIcons {
         size: 80,
         withArrow: true,
       ),
+      cache.getSvgMarker(
+        key: 'car_marker',
+        assetPath: 'assets/svg/car.svg',
+        targetWidth: 80,
+      ),
     ]);
 
     _pickup = results[0];
     _dropoff = results[1];
     _driver = results[2];
     _user = results[3];
+    _car = results[4];
   }
 }
 

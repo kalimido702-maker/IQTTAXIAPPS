@@ -71,6 +71,16 @@ import '../../features/package_delivery/data/datasources/package_delivery_data_s
 import '../../features/package_delivery/data/repositories/package_delivery_repository_impl.dart';
 import '../../features/package_delivery/domain/repositories/package_delivery_repository.dart';
 import '../../features/package_delivery/presentation/bloc/package_delivery_bloc.dart';
+import '../../features/subscription/data/datasources/subscription_data_source.dart';
+import '../../features/subscription/data/datasources/subscription_data_source_impl.dart';
+import '../../features/subscription/domain/repositories/subscription_repository.dart';
+import '../../features/subscription/domain/repositories/subscription_repository_impl.dart';
+import '../../features/subscription/presentation/bloc/subscription_bloc.dart';
+import '../../features/incentive/data/datasources/incentive_data_source.dart';
+import '../../features/incentive/data/datasources/incentive_data_source_impl.dart';
+import '../../features/incentive/data/repositories/incentive_repository_impl.dart';
+import '../../features/incentive/domain/repositories/incentive_repository.dart';
+import '../../features/incentive/presentation/bloc/incentive_bloc.dart';
 import '../services/google_maps_service.dart';
 
 /// Google Maps API key.
@@ -331,5 +341,36 @@ Future<void> initCoreDependencies() async {
   sl.registerFactory(
     () => PackageDeliveryBloc(
         repository: sl<PackageDeliveryRepository>()),
+  );
+
+  // ── Subscription: Data source ──
+  sl.registerLazySingleton<SubscriptionDataSource>(
+    () => SubscriptionDataSourceImpl(dio: sl<ApiClient>().dio),
+  );
+
+  // ── Subscription: Repository ──
+  sl.registerLazySingleton<SubscriptionRepository>(
+    () => SubscriptionRepositoryImpl(
+        dataSource: sl<SubscriptionDataSource>()),
+  );
+
+  // ── Subscription: BLoC ──
+  sl.registerFactory(
+    () => SubscriptionBloc(repository: sl<SubscriptionRepository>()),
+  );
+
+  // ── Incentive: Data source ──
+  sl.registerLazySingleton<IncentiveDataSource>(
+    () => IncentiveDataSourceImpl(dio: sl<ApiClient>().dio),
+  );
+
+  // ── Incentive: Repository ──
+  sl.registerLazySingleton<IncentiveRepository>(
+    () => IncentiveRepositoryImpl(dataSource: sl<IncentiveDataSource>()),
+  );
+
+  // ── Incentive: BLoC ──
+  sl.registerFactory(
+    () => IncentiveBloc(repository: sl<IncentiveRepository>()),
   );
 }

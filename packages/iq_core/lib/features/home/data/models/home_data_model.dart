@@ -143,6 +143,13 @@ class HomeDataModel extends Equatable {
   /// Comes from `trip_accept_reject_duration_for_driver` in the API.
   final int acceptDuration;
 
+  // ── Subscription fields (driver-only) ──
+  final bool hasSubscription;
+  final bool isSubscriptionExpired;
+  final bool isSubscribed;
+  final String driverMode; // 'subscription', 'both', or ''
+  final Map<String, dynamic>? subscriptionData;
+
   const HomeDataModel({
     required this.id,
     required this.name,
@@ -184,6 +191,11 @@ class HomeDataModel extends Equatable {
     this.ownerId,
     this.isApproved,
     this.acceptDuration = 30,
+    this.hasSubscription = false,
+    this.isSubscriptionExpired = false,
+    this.isSubscribed = false,
+    this.driverMode = '',
+    this.subscriptionData,
   });
 
   /// Parse from `GET api/v1/user` → `response.data['data']`.
@@ -281,6 +293,18 @@ class HomeDataModel extends Equatable {
       isApproved: json['approve'] == 1 || json['approve'] == true,
       acceptDuration:
           int.tryParse(json['trip_accept_reject_duration_for_driver']?.toString() ?? '30') ?? 30,
+      hasSubscription: json['has_subscription'] == true ||
+          json['has_subscription']?.toString() == '1' ||
+          json['has_subsription'] == true ||
+          json['has_subsription']?.toString() == '1',
+      isSubscriptionExpired: json['is_expired'] == true ||
+          json['is_expired']?.toString() == '1',
+      isSubscribed: json['is_subscribed'] == true ||
+          json['is_subscribed']?.toString() == '1',
+      driverMode: (json['driver_mode'] ?? '').toString(),
+      subscriptionData: json['subscription'] is Map<String, dynamic>
+          ? json['subscription'] as Map<String, dynamic>
+          : null,
     );
   }
 
@@ -320,7 +344,7 @@ class HomeDataModel extends Equatable {
         homeLocations, workLocations, otherLocations,
         isAvailable, totalEarnings, totalKms,
         totalMinutesOnline, totalRidesTaken,
-        sosContacts,
+        sosContacts, hasSubscription, isSubscriptionExpired, isSubscribed, driverMode,
       ];
 }
 

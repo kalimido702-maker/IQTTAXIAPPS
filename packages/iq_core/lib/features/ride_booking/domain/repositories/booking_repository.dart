@@ -18,6 +18,11 @@ abstract class BookingRepository {
     int rideType = 1,
     String transportType = 'taxi',
     String? promoCode,
+    double? distance,
+    double? duration,
+    String? polyline,
+    String? pickAddress,
+    String? dropAddress,
   });
 
   Future<Either<Failure, RideRequestResponseModel>> createRideRequest({
@@ -40,6 +45,10 @@ abstract class BookingRepository {
     int isLater = 0,
     String? tripStartTime,
     List<Map<String, dynamic>>? selectedPreferences,
+    String? distance,
+    String? duration,
+    String? promocodeId,
+    double? discountedTotal,
   });
 
   Future<Either<Failure, bool>> cancelRequest({
@@ -97,6 +106,8 @@ abstract class BookingRepository {
     required String requestId,
     required double dropLat,
     required double dropLng,
+    String dropAddress = '',
+    String polyLine = '',
     required double distance,
     int beforeTripWaitingTime = 0,
     int afterTripWaitingTime = 0,
@@ -123,4 +134,8 @@ abstract class BookingRepository {
 
   /// Fetch an already-accepted ongoing trip from the user API.
   Future<Either<Failure, IncomingRequestModel?>> fetchOnTripRequest();
+
+  /// (Passenger) Fetch active trip details with driver info and fare.
+  Future<Either<Failure, Map<String, dynamic>>>
+      fetchPassengerActiveTripDetails({required String requestId});
 }

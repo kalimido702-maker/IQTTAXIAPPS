@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -28,6 +30,11 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     int rideType = 1,
     String transportType = 'taxi',
     String? promoCode,
+    double? distance,
+    double? duration,
+    String? polyline,
+    String? pickAddress,
+    String? dropAddress,
   }) async {
     try {
       final requestData = {
@@ -38,6 +45,17 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           'ride_type': rideType,
           'transport_type': transportType,
           if (promoCode != null) 'promo_code': promoCode,
+          // Distance-based fare — mirrors old app behaviour:
+          // without these the server falls back to the minimum fare.
+          if (distance != null) 'distance': distance.toStringAsFixed(0),
+          if (duration != null) 'duration': duration.toStringAsFixed(0),
+          if (polyline != null) 'polyline': polyline,
+          if (pickAddress != null) 'pick_address': pickAddress,
+          if (pickAddress != null)
+            'pick_short_address': pickAddress.split(',')[0],
+          if (dropAddress != null) 'drop_address': dropAddress,
+          if (dropAddress != null)
+            'drop_short_address': dropAddress.split(',')[0],
       };
       debugPrint('🚕 [RideETA] REQUEST: $requestData');
       final response = await dio.post(
@@ -84,6 +102,10 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     int isLater = 0,
     String? tripStartTime,
     List<Map<String, dynamic>>? selectedPreferences,
+    String? distance,
+    String? duration,
+    String? promocodeId,
+    double? discountedTotal,
   }) async {
     try {
       final response = await dio.post(
@@ -96,19 +118,24 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           'pick_address': pickAddress,
           'drop_address': dropAddress,
           'vehicle_type': vehicleType,
+          'type_id': vehicleType,
           'payment_opt': paymentOpt,
           'ride_type': rideType,
           'transport_type': transportType,
-          if (promoCode != null) 'promo_code': promoCode,
-          if (polyline != null) 'polyline': polyline,
+          if (promocodeId != null) 'promocode_id': promocodeId,
+          if (discountedTotal != null && discountedTotal > 0)
+            'discounted_total': discountedTotal,
+          if (polyline != null) 'poly_line': polyline,
           if (requestEtaAmount != null) 'request_eta_amount': requestEtaAmount,
-          if (instructions != null) 'instructions': instructions,
+          if (instructions != null) 'pickup_poc_instruction': instructions,
           'is_bid_ride': isBidRide,
           if (offerAmount != null) 'offer_amount': offerAmount,
           if (isLater == 1) 'is_later': 1,
           if (tripStartTime != null) 'trip_start_time': tripStartTime,
           if (selectedPreferences != null)
-            'selected_preferences': selectedPreferences.toString(),
+            'preferences': jsonEncode(selectedPreferences),
+          if (distance != null) 'distance': distance,
+          if (duration != null) 'duration': duration,
         }),
       );
       final body = response.data as Map<String, dynamic>;
@@ -253,7 +280,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           'drop_lat': dropLat,
           'drop_lng': dropLng,
           'drop_address': dropAddress,
-          if (polyline != null) 'polyline': polyline,
+          if (polyline != null) 'poly_line': polyline,
         }),
       );
       final body = response.data as Map<String, dynamic>;
@@ -304,24 +331,45 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     required String requestId,
   }) async {
     try {
-      final response = await dio.get('api/v1/request/history');
+      // Use the specific request endpoint with requestBill include
+      // for full fare breakdown data.
+      final response = await dio.get(
+        'api/v1/request/history/$requestId',
+        queryParameters: {'include': 'driverDetail,userDetail,requestBill'},
+      );
       final body = response.data as Map<String, dynamic>;
       if (response.statusCode == 200 && body['success'] == true) {
-        // Find the specific trip in history
-        final list = body['data'] is Map
-            ? (body['data']['data'] as List? ?? [])
-            : (body['data'] as List? ?? []);
+        final tripData = body['data'] as Map<String, dynamic>? ?? {};
+        debugPrint('📄 [Invoice] keys: ${tripData.keys.toList()}');
 
-        for (final item in list) {
-          if (item is Map<String, dynamic>) {
-            final id = (item['id'] ?? item['request_id']).toString();
-            if (id == requestId) {
-              return Right(InvoiceModel.fromJson(item));
+        // Merge requestBill into the trip data for InvoiceModel parsing
+        final bill = tripData['requestBill'];
+        if (bill is Map) {
+          final billData = bill['data'] is Map ? bill['data'] as Map<String, dynamic> : bill as Map<String, dynamic>;
+          debugPrint('📄 [Invoice] bill keys: ${billData.keys.toList()}');
+          // Copy bill fields into tripData so fromJson picks them up
+          for (final e in billData.entries) {
+            if (tripData[e.key] == null || tripData[e.key] == 0 || tripData[e.key] == '0') {
+              tripData[e.key] = e.value;
             }
           }
         }
-        return Left(
-            ServerFailure(message: AppStrings.invoiceNotFound));
+
+        // Merge driverDetail into the trip data
+        final driver = tripData['driverDetail'];
+        if (driver is Map) {
+          final driverData = driver['data'] is Map ? driver['data'] as Map<String, dynamic> : driver as Map<String, dynamic>;
+          tripData['driver_detail'] = driverData;
+        }
+
+        // Merge userDetail into the trip data
+        final user = tripData['userDetail'];
+        if (user is Map) {
+          final userData = user['data'] is Map ? user['data'] as Map<String, dynamic> : user as Map<String, dynamic>;
+          tripData['user_detail'] = userData;
+        }
+
+        return Right(InvoiceModel.fromJson(tripData));
       }
       return Left(ServerFailure(
         message:
@@ -422,6 +470,8 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     required String requestId,
     required double dropLat,
     required double dropLng,
+    String dropAddress = '',
+    String polyLine = '',
     required double distance,
     int beforeTripWaitingTime = 0,
     int afterTripWaitingTime = 0,
@@ -433,9 +483,11 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           'request_id': requestId,
           'drop_lat': dropLat,
           'drop_lng': dropLng,
+          'drop_address': dropAddress,
           'distance': distance,
           'before_trip_start_waiting_time': beforeTripWaitingTime,
           'after_trip_start_waiting_time': afterTripWaitingTime,
+          if (polyLine.isNotEmpty) 'poly_line': polyLine,
         }),
       );
       final body = response.data as Map<String, dynamic>;
@@ -579,6 +631,126 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
       }
       return Left(ServerFailure(
         message: body['message']?.toString() ?? 'Failed to fetch user details',
+      ));
+    } on DioException catch (e) {
+      return Left(_handleDioError(e));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>>
+      fetchPassengerActiveTripDetails({required String requestId}) async {
+    try {
+      debugPrint('🔍 [TripAPI] GET api/v1/request/history/$requestId');
+      final response = await dio.get(
+        'api/v1/request/history/$requestId',
+        queryParameters: {'include': 'driverDetail,requestBill'},
+      );
+      final body = response.data as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['success'] == true) {
+        // The response wraps in { "data": { ... } }
+        final tripData = body['data'] as Map<String, dynamic>? ?? {};
+        
+        // Log all driver-related keys
+        final driverKeys = tripData.keys
+            .where((k) => k.toLowerCase().contains('driver'))
+            .toList();
+        debugPrint('🔍 [TripAPI] driver-related keys: $driverKeys');
+        for (final k in driverKeys) {
+          debugPrint('🔍 [TripAPI] $k = ${tripData[k]}');
+        }
+        debugPrint('🔍 [TripAPI] raw driverDetail = ${tripData['driverDetail']}');
+        debugPrint('🔍 [TripAPI] raw driver_detail = ${tripData['driver_detail']}');
+
+        // Parse driverDetail — might be nested under 'data' or flat
+        final driverDetailRaw =
+            tripData['driverDetail'] ?? tripData['driver_detail'];
+        Map<String, dynamic> driverDetail = {};
+        if (driverDetailRaw is Map) {
+          if (driverDetailRaw.containsKey('data') &&
+              driverDetailRaw['data'] is Map) {
+            driverDetail =
+                Map<String, dynamic>.from(driverDetailRaw['data'] as Map);
+          } else {
+            driverDetail = Map<String, dynamic>.from(driverDetailRaw);
+          }
+        }
+        debugPrint(
+            '🔍 [TripAPI] driverDetail keys: ${driverDetail.keys.toList()}');
+        debugPrint('🔍 [TripAPI] driverDetail name: ${driverDetail['name']}');
+
+        // Parse requestBill — might be nested under 'data' or flat
+        final requestBillRaw =
+            tripData['requestBill'] ?? tripData['request_bill'];
+        Map<String, dynamic> requestBill = {};
+        if (requestBillRaw is Map) {
+          if (requestBillRaw.containsKey('data') &&
+              requestBillRaw['data'] is Map) {
+            requestBill =
+                Map<String, dynamic>.from(requestBillRaw['data'] as Map);
+          } else {
+            requestBill = Map<String, dynamic>.from(requestBillRaw);
+          }
+        }
+        debugPrint(
+            '🔍 [TripAPI] requestBill keys: ${requestBill.keys.toList()}');
+
+        final enrichment = <String, dynamic>{
+          // Driver info from driverDetail or flat tripData
+          'driver_name': driverDetail['name'] ??
+              tripData['driver_name'] ??
+              tripData['driverName'],
+          'driver_profile_picture': driverDetail['profile_picture'] ??
+              driverDetail['profilePicture'] ??
+              tripData['driver_profile_picture'] ??
+              tripData['driverProfilePicture'],
+          'driver_rating': (driverDetail['rating'] ??
+                  tripData['driver_rating'] ??
+                  tripData['driverRating'])
+              ?.toString(),
+          'driver_mobile': driverDetail['mobile'] ??
+              driverDetail['phone'] ??
+              tripData['driver_mobile'] ??
+              tripData['driverMobile'],
+          'driver_id': driverDetail['id'] ??
+              tripData['driver_id'] ??
+              tripData['driverId'],
+          // Vehicle info
+          'vehicle_number': driverDetail['car_number'] ??
+              tripData['car_number'] ??
+              tripData['vehicle_number'],
+          'vehicle_make': driverDetail['car_make_name'] ??
+              tripData['car_make_name'] ??
+              tripData['vehicle_make'],
+          'vehicle_model': driverDetail['car_model_name'] ??
+              tripData['car_model_name'] ??
+              tripData['vehicle_model'],
+          'vehicle_color': driverDetail['car_color'] ??
+              tripData['car_color'] ??
+              tripData['vehicle_color'],
+          // Fare from trip level or bill
+          'total_amount': tripData['request_eta_amount'] ??
+              tripData['accepted_ride_fare'] ??
+              tripData['total_amount'] ??
+              requestBill['total_amount'] ??
+              requestBill['base_price'],
+          // Payment & currency
+          'payment_method': tripData['payment_opt']?.toString() ??
+              tripData['payment_method']?.toString(),
+          'currency_code': tripData['requested_currency_symbol'] ??
+              requestBill['requested_currency_symbol'] ??
+              'IQD',
+        };
+
+        debugPrint('✅ [TripAPI] Final enrichment: $enrichment');
+
+        return Right(enrichment);
+      }
+      return Left(ServerFailure(
+        message:
+            body['message']?.toString() ?? 'Failed to fetch trip details',
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));

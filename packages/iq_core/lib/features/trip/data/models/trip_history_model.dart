@@ -65,11 +65,16 @@ class TripHistoryModel {
     }
 
     // ── Driver Info ──
+    // The API may wrap driver data inside `driverDetail.data`, or it may
+    // place car/driver fields directly at the top-level of the trip JSON.
+    // We try the nested object first, then fall back to top-level fields.
     DriverInfo? driverInfo;
     final driverDetail = json['driverDetail'] as Map<String, dynamic>?;
     final driverData =
         driverDetail?['data'] as Map<String, dynamic>? ?? driverDetail;
+
     if (driverData != null && driverData.isNotEmpty) {
+      // Nested driverDetail present
       driverInfo = DriverInfo(
         name: (driverData['name'] ?? '').toString(),
         profilePicture: driverData['profile_picture']?.toString(),
@@ -80,6 +85,23 @@ class TripHistoryModel {
         carColor: driverData['car_color']?.toString(),
         carNumber: driverData['car_number']?.toString(),
       );
+    } else {
+      // Fallback: car info lives at the top level of the trip object
+      final carMake = json['car_make_name']?.toString();
+      final carNumber = json['car_number']?.toString();
+      if ((carMake != null && carMake.isNotEmpty) ||
+          (carNumber != null && carNumber.isNotEmpty)) {
+        driverInfo = DriverInfo(
+          name: (json['driver_name'] ?? '').toString(),
+          profilePicture: json['driver_profile_picture']?.toString(),
+          rating: _toDouble(json['ride_driver_rating']),
+          noOfRatings: _toInt(json['no_of_ratings']),
+          carMakeName: carMake,
+          carModelName: json['car_model_name']?.toString(),
+          carColor: json['car_color']?.toString(),
+          carNumber: carNumber,
+        );
+      }
     }
 
     // ── Fare Breakdown ──
@@ -135,7 +157,7 @@ class TripHistoryModel {
       currencySymbol:
           (json['requested_currency_symbol'] ?? 'IQD').toString(),
       paymentMethod: (json['payment_opt'] ?? 'cash').toString(),
-      userRating: _toDouble(json['user_rating']),
+      userRating: _toDouble(json['user_rating'] ?? json['ride_user_rating']),
       polyLine: json['poly_line']?.toString(),
       createdAt: _parseDate(json['cv_created_at'] ?? json['created_at']),
       completedAt: json['cv_completed_at'] != null

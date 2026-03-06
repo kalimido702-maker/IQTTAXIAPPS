@@ -97,9 +97,29 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
       return;
     }
 
+    // If we're already in an active trip (restored via _onCheckActiveTrip),
+    // ignore stale incoming-request signals from request-meta.
+    const _activeStatuses = {
+      DriverTripStatus.loading,
+      DriverTripStatus.navigatingToPickup,
+      DriverTripStatus.arrivedAtPickup,
+      DriverTripStatus.tripInProgress,
+      DriverTripStatus.tripCompleted,
+    };
+    if (_activeStatuses.contains(state.status)) {
+      debugPrint('🚕 _onFetchPendingDetails: skipping — already in active trip (${state.status})');
+      return;
+    }
+
     // Don't show loading overlay — stay idle until API returns real data.
     debugPrint('🚕 _onFetchPendingDetails: calling API for request ${event.firebaseRequestId}');
     final result = await repository.fetchPendingRequest();
+
+    // Re-check after await — status may have changed while awaiting API.
+    if (_activeStatuses.contains(state.status)) {
+      debugPrint('🚕 _onFetchPendingDetails: skipping emit — status changed to ${state.status} during API call');
+      return;
+    }
 
     result.fold(
       (failure) {
@@ -270,7 +290,9 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
       requestId: event.requestId,
       dropLat: event.dropLat,
       dropLng: event.dropLng,
+      dropAddress: event.dropAddress,
       distance: event.distance,
+      polyLine: event.polyLine,
       beforeTripWaitingTime: event.beforeTripWaitingTime,
       afterTripWaitingTime: event.afterTripWaitingTime,
     );
@@ -285,7 +307,10 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     try {
       await tripStream.updateTripNode(
         requestId: event.requestId,
-        data: {'is_completed': true},
+        data: {
+          'is_completed': true,
+          if (event.polyLine.isNotEmpty) 'polyline': event.polyLine,
+        },
       );
     } catch (e) {
       debugPrint('🚕 DriverTripBloc: Firebase update failed: $e');

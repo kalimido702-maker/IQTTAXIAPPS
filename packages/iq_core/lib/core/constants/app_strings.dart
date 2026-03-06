@@ -120,6 +120,10 @@ class AppStrings {
   // ─── Active Trip ───
   static const String driverOnWay = 'السائق في الطريق إليك';
   static const String driverArrived = 'السائق وصل';
+  static const String driverArrivingIn = 'سيصلك السائق خلال';
+  static const String minutesPlural = 'دقائق';
+  static const String changeText = 'تغيير';
+  static const String tripInProgress = 'الرحلة جارية';
   static const String arrivingToDestination = 'الوصول للوجهة';
   static const String waitingChargeWarning =
       'سيتم احتساب رسوم الانتظار بعد مرور الوقت المجاني';
@@ -193,6 +197,7 @@ class AppStrings {
   static const String notifications = 'الاشعارات';
   static const String history = 'السجل';
   static const String wallet = 'المحفظة';
+  static const String subscription = 'الإشتراك';
   static const String solveAndWin = 'حل واكسب';
   static const String changeLanguage = 'تغيير اللغة';
   static const String favouriteLocation = 'الموقع المفضل';
@@ -245,6 +250,20 @@ class AppStrings {
     'يناير', 'فبراير', 'مارس', 'ابريل', 'مايو', 'يونيو',
     'يوليو', 'اغسطس', 'سبتمبر', 'اكتوبر', 'نوفمبر', 'ديسمبر',
   ];
+
+  // ─── Incentive Page ───
+  static const String daily = 'يومي';
+  static const String weekly = 'أسبوعي';
+  static const String earnUpTo = 'اكسب حتى';
+  static const String byCompletingTrips = 'بإكمال';
+  static const String completeTrips = 'أكمل';
+  static const String gotIncentive = 'لقد حصلت على الحافز! 🎉';
+  static const String didNotGetIncentive = 'للأسف لم تحصل على الحافز';
+  static const String completeMoreForIncentive = 'أكمل المزيد للحصول على الحافز!';
+  static const String achievedGoal = 'لقد حققت الهدف بنجاح! ✅';
+  static const String didNotCompleteGoal = 'لم تكمل الهدف بعد';
+  static const String completeFirstTripForIncentive = 'أكمل أول رحلة لفتح الحوافز!';
+  static const String noIncentivesAvailable = 'لا توجد حوافز متاحة';
 
   // ─── Earnings Page ───
   static const String totalEarnings = 'إجمالي الأرباح';

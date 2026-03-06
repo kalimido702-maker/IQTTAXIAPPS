@@ -50,15 +50,7 @@ class RideSelectionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider.value(
-      value: sl<PassengerTripBloc>()
-        ..add(PassengerTripEtaRequested(
-          pickLat: pickupLat,
-          pickLng: pickupLng,
-          dropLat: dropoffLat,
-          dropLng: dropoffLng,
-          pickAddress: pickupAddress,
-          dropAddress: dropoffAddress,
-        )),
+      value: sl<PassengerTripBloc>(),
       child: _Body(
         pickupAddress: pickupAddress,
         pickupLat: pickupLat,
@@ -146,6 +138,8 @@ class _BodyState extends State<_Body> {
   }
 
   /// Fetch Google Directions for accurate route, distance & duration.
+  /// Fires the ETA API call once we have the route data so the server
+  /// receives distance + duration + polyline and returns the correct fare.
   Future<void> _fetchDirections() async {
     setState(() => _isLoadingRoute = true);
     final result = await RouteHelper.fetchRoute(
@@ -167,8 +161,32 @@ class _BodyState extends State<_Body> {
       // Re-fit camera to actual route bounds.
       final bounds = calculateBounds(result.polylinePoints);
       _mapKey.currentState?.fitBounds(bounds);
+
+      // Fire ETA with full route data so the server can price correctly.
+      if (!mounted) return;
+      context.read<PassengerTripBloc>().add(PassengerTripEtaRequested(
+            pickLat: widget.pickupLat,
+            pickLng: widget.pickupLng,
+            dropLat: widget.dropoffLat,
+            dropLng: widget.dropoffLng,
+            pickAddress: widget.pickupAddress,
+            dropAddress: widget.dropoffAddress,
+            distance: result.distanceMeters.toDouble(),
+            duration: result.durationSeconds.toDouble(),
+            polyline: result.encodedPolyline,
+          ));
     } else {
       setState(() => _isLoadingRoute = false);
+      // Fallback: request ETA without route data (minimum fare).
+      if (!mounted) return;
+      context.read<PassengerTripBloc>().add(PassengerTripEtaRequested(
+            pickLat: widget.pickupLat,
+            pickLng: widget.pickupLng,
+            dropLat: widget.dropoffLat,
+            dropLng: widget.dropoffLng,
+            pickAddress: widget.pickupAddress,
+            dropAddress: widget.dropoffAddress,
+          ));
     }
   }
 

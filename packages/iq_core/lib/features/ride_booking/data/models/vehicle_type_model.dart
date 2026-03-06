@@ -52,6 +52,8 @@ class VehicleTypeModel extends Equatable {
     required this.promoDiscount,
     required this.hasDiscount,
     this.promoId,
+    this.distanceInMeters = '',
+    this.discountedTotal = 0,
     this.preferences = const [],
   });
 
@@ -94,6 +96,12 @@ class VehicleTypeModel extends Equatable {
   final double promoDiscount;
   final bool hasDiscount;
   final String? promoId;
+
+  /// Distance in metres as returned by the server (used in create-request).
+  final String distanceInMeters;
+
+  /// Discounted total (sent back in create-request when promo is applied).
+  final double discountedTotal;
 
   /// Available ride preferences (e.g. Pet Friendly).
   final List<RidePreferenceModel> preferences;
@@ -145,7 +153,11 @@ class VehicleTypeModel extends Equatable {
       paymentTypes: payments,
       promoDiscount: _safeDouble(json['promo_discount']),
       hasDiscount: json['has_discount'] == true,
-      promoId: json['promo_id']?.toString(),
+      promoId: (json['promocode_id'] ?? json['promo_id'])?.toString(),
+      distanceInMeters:
+          (json['distance_in_meters'] ?? json['distance'] ?? '').toString(),
+      discountedTotal: _safeDouble(
+          json['discounted_totel'] ?? json['discounted_total']),
       preferences: ((json['preferences'] ?? json['preference']) as List?)
               ?.whereType<Map<String, dynamic>>()
               .map(RidePreferenceModel.fromJson)

@@ -10,6 +10,9 @@ class InvoiceModel extends Equatable {
     this.driverName,
     this.driverImage,
     this.driverRating,
+    this.userName,
+    this.userImage,
+    this.userRating,
     this.vehicleMake,
     this.vehicleNumber,
     this.vehicleColor,
@@ -39,6 +42,9 @@ class InvoiceModel extends Equatable {
   final String? driverName;
   final String? driverImage;
   final String? driverRating;
+  final String? userName;
+  final String? userImage;
+  final String? userRating;
   final String? vehicleMake;
   final String? vehicleNumber;
   final String? vehicleColor;
@@ -81,6 +87,7 @@ class InvoiceModel extends Equatable {
         : json;
 
     final driver = data['driver_detail'] as Map<String, dynamic>? ?? {};
+    final user = data['user_detail'] as Map<String, dynamic>? ?? {};
 
     return InvoiceModel(
       requestId: (data['id'] ?? data['request_id'] ?? '').toString(),
@@ -90,6 +97,10 @@ class InvoiceModel extends Equatable {
       driverImage:
           (driver['profile_picture'] ?? data['driver_image'])?.toString(),
       driverRating: (driver['rating'] ?? data['driver_rating'])?.toString(),
+      userName: (user['name'] ?? data['user_name'])?.toString(),
+      userImage:
+          (user['profile_picture'] ?? data['user_image'])?.toString(),
+      userRating: (user['rating'] ?? data['user_rating'])?.toString(),
       vehicleMake: (data['vehicle_make'] ?? driver['car_make'])?.toString(),
       vehicleNumber:
           (data['vehicle_number'] ?? driver['car_number'])?.toString(),
@@ -97,29 +108,39 @@ class InvoiceModel extends Equatable {
       rideType: data['ride_type']?.toString(),
       pickAddress: (data['pick_address'] ?? '').toString(),
       dropAddress: (data['drop_address'] ?? '').toString(),
-      duration: (data['total_time'] as num?)?.toDouble() ?? 0.0,
-      distance: (data['total_distance'] as num?)?.toDouble() ?? 0.0,
-      baseFare: (data['base_price'] as num?)?.toDouble() ?? 0.0,
-      distanceFare: (data['distance_price'] as num?)?.toDouble() ?? 0.0,
-      timeFare: (data['time_price'] as num?)?.toDouble() ?? 0.0,
-      waitingCharge: (data['waiting_charge'] as num?)?.toDouble() ?? 0.0,
-      taxes: (data['service_tax'] as num?)?.toDouble() ?? 0.0,
-      promoDiscount: (data['promo_discount'] as num?)?.toDouble() ?? 0.0,
-      tips: (data['driver_tips'] as num?)?.toDouble() ?? 0.0,
-      totalFare: (data['total_amount'] as num?)?.toDouble() ??
-          (data['request_eta_amount'] as num?)?.toDouble() ??
-          0.0,
+      duration: _toDouble(data['total_time']),
+      distance: _toDouble(data['total_distance']),
+      baseFare: _toDouble(data['base_price']),
+      distanceFare: _toDouble(data['distance_price']),
+      timeFare: _toDouble(data['time_price']),
+      waitingCharge: _toDouble(data['waiting_charge']),
+      taxes: _toDouble(data['service_tax']),
+      promoDiscount: _toDouble(data['promo_discount']),
+      tips: _toDouble(data['driver_tips']),
+      totalFare: _toDouble(data['total_amount'] ?? data['request_eta_amount']),
       currency: (data['currency'] ?? 'IQD').toString(),
       currencySymbol: (data['currency_symbol'] ?? AppStrings.currencyIQD).toString(),
-      paymentMethod: (data['payment_opt'] as num?)?.toInt() ?? 1,
+      paymentMethod: _toInt(data['payment_opt']) ?? 1,
       isPaid: data['is_paid'] == 1 ||
           data['is_paid'] == true ||
           data['is_paid'] == '1',
-      additionalCharge:
-          (data['additional_charge'] as num?)?.toDouble() ?? 0.0,
-      cancellationFee:
-          (data['cancellation_fee'] as num?)?.toDouble() ?? 0.0,
+      additionalCharge: _toDouble(data['additional_charge']),
+      cancellationFee: _toDouble(data['cancellation_fee']),
     );
+  }
+
+  /// Safely parse a value that may be num, String, or null → double.
+  static double _toDouble(dynamic v) {
+    if (v == null) return 0.0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0.0;
+  }
+
+  /// Safely parse a value that may be num, String, or null → int?.
+  static int? _toInt(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString());
   }
 
   @override
