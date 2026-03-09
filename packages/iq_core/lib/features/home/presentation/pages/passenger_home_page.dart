@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/iq_map_view.dart';
 import '../../../../core/widgets/iq_menu_button.dart';
@@ -14,7 +15,6 @@ import 'package:flutter_zoom_drawer/flutter_zoom_drawer.dart';
 import '../../../../core/widgets/iq_sidebar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../home/domain/repositories/home_repository.dart';
-import '../../../location/domain/repositories/location_repository.dart';
 import '../../../ride_booking/presentation/bloc/passenger/passenger_trip_bloc.dart';
 import '../../../ride_booking/presentation/bloc/passenger/passenger_trip_event.dart';
 import '../../../ride_booking/presentation/pages/passenger/passenger_active_trip_page.dart';
@@ -95,25 +95,11 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
   static const double _sheetMax = 0.70;
   static const double _sheetInitial = 0.35;
 
-  /// Navigate to search destination page with current location.
-  /// Uses [Geolocator.getLastKnownPosition] for instant access to the
-  /// most recent cached position — no stream subscription needed.
+  /// Navigate to search destination page immediately.
+  /// Uses [Geolocator.getLastKnownPosition] (fast, cached) for coords
+  /// and skips the slow reverse-geocoding step so the page opens instantly.
   Future<void> _handleSearchTap() async {
-    double lat = 33.3152;
-    double lng = 44.3661;
-
-    // Instantly read the most recent position from the system cache.
-    // myLocationEnabled: true keeps the cache fresh via the map SDK.
-    try {
-      final lastPos = await Geolocator.getLastKnownPosition();
-      if (lastPos != null) {
-        lat = lastPos.latitude;
-        lng = lastPos.longitude;
-      }
-    } catch (_) {}
-
-    String address = 'الموقع الحالي';
-
+    // Gather quick places synchronously from already-loaded state.
     final homeData = context.read<PassengerHomeBloc>().state.homeData;
     final quickPlaces =
         homeData?.allFavouriteLocations
@@ -130,13 +116,15 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
             .toList() ??
         <Map<String, dynamic>>[];
 
+    // Read cached GPS position — typically instant (no network).
+    double lat = 33.3152;
+    double lng = 44.3661;
     try {
-      final repo = sl<LocationRepository>();
-      final result = await repo.getAddressFromCoordinates(
-        latitude: lat,
-        longitude: lng,
-      );
-      result.fold((_) {}, (addr) => address = addr);
+      final lastPos = await Geolocator.getLastKnownPosition();
+      if (lastPos != null) {
+        lat = lastPos.latitude;
+        lng = lastPos.longitude;
+      }
     } catch (_) {}
 
     if (!mounted) return;
@@ -147,7 +135,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SearchDestinationPage(
-          pickupAddress: address,
+          pickupAddress: AppStrings.currentLocation,
           pickupLat: lat,
           pickupLng: lng,
           quickPlaces: quickPlaces,

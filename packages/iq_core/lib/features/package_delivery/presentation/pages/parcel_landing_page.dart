@@ -90,12 +90,12 @@ class _ParcelLandingPageState extends State<ParcelLandingPage> {
       Marker(
         markerId: MapMarkerIds.pickup,
         position: pickup,
-        icon: MapIcons.pickup,
+        icon: MapIcons.numberedSync(1),
       ),
       Marker(
         markerId: MapMarkerIds.dropoff,
         position: dropoff,
-        icon: MapIcons.dropoff,
+        icon: MapIcons.numberedSync(2),
       ),
     };
 

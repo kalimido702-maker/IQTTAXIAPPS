@@ -186,11 +186,40 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     DriverTripRejected event,
     Emitter<DriverTripState> emit,
   ) async {
-    await repository.respondToRequest(
-      requestId: event.requestId,
-      isAccept: false,
-    );
+    debugPrint('🚕 _onRejected: rejecting request ${event.requestId}');
+
+    // Immediately go idle so the UI dismisses the overlay.
     emit(state.copyWith(status: DriverTripStatus.idle));
+
+    // Notify the backend so it can re-dispatch to the next driver.
+    // Retry up to 3 times if the network call fails — if the backend
+    // never receives the rejection, no other driver will get the request.
+    bool sent = false;
+    for (int attempt = 1; attempt <= 3 && !sent; attempt++) {
+      final result = await repository.respondToRequest(
+        requestId: event.requestId,
+        isAccept: false,
+      );
+      result.fold(
+        (failure) {
+          debugPrint(
+            '⚠️ _onRejected: API attempt $attempt failed — ${failure.message}',
+          );
+        },
+        (_) {
+          sent = true;
+          debugPrint('🚕 _onRejected: API reject sent successfully');
+        },
+      );
+      if (!sent && attempt < 3) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+      }
+    }
+
+    if (!sent) {
+      debugPrint('❌ _onRejected: reject API failed after 3 attempts — '
+          'backend may not re-dispatch to another driver');
+    }
   }
 
   Future<void> _onStreamStarted(

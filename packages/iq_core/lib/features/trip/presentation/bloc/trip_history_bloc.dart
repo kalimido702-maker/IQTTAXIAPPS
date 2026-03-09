@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/entities/trip_entity.dart';
 import '../../domain/repositories/trip_repository.dart';
 import 'trip_history_event.dart';
 import 'trip_history_state.dart';
@@ -16,6 +17,14 @@ class TripHistoryBloc extends Bloc<TripHistoryEvent, TripHistoryState> {
     'is_completed', // tab 0 — مكتمل
     'is_later', // tab 1 — قادم
     'is_cancelled', // tab 2 — تم الالغاء
+  ];
+
+  /// Maps tab index → expected [TripStatus] for client-side filtering
+  /// (safety net in case backend ignores the `type` query parameter).
+  static const _tabStatuses = [
+    TripStatus.completed, // tab 0
+    TripStatus.upcoming, // tab 1
+    TripStatus.cancelled, // tab 2
   ];
 
   TripHistoryBloc({required TripRepository repository})
@@ -66,7 +75,12 @@ class TripHistoryBloc extends Bloc<TripHistoryEvent, TripHistoryState> {
     result.fold(
       (failure) => emit(current.copyWith(isLoadingMore: false)),
       (response) {
-        final allTrips = [...current.trips, ...response.trips];
+        // Client-side filter: ensure only matching-status trips are shown.
+        final expectedStatus = _tabStatuses[current.activeTab];
+        final filtered = response.trips
+            .where((t) => t.status == expectedStatus)
+            .toList();
+        final allTrips = [...current.trips, ...filtered];
         emit(TripHistoryLoaded(
           activeTab: current.activeTab,
           trips: allTrips,
@@ -103,9 +117,15 @@ class TripHistoryBloc extends Bloc<TripHistoryEvent, TripHistoryState> {
         message: failure.message,
       )),
       (response) {
+        // Client-side filter: ensure only matching-status trips are shown.
+        // The backend's `type` param may be ignored, returning all trips.
+        final expectedStatus = _tabStatuses[activeTab];
+        final filtered = response.trips
+            .where((t) => t.status == expectedStatus)
+            .toList();
         emit(TripHistoryLoaded(
           activeTab: activeTab,
-          trips: response.trips,
+          trips: filtered,
           currentPage: response.currentPage,
           hasMore: response.hasMore,
         ));

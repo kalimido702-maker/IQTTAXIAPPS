@@ -65,7 +65,7 @@ class AppColors {
   // ─── Map ───
   static const Color pickupMarker = Color(0xFF4CAF50);
   static const Color dropoffMarker = Color(0xFFE53935);
-  static const Color routeLine = Color(0xFF2196F3);
+  static const Color routeLine = Color(0xFF1A1A1A);
 
   // ─── Rating ───
   static const Color starFilled = Color(0xFFFFC107);

@@ -494,4 +494,45 @@ class AppStrings {
       'تم رفع المستند بنجاح وهو قيد المراجعة من الإدارة';
   static const String idNumber = 'الرقم التعريفي';
   static const String expiryDate = 'تاريخ الانتهاء';
+
+  // ─── Location ───
+  static const String currentLocation = 'الموقع الحالي';
+
+  // ─── Trip Invoice ───
+  static const String waitingDriverPaymentConfirm =
+      'بانتظار تأكيد السائق لاستلام المبلغ';
+  static const String rateTrip = 'تقييم الرحلة';
+  static const String packageDelivery = 'توصيل طرود';
+
+  // ─── Subscription ───
+  static const String subscriptionTitle = 'الإشتراك';
+  static const String chooseSubscription = 'اختر اشتراكك';
+  static const String choosePlan = 'اختر الخطة';
+  static const String paymentMethod = 'طريقة الدفع';
+  static const String paid = 'مدفوع';
+  static const String free = 'مجاني';
+  static const String walletOption = 'محفظة';
+  static const String cardOption = 'بطاقة دفع';
+  static const String execute = 'تنفيذ';
+  static const String dailySubscription = 'اشتراك اليوم :';
+  static const String freeTrialHint =
+      '• يمكنك تجربة الاشتراك المجاني لمدة 48 ساعة';
+  static const String subscriptionSuccess = 'تم الاشتراك بنجاح';
+  static const String subscriptionExpired = 'انتهت صلاحية الاشتراك';
+  static const String noSubscription = 'لا يوجد اشتراك';
+  static const String noSubscriptionHint =
+      'ليس لديك اشتراك حالياً. اختر خطة للبدء في استقبال الطلبات.';
+  static const String subscriptionType = 'نوع الإشتراك :';
+  static const String price = 'السعر :';
+  static const String expiryDateTime = 'تاريخ ووقت اللإنتهاء :';
+  static const String validUntil = 'صالحة حتى';
+  static const String wasValidUntil = 'كانت صالحة حتى';
+  static const String defaultPlanName = 'أسبوعي';
+  static const String yes = 'نعم';
+  static const String subscriptionRequiredPrompt =
+      'يجب عليك الاشتراك في إحدى الخطط للبدء في استقبال الطلبات';
+  static const String or = 'أو';
+  static const String continueWithoutPlans = 'الاستمرار بدون خطط';
+  static const String commissionModeHint =
+      'يمكنك العمل بنظام العمولة بدون الحاجة إلى اشتراك';
 }

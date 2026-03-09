@@ -102,12 +102,12 @@ class _BodyState extends State<_Body> {
       Marker(
         markerId: MapMarkerIds.pickup,
         position: LatLng(widget.pickupLat, widget.pickupLng),
-        icon: MapIcons.pickup,
+        icon: MapIcons.numberedSync(1),
       ),
       Marker(
         markerId: MapMarkerIds.dropoff,
         position: LatLng(widget.dropoffLat, widget.dropoffLng),
-        icon: MapIcons.dropoff,
+        icon: MapIcons.numberedSync(2),
       ),
     };
 

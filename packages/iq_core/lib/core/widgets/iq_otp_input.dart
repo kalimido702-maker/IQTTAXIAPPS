@@ -235,7 +235,7 @@ class _IqOtpInputState extends State<IqOtpInput>
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        width: 50.w,
+        width: 55.w,
         height: 54.h,
         margin: EdgeInsets.symmetric(horizontal: 5.w),
         decoration: BoxDecoration(

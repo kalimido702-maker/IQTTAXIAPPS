@@ -161,24 +161,33 @@ class _BodyState extends State<_Body> {
                   ),
                 ),
                 // ── Dark timer overlay on map ──
-                if (state.activeTripData?.phase == TripPhase.driverArrived ||
-                    state.activeTripData?.phase == TripPhase.inProgress)
+                if (state.activeTripData?.phase == TripPhase.driverArrived)
                   Positioned(
                     top: MediaQuery.of(context).padding.top + 12.h,
                     left: 20.w,
                     right: 20.w,
                     child: WaitingTimerBanner(
                       key: ValueKey(state.activeTripData?.phase),
-                      message: state.activeTripData?.phase ==
-                              TripPhase.driverArrived
-                          ? AppStrings.remainingWaitTime
-                          : AppStrings.tripElapsedTime,
-                      warningMessage:
-                          state.activeTripData?.phase ==
-                                  TripPhase.driverArrived
-                              ? AppStrings.waitingChargeWarning
-                              : null,
+                      message: AppStrings.remainingWaitTime,
+                      warningMessage: AppStrings.waitingChargeWarning,
                       startTime: DateTime.now(),
+                    ),
+                  ),
+                // ── ETA countdown overlay during trip ──
+                if (state.activeTripData?.phase == TripPhase.inProgress)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 12.h,
+                    left: 20.w,
+                    right: 20.w,
+                    child: WaitingTimerBanner(
+                      key: const ValueKey('trip_eta_countdown'),
+                      message: AppStrings.onWayToDropoff,
+                      isCountdown: true,
+                      totalSeconds:
+                          ((state.activeTripData?.duration ?? 0) * 60).toInt(),
+                      startTime: DateTime.now(),
+                      remainingDistanceKm:
+                          state.activeTripData?.distance ?? 0,
                     ),
                   ),
                 // Bottom sheet
@@ -338,20 +347,36 @@ class _DriverTripMapState extends State<_DriverTripMap> {
     final phase = _phase;
 
     if (req != null) {
-      // Always show pickup marker
+      // Total points = pickup + stops + dropoff → numbered 1..N.
+      final stops = trip?.stops ?? const [];
+      final totalPoints = 2 + stops.length;
+
+      // Always show pickup marker (numbered 1)
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.pickup,
         position: LatLng(req.pickLat, req.pickLng),
-        icon: MapIcons.pickup,
+        icon: MapIcons.numberedSync(1),
       ));
 
-      // Dropoff marker — only relevant during inProgress
+      // Dropoff marker — only relevant during inProgress (numbered N)
       if (phase == _EffectivePhase.inProgress) {
         _markerPool.upsert(Marker(
           markerId: MapMarkerIds.dropoff,
           position: LatLng(req.dropLat, req.dropLng),
-          icon: MapIcons.dropoff,
+          icon: MapIcons.numberedSync(totalPoints),
         ));
+
+        // Intermediate stop markers (numbered 2..N-1)
+        for (int i = 0; i < stops.length; i++) {
+          final stop = stops[i];
+          if (stop.lat != 0 && stop.lng != 0) {
+            _markerPool.upsert(Marker(
+              markerId: MapMarkerIds.stop(i),
+              position: LatLng(stop.lat, stop.lng),
+              icon: MapIcons.numberedSync(i + 2),
+            ));
+          }
+        }
       } else {
         _markerPool.remove(MapMarkerIds.dropoff.value);
       }

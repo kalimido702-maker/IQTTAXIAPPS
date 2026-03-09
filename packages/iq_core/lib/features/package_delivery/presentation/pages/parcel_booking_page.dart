@@ -9,6 +9,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_app_bar.dart';
 import '../../../../core/widgets/iq_primary_button.dart';
 import '../../../../core/widgets/iq_text.dart';
+import '../../../ride_booking/presentation/widgets/ride_bottom_sheets.dart';
 import '../../data/models/parcel_request_model.dart';
 import '../bloc/package_delivery_bloc.dart';
 import '../bloc/package_delivery_event.dart';
@@ -190,7 +191,11 @@ class _BookingBody extends StatelessWidget {
                 SizedBox(height: 24.h),
 
                 // ── Payment method ──
-                _PaymentMethodRow(paymentOpt: req.paymentOpt),
+                _PaymentMethodRow(
+                  paymentOpt: req.paymentOpt,
+                  allowedMethods:
+                      state.selectedVehicle?.paymentTypes ?? const {},
+                ),
               ],
             ),
           ),
@@ -615,8 +620,12 @@ class _PaidByCheckbox extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════
 
 class _PaymentMethodRow extends StatelessWidget {
-  const _PaymentMethodRow({required this.paymentOpt});
+  const _PaymentMethodRow({
+    required this.paymentOpt,
+    required this.allowedMethods,
+  });
   final int paymentOpt;
+  final Map<String, bool> allowedMethods;
 
   String get _paymentLabel {
     switch (paymentOpt) {
@@ -696,80 +705,16 @@ class _PaymentMethodRow extends StatelessWidget {
     );
   }
 
-  void _showPaymentPicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (sheetCtx) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IqText(
-                  AppStrings.selectPaymentMethod,
-                  style: AppTypography.heading3,
-                ),
-                SizedBox(height: 16.h),
-                _PaymentOption(
-                  icon: Icons.money,
-                  label: AppStrings.cash,
-                  isSelected: paymentOpt == 1,
-                  onTap: () {
-                    context
-                        .read<PackageDeliveryBloc>()
-                        .add(const PackageDeliveryPaymentChanged(1));
-                    Navigator.of(sheetCtx).pop();
-                  },
-                ),
-                _PaymentOption(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label: AppStrings.walletPayment,
-                  isSelected: paymentOpt == 2,
-                  onTap: () {
-                    context
-                        .read<PackageDeliveryBloc>()
-                        .add(const PackageDeliveryPaymentChanged(2));
-                    Navigator.of(sheetCtx).pop();
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+  void _showPaymentPicker(BuildContext context) async {
+    final result = await showPaymentMethodSheet(
+      context,
+      currentPayment: paymentOpt,
+      allowedMethods: allowedMethods,
     );
-  }
-}
-
-class _PaymentOption extends StatelessWidget {
-  const _PaymentOption({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? AppColors.primary : AppColors.grayInactive,
-      ),
-      title: IqText(label, style: AppTypography.bodyLarge),
-      trailing: isSelected
-          ? Icon(Icons.check_circle, color: AppColors.primary, size: 24.w)
-          : null,
-      onTap: onTap,
-    );
+    if (result != null && context.mounted) {
+      context
+          .read<PackageDeliveryBloc>()
+          .add(PackageDeliveryPaymentChanged(result));
+    }
   }
 }

@@ -17,6 +17,7 @@ class InvoiceModel extends Equatable {
     this.vehicleNumber,
     this.vehicleColor,
     this.rideType,
+    this.transportType,
     required this.pickAddress,
     required this.dropAddress,
     required this.duration,
@@ -49,6 +50,10 @@ class InvoiceModel extends Equatable {
   final String? vehicleNumber;
   final String? vehicleColor;
   final String? rideType;
+  final String? transportType;
+
+  /// Whether this is a delivery-type trip.
+  bool get isDelivery => transportType == 'delivery';
   final String pickAddress;
   final String dropAddress;
   final double duration;
@@ -106,6 +111,7 @@ class InvoiceModel extends Equatable {
           (data['vehicle_number'] ?? driver['car_number'])?.toString(),
       vehicleColor: (data['vehicle_color'] ?? driver['car_color'])?.toString(),
       rideType: data['ride_type']?.toString(),
+      transportType: data['transport_type']?.toString(),
       pickAddress: (data['pick_address'] ?? '').toString(),
       dropAddress: (data['drop_address'] ?? '').toString(),
       duration: _toDouble(data['total_time']),

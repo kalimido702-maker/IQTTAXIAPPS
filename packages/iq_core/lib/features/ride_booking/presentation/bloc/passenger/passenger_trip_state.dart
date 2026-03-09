@@ -160,5 +160,15 @@ class PassengerTripState extends Equatable {
         activeTripData,
         invoice,
         errorMessage,
+        selectedPreferences,
+        instructions,
+        scheduledTime,
+        promoCode,
+        pickLat,
+        pickLng,
+        dropLat,
+        dropLng,
+        pickAddress,
+        dropAddress,
       ];
 }

@@ -226,6 +226,86 @@ class MarkerIconCache {
 
     return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
   }
+
+  /// Get or create a numbered marker — white circle with a bold number inside.
+  ///
+  /// Used for trip waypoints: 1 = pickup, 2..N-1 = intermediate stops, N = dropoff.
+  Future<BitmapDescriptor> getNumberedMarker({
+    required int number,
+    double size = 96,
+  }) async {
+    final key = 'numbered_marker_$number';
+    if (_cache.containsKey(key)) return _cache[key]!;
+
+    final icon = await _createNumberedMarker(number: number, size: size);
+    _cache[key] = icon;
+    return icon;
+  }
+
+  static Future<BitmapDescriptor> _createNumberedMarker({
+    required int number,
+    double size = 96,
+  }) async {
+    final pictureRecorder = ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+    final center = Offset(size / 2, size / 2);
+    final radius = size / 2 - 4;
+
+    // Shadow
+    canvas.drawCircle(
+      center + const Offset(0, 3),
+      radius + 2,
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.3)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+
+    // White fill
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill,
+    );
+
+    // Dark border
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = const Color(0xFF1A1A1A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+
+    // Number text
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: '$number',
+        style: TextStyle(
+          color: const Color(0xFF1A1A1A),
+          fontSize: size * 0.42,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        center.dx - textPainter.width / 2,
+        center.dy - textPainter.height / 2,
+      ),
+    );
+
+    final picture = pictureRecorder.endRecording();
+    final img = await picture.toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    img.dispose();
+
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -451,6 +531,9 @@ class MapMarkerIds {
   static const dropoff = MarkerId('dropoff');
   static const driver = MarkerId('driver');
   static const user = MarkerId('user');
+
+  /// Get a marker ID for an intermediate stop.
+  static MarkerId stop(int index) => MarkerId('stop_$index');
 }
 
 /// Commonly used polyline IDs.
@@ -481,6 +564,9 @@ class MapIcons {
   static BitmapDescriptor _user = BitmapDescriptor.defaultMarker;
   static bool _precached = false;
 
+  /// Numbered markers cache (1, 2, 3, …).
+  static final Map<int, BitmapDescriptor> _numberedMarkers = {};
+
   /// Pickup marker — green circle.
   static BitmapDescriptor get pickup => _pickup;
 
@@ -495,6 +581,21 @@ class MapIcons {
 
   /// User location marker — teal with arrow indicator.
   static BitmapDescriptor get user => _user;
+
+  /// Get a numbered marker icon (white circle with bold number).
+  /// Returns cached version if available, otherwise creates on-the-fly.
+  static Future<BitmapDescriptor> numbered(int number) async {
+    if (_numberedMarkers.containsKey(number)) return _numberedMarkers[number]!;
+    final icon =
+        await MarkerIconCache.instance.getNumberedMarker(number: number);
+    _numberedMarkers[number] = icon;
+    return icon;
+  }
+
+  /// Synchronous numbered marker — returns fallback if not yet precached.
+  static BitmapDescriptor numberedSync(int number) {
+    return _numberedMarkers[number] ?? BitmapDescriptor.defaultMarker;
+  }
 
   /// Pre-load all custom icons via [MarkerIconCache]. Safe to call multiple
   /// times — subsequent calls are no-ops.
@@ -532,6 +633,12 @@ class MapIcons {
         assetPath: 'assets/svg/car.svg',
         targetWidth: 80,
       ),
+      // Precache numbered markers 1-5 for common trip stops
+      cache.getNumberedMarker(number: 1),
+      cache.getNumberedMarker(number: 2),
+      cache.getNumberedMarker(number: 3),
+      cache.getNumberedMarker(number: 4),
+      cache.getNumberedMarker(number: 5),
     ]);
 
     _pickup = results[0];
@@ -539,6 +646,11 @@ class MapIcons {
     _driver = results[2];
     _user = results[3];
     _car = results[4];
+
+    // Store numbered markers
+    for (int i = 1; i <= 5; i++) {
+      _numberedMarkers[i] = results[4 + i];
+    }
   }
 }
 

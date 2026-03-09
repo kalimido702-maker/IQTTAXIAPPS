@@ -148,6 +148,7 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
             label: AppStrings.pickupAddress,
             address: _pickupAddress,
             onTap: () => _startSearch(isPickup: true),
+            onMapTap: () => _pickFromMapFor(isPickup: true),
           ),
 
           SizedBox(height: 10.h),
@@ -159,6 +160,7 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
             label: AppStrings.deliveryAddress,
             address: _dropAddress,
             onTap: () => _startSearch(isPickup: false),
+            onMapTap: () => _pickFromMapFor(isPickup: false),
           ),
         ],
       ),
@@ -171,6 +173,7 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
     required String label,
     required String address,
     required VoidCallback onTap,
+    required VoidCallback onMapTap,
   }) {
     return InkWell(
       onTap: onTap,
@@ -192,6 +195,18 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
                   color: address.isEmpty ? AppColors.black : null,
                 ),
                 maxLines: 1,
+              ),
+            ),
+            // Map picker icon for this specific field
+            GestureDetector(
+              onTap: onMapTap,
+              child: Padding(
+                padding: EdgeInsets.only(left: 8.w),
+                child: Icon(
+                  Icons.map_outlined,
+                  color: AppColors.primary,
+                  size: 22.w,
+                ),
               ),
             ),
           ],
@@ -454,7 +469,41 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // Map picker
+  // Map picker — for a specific field (pickup or dropoff)
+  // ═══════════════════════════════════════════════════════════════════
+
+  Future<void> _pickFromMapFor({required bool isPickup}) async {
+    final lat = isPickup
+        ? (_pickupLat != 0 ? _pickupLat : 33.3152)
+        : (_dropLat != 0 ? _dropLat : (_pickupLat != 0 ? _pickupLat : 33.3152));
+    final lng = isPickup
+        ? (_pickupLng != 0 ? _pickupLng : 44.3661)
+        : (_dropLng != 0 ? _dropLng : (_pickupLng != 0 ? _pickupLng : 44.3661));
+
+    final result = await Navigator.of(context).push<MapPickResult>(
+      MaterialPageRoute(
+        builder: (_) => MapPickerPage(initialLat: lat, initialLng: lng),
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        if (isPickup) {
+          _pickupAddress = result.address;
+          _pickupLat = result.lat;
+          _pickupLng = result.lng;
+        } else {
+          _dropAddress = result.address;
+          _dropLat = result.lat;
+          _dropLng = result.lng;
+        }
+      });
+      _tryConfirm();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Map picker — auto-fills next empty field (from bottom button)
   // ═══════════════════════════════════════════════════════════════════
 
   Future<void> _pickFromMap() async {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -12,6 +14,7 @@ import '../../../../../core/widgets/iq_primary_button.dart';
 import '../../../../../core/widgets/iq_text.dart';
 import '../../../../wallet/presentation/pages/payment_web_view_page.dart';
 import '../../../data/datasources/trip_stream_data_source.dart';
+import '../../../data/models/active_trip_model.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../domain/repositories/booking_repository.dart';
 import '../../widgets/trip_fare_breakdown.dart';
@@ -109,6 +112,33 @@ class _InvoiceContent extends StatefulWidget {
 class _InvoiceContentState extends State<_InvoiceContent> {
   bool _processingPayment = false;
 
+  /// Real-time payment confirmation from Firebase.
+  late bool _isPaid = widget.invoice.isPaid;
+  StreamSubscription<ActiveTripModel?>? _paymentSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // For passengers with cash/wallet trips that aren't yet paid,
+    // listen to Firebase for real-time payment confirmation from driver.
+    if (!widget.isDriver && !_isPaid) {
+      _paymentSub = sl<TripStreamDataSource>()
+          .watchTrip(widget.requestId)
+          .listen((trip) {
+        if (trip != null && trip.isPaid && mounted) {
+          setState(() => _isPaid = true);
+          _paymentSub?.cancel();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _paymentSub?.cancel();
+    super.dispose();
+  }
+
   Future<void> _handleOnlinePayment() async {
     setState(() => _processingPayment = true);
 
@@ -194,12 +224,24 @@ class _InvoiceContentState extends State<_InvoiceContent> {
       return;
     }
 
-    // Passenger: check if online payment is needed (code 0 = online/card)
-    if (widget.invoice.paymentMethod == 0 && !widget.invoice.isPaid) {
-      _handleOnlinePayment();
-    } else {
-      _navigateToRating();
+    // Passenger: block navigation until driver confirms payment
+    if (!_isPaid) {
+      if (widget.invoice.paymentMethod == 0) {
+        // Online payment flow
+        _handleOnlinePayment();
+        return;
+      }
+      // Cash/wallet: show waiting message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppStrings.waitingDriverPaymentConfirm),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      return;
     }
+
+    _navigateToRating();
   }
 
   @override
@@ -232,7 +274,7 @@ class _InvoiceContentState extends State<_InvoiceContent> {
           Row(
             children: [
               GestureDetector(
-                onTap: () => _navigateToRating(),
+                onTap: () => _onActionPressed(),
                 child: Icon(Icons.arrow_back, size: 24.w, color: onSurface),
               ),
               const Spacer(),
@@ -379,7 +421,7 @@ class _InvoiceContentState extends State<_InvoiceContent> {
                       ),
                     ),
                     SizedBox(width: 12.w),
-                    // Taxi badge + request number
+                    // Type badge + request number
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -387,15 +429,22 @@ class _InvoiceContentState extends State<_InvoiceContent> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IqText(
-                              AppStrings.taxi,
+                              widget.invoice.isDelivery
+                                  ? AppStrings.packageDelivery
+                                  : AppStrings.taxi,
                               style: AppTypography.caption.copyWith(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             SizedBox(width: 4.w),
-                            Icon(Icons.local_taxi_rounded,
-                                size: 16.w, color: AppColors.primary),
+                            Icon(
+                              widget.invoice.isDelivery
+                                  ? Icons.local_shipping_rounded
+                                  : Icons.local_taxi_rounded,
+                              size: 16.w,
+                              color: AppColors.primary,
+                            ),
                           ],
                         ),
                         SizedBox(height: 6.h),
@@ -446,71 +495,78 @@ class _InvoiceContentState extends State<_InvoiceContent> {
             ),
             child: Column(
               children: [
-                // Duration + Distance
-                Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.access_time_rounded,
-                              size: 18.w, color: AppColors.textMuted),
-                          SizedBox(width: 6.w),
-                          IqText(
-                            '${AppStrings.duration} : ',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: onSurface,
-                              fontWeight: FontWeight.w600,
+                // Duration + Distance (hide if both are zero — typical for delivery)
+                if (widget.invoice.duration > 0 || widget.invoice.distance > 0)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.access_time_rounded,
+                                size: 18.w, color: AppColors.textMuted),
+                            SizedBox(width: 6.w),
+                            IqText(
+                              '${AppStrings.duration} : ',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                          IqText(
-                            '${widget.invoice.duration.toStringAsFixed(0)} ${AppStrings.minute}',
-                            style: AppTypography.labelMedium.copyWith(
-                              color: onSurface,
-                              fontWeight: FontWeight.w800,
+                            IqText(
+                              '${widget.invoice.duration.toStringAsFixed(0)} ${AppStrings.minute}',
+                              style: AppTypography.labelMedium.copyWith(
+                                color: onSurface,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 24.h,
-                      color: cardBorder,
-                    ),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.straighten_rounded,
-                              size: 18.w, color: AppColors.textMuted),
-                          SizedBox(width: 6.w),
-                          IqText(
-                            '${AppStrings.distance} : ',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: onSurface,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          IqText(
-                            '${widget.invoice.distance.toStringAsFixed(2)} ${AppStrings.km}',
-                            style: AppTypography.labelMedium.copyWith(
-                              color: onSurface,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
+                      Container(
+                        width: 1,
+                        height: 24.h,
+                        color: cardBorder,
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 10.h),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.straighten_rounded,
+                                size: 18.w, color: AppColors.textMuted),
+                            SizedBox(width: 6.w),
+                            IqText(
+                              '${AppStrings.distance} : ',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            IqText(
+                              '${widget.invoice.distance.toStringAsFixed(2)} ${AppStrings.km}',
+                              style: AppTypography.labelMedium.copyWith(
+                                color: onSurface,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                if (widget.invoice.duration > 0 || widget.invoice.distance > 0)
+                  SizedBox(height: 10.h),
                 // Ride type
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.local_taxi_rounded,
-                        size: 18.w, color: AppColors.textMuted),
+                    Icon(
+                      widget.invoice.isDelivery
+                          ? Icons.local_shipping_rounded
+                          : Icons.local_taxi_rounded,
+                      size: 18.w,
+                      color: AppColors.textMuted,
+                    ),
                     SizedBox(width: 6.w),
                     IqText(
                       '${AppStrings.tripType} : ',
@@ -520,7 +576,9 @@ class _InvoiceContentState extends State<_InvoiceContent> {
                       ),
                     ),
                     IqText(
-                      widget.invoice.rideType ?? AppStrings.regular,
+                      widget.invoice.isDelivery
+                          ? AppStrings.packageDelivery
+                          : (widget.invoice.rideType ?? AppStrings.regular),
                       style: AppTypography.labelMedium.copyWith(
                         color: onSurface,
                         fontWeight: FontWeight.w800,
@@ -617,14 +675,43 @@ class _InvoiceContentState extends State<_InvoiceContent> {
           SizedBox(height: 24.h),
 
           // ── Action Button ──
+          if (!widget.isDriver && !_isPaid && widget.invoice.paymentMethod != 0)
+            // Waiting for driver to confirm payment
+            Padding(
+              padding: EdgeInsets.only(bottom: 8.h),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16.w,
+                    height: 16.w,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  IqText(
+                    AppStrings.waitingDriverPaymentConfirm,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           IqPrimaryButton(
             text: widget.isDriver
                 ? AppStrings.paymentReceived
-                : (widget.invoice.paymentMethod == 0 && !widget.invoice.isPaid)
+                : (!_isPaid && widget.invoice.paymentMethod == 0)
                     ? AppStrings.payNow
-                    : AppStrings.choosePay,
+                    : AppStrings.rateTrip,
             isLoading: _processingPayment,
-            onPressed: _processingPayment ? null : _onActionPressed,
+            onPressed: _processingPayment
+                ? null
+                : (!widget.isDriver && !_isPaid && widget.invoice.paymentMethod != 0)
+                    ? null
+                    : _onActionPressed,
           ),
           SizedBox(height: 16.h),
         ],

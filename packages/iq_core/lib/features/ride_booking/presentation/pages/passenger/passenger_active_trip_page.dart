@@ -253,14 +253,18 @@ class _TripMapState extends State<_TripMap> {
 
     // ── Markers ──
 
+    // Total points = pickup + stops + dropoff → numbered 1..N.
+    final stops = trip?.stops ?? const [];
+    final totalPoints = 2 + stops.length; // 1=pickup, 2..N-1=stops, N=dropoff
+
     // During driver-on-way/arrived: show only pickup + driver car.
-    // During in-progress: show pickup + dropoff + driver car.
-    // During searching: show pickup + dropoff (fake cars handled separately).
+    // During in-progress: show pickup + stops + dropoff + driver car.
+    // During searching: show pickup + stops + dropoff (fake cars handled separately).
     if (widget.state.pickLat != 0) {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.pickup,
         position: LatLng(widget.state.pickLat, widget.state.pickLng),
-        icon: MapIcons.pickup,
+        icon: MapIcons.numberedSync(1),
       ));
     }
 
@@ -268,11 +272,25 @@ class _TripMapState extends State<_TripMap> {
       _markerPool.upsert(Marker(
         markerId: MapMarkerIds.dropoff,
         position: LatLng(widget.state.dropLat, widget.state.dropLng),
-        icon: MapIcons.dropoff,
+        icon: MapIcons.numberedSync(totalPoints),
       ));
     } else if (isDriverApproaching) {
       // Remove dropoff marker during driver-approaching phase.
       _markerPool.remove(MapMarkerIds.dropoff.value);
+    }
+
+    // Intermediate stop markers (numbered 2..N-1)
+    if (!isDriverApproaching) {
+      for (int i = 0; i < stops.length; i++) {
+        final stop = stops[i];
+        if (stop.lat != 0 && stop.lng != 0) {
+          _markerPool.upsert(Marker(
+            markerId: MapMarkerIds.stop(i),
+            position: LatLng(stop.lat, stop.lng),
+            icon: MapIcons.numberedSync(i + 2),
+          ));
+        }
+      }
     }
 
     // Driver car marker

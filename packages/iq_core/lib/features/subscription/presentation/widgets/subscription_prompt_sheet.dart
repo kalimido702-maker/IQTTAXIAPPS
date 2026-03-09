@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -120,7 +121,7 @@ class _SubscriptionPromptSheet extends StatelessWidget {
 
               // Heading text
               IqText(
-                'يجب عليك الاشتراك في إحدى الخطط للبدء في استقبال الطلبات',
+                AppStrings.subscriptionRequiredPrompt,
                 style: AppTypography.bodyMedium.copyWith(
                   color: AppColors.error,
                   fontSize: 15.sp,
@@ -150,7 +151,7 @@ class _SubscriptionPromptSheet extends StatelessWidget {
                     elevation: 0,
                   ),
                   child: IqText(
-                    'اختر الخطة',
+                    AppStrings.choosePlan,
                     style: AppTypography.heading3.copyWith(
                       color: AppColors.black,
                       fontSize: 16.sp,
@@ -164,7 +165,7 @@ class _SubscriptionPromptSheet extends StatelessWidget {
                 SizedBox(height: 16.h),
 
                 IqText(
-                  'أو',
+                  AppStrings.or,
                   style: AppTypography.bodyMedium.copyWith(fontSize: 16.sp),
                   textAlign: TextAlign.center,
                 ),
@@ -177,7 +178,7 @@ class _SubscriptionPromptSheet extends StatelessWidget {
                     Navigator.of(context).pop();
                   },
                   child: IqText(
-                    'الاستمرار بدون خطط',
+                    AppStrings.continueWithoutPlans,
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.primary700,
                       fontSize: 16.sp,
@@ -190,7 +191,7 @@ class _SubscriptionPromptSheet extends StatelessWidget {
                 SizedBox(height: 8.h),
 
                 IqText(
-                  'يمكنك العمل بنظام العمولة بدون الحاجة إلى اشتراك',
+                  AppStrings.commissionModeHint,
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.gray2,
                     fontSize: 12.sp,

@@ -1,5 +1,51 @@
 import 'package:equatable/equatable.dart';
 
+/// An intermediate stop / waypoint within a trip.
+class TripStopModel {
+  const TripStopModel({
+    required this.order,
+    required this.lat,
+    required this.lng,
+    this.address = '',
+    this.pocName,
+    this.pocMobile,
+    this.pocInstruction,
+  });
+
+  final int order;
+  final double lat;
+  final double lng;
+  final String address;
+  final String? pocName;
+  final String? pocMobile;
+  final String? pocInstruction;
+
+  factory TripStopModel.fromMap(Map<dynamic, dynamic> data, {int fallbackOrder = 0}) {
+    return TripStopModel(
+      order: _parseInt(data['order']) ?? _parseInt(data['order_id']) ?? fallbackOrder,
+      lat: _parseDouble(data['lat']) ?? _parseDouble(data['latitude']) ?? 0.0,
+      lng: _parseDouble(data['lng']) ?? _parseDouble(data['longitude']) ?? 0.0,
+      address: data['address']?.toString() ?? '',
+      pocName: data['poc_name']?.toString(),
+      pocMobile: data['poc_mobile']?.toString(),
+      pocInstruction: data['poc_instruction']?.toString(),
+    );
+  }
+
+  static double? _parseDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
+  static int? _parseInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString());
+  }
+}
+
 /// Real-time trip state from Firebase RTDB at `requests/{requestId}`.
 ///
 /// Represents the live state of an ongoing trip that both
@@ -54,6 +100,7 @@ class ActiveTripModel extends Equatable {
     this.enableShipmentLoad = false,
     this.enableShipmentUnload = false,
     this.enableDigitalSignature = false,
+    this.stops = const [],
   });
 
   final String requestId;
@@ -126,6 +173,9 @@ class ActiveTripModel extends Equatable {
   final bool enableShipmentLoad;
   final bool enableShipmentUnload;
   final bool enableDigitalSignature;
+
+  /// Intermediate trip stops / waypoints (ordered by [TripStopModel.order]).
+  final List<TripStopModel> stops;
 
   /// Whether this is a delivery-type trip.
   bool get isDelivery => transportType == 'delivery';
@@ -242,7 +292,29 @@ class ActiveTripModel extends Equatable {
           data['enable_digital_signature'] == '1' ||
               data['enable_digital_signature'] == 1 ||
               data['enable_digital_signature'] == true,
+      stops: _parseStops(data['stops'] ?? data['stop_address_list']),
     );
+  }
+
+  /// Parse stops from Firebase — supports List or Map keyed by index.
+  static List<TripStopModel> _parseStops(dynamic raw) {
+    if (raw == null) return const [];
+    final List<TripStopModel> result = [];
+    if (raw is List) {
+      for (int i = 0; i < raw.length; i++) {
+        if (raw[i] is Map) {
+          result.add(TripStopModel.fromMap(raw[i] as Map, fallbackOrder: i));
+        }
+      }
+    } else if (raw is Map) {
+      raw.forEach((key, value) {
+        if (value is Map) {
+          result.add(TripStopModel.fromMap(value, fallbackOrder: int.tryParse(key.toString()) ?? 0));
+        }
+      });
+    }
+    result.sort((a, b) => a.order.compareTo(b.order));
+    return result;
   }
 
   ActiveTripModel copyWith({
@@ -323,6 +395,7 @@ class ActiveTripModel extends Equatable {
       modifiedByUser: modifiedByUser,
       destinationChange: destinationChange,
       isCompleted: isCompleted,
+      stops: stops,
     );
   }
 
@@ -378,6 +451,7 @@ class ActiveTripModel extends Equatable {
         enableShipmentLoad,
         enableShipmentUnload,
         enableDigitalSignature,
+        stops,
       ];
 }
 

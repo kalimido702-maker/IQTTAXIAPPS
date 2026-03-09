@@ -17,6 +17,7 @@ class WaitingTimerBanner extends StatefulWidget {
     this.startTime,
     this.isCountdown = false,
     this.totalSeconds,
+    this.remainingDistanceKm,
   });
 
   final String message;
@@ -24,6 +25,9 @@ class WaitingTimerBanner extends StatefulWidget {
   final DateTime? startTime;
   final bool isCountdown;
   final int? totalSeconds;
+
+  /// If provided, shows remaining distance below the timer (e.g. "1.5 km").
+  final double? remainingDistanceKm;
 
   @override
   State<WaitingTimerBanner> createState() => _WaitingTimerBannerState();
@@ -99,6 +103,20 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
             ),
             dir: TextDirection.ltr,
           ),
+          // ── Remaining distance ──
+          if (widget.remainingDistanceKm != null &&
+              widget.remainingDistanceKm! > 0) ...[
+            SizedBox(height: 6.h),
+            IqText(
+              '${widget.remainingDistanceKm!.toStringAsFixed(1)} km',
+              style: AppTypography.numberLarge.copyWith(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w600,
+                fontSize: 18.sp,
+              ),
+              dir: TextDirection.ltr,
+            ),
+          ],
           if (widget.warningMessage != null) ...[
             SizedBox(height: 8.h),
             Row(

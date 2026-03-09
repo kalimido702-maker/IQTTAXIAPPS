@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_app_bar.dart';
@@ -44,7 +46,7 @@ class SubscriptionPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const IqAppBar(title: 'الإشتراك'),
+      appBar: const IqAppBar(title: AppStrings.subscriptionTitle),
       body: BlocConsumer<SubscriptionBloc, SubscriptionState>(
         listenWhen: (prev, curr) =>
             prev.paymentUrl != curr.paymentUrl ||
@@ -104,7 +106,7 @@ class SubscriptionPage extends StatelessWidget {
                     state.status == SubscriptionViewStatus.submitting,
               ),
             SubscriptionViewStatus.error => _ErrorView(
-                message: state.errorMessage ?? 'حدث خطأ',
+                message: state.errorMessage ?? AppStrings.errorOccurred,
                 onRetry: () {
                   context
                       .read<SubscriptionBloc>()
@@ -118,9 +120,11 @@ class SubscriptionPage extends StatelessWidget {
   }
 
   Widget _buildShimmer() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
+    return Builder(builder: (context) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return Shimmer.fromColors(
+        baseColor: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+        highlightColor: isDark ? Colors.grey.shade700 : Colors.grey.shade100,
       child: Padding(
         padding: EdgeInsets.all(24.w),
         child: Column(
@@ -220,6 +224,7 @@ class SubscriptionPage extends StatelessWidget {
         ),
       ),
     );
+    });
   }
 }
 
@@ -246,20 +251,21 @@ class _PlanListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Stack(
       children: [
         SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: 30.w),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(height: 20.h),
 
               // ── Section: اختر اشتراكك ──
               IqText(
-                'اختر اشتراكك',
+                AppStrings.chooseSubscription,
                 style: AppTypography.heading3.copyWith(
-                  color: AppColors.textDark,
+                  color: isDark ? AppColors.white : AppColors.textDark,
                 ),
               ),
               SizedBox(height: 20.h),
@@ -288,9 +294,9 @@ class _PlanListView extends StatelessWidget {
 
               // ── Section: اختر الخطة ──
               IqText(
-                'اختر الخطة',
+                AppStrings.choosePlan,
                 style: AppTypography.heading3.copyWith(
-                  color: AppColors.textDark,
+                  color: isDark ? AppColors.white : AppColors.textDark,
                 ),
               ),
               SizedBox(height: 20.h),
@@ -299,7 +305,7 @@ class _PlanListView extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   _ChoiceChip(
-                    label: 'مدفوع',
+                    label: AppStrings.paid,
                     isSelected: !isFreeDayOn,
                     onTap: () => context
                         .read<SubscriptionBloc>()
@@ -307,7 +313,7 @@ class _PlanListView extends StatelessWidget {
                   ),
                   SizedBox(width: 20.w),
                   _ChoiceChip(
-                    label: 'مجاني',
+                    label: AppStrings.free,
                     isSelected: isFreeDayOn,
                     onTap: () => context
                         .read<SubscriptionBloc>()
@@ -325,7 +331,7 @@ class _PlanListView extends StatelessWidget {
                   children: [
                     Flexible(
                       child: IqText(
-                        '• يمكنك تجربة الاشتراك المجاني لمدة 48 ساعة',
+                        AppStrings.freeTrialHint,
                         style: AppTypography.bodySmall.copyWith(
                           color: AppColors.gray3,
                           fontSize: 14.sp,
@@ -340,9 +346,9 @@ class _PlanListView extends StatelessWidget {
 
               // ── Section: طريقة الدفع ──
               IqText(
-                'طريقة الدفع',
+                AppStrings.paymentMethod,
                 style: AppTypography.heading3.copyWith(
-                  color: AppColors.textDark,
+                  color: isDark ? AppColors.white : AppColors.textDark,
                 ),
               ),
               SizedBox(height: 20.h),
@@ -351,7 +357,7 @@ class _PlanListView extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   _ChoiceChip(
-                    label: 'بطاقة دفع',
+                    label: AppStrings.cardOption,
                     isSelected: paymentOption == 0,
                     onTap: () => context.read<SubscriptionBloc>().add(
                           const SubscriptionPaymentMethodChanged(0),
@@ -359,7 +365,7 @@ class _PlanListView extends StatelessWidget {
                   ),
                   SizedBox(width: 20.w),
                   _ChoiceChip(
-                    label: 'محفظة',
+                    label: AppStrings.walletOption,
                     isSelected: paymentOption == 2,
                     onTap: () => context.read<SubscriptionBloc>().add(
                           const SubscriptionPaymentMethodChanged(2),
@@ -403,7 +409,7 @@ class _PlanListView extends StatelessWidget {
                           ),
                         )
                       : IqText(
-                          'تنفيذ',
+                          AppStrings.execute,
                           style: AppTypography.heading3.copyWith(
                             color: AppColors.black,
                             fontSize: 18.sp,
@@ -440,16 +446,19 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 15.h),
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: isDark ? AppColors.darkCard : AppColors.white,
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
-            color: isSelected ? AppColors.black : const Color(0xFFDADADA),
+            color: isSelected
+                ? (isDark ? AppColors.white : AppColors.black)
+                : (isDark ? AppColors.darkDivider : const Color(0xFFDADADA)),
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -464,6 +473,7 @@ class _PlanCard extends StatelessWidget {
                     style: AppTypography.bodyMedium.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 16.sp,
+                      color: isDark ? AppColors.white : null,
                     ),
                   ),
                   SizedBox(height: 8.h),
@@ -475,13 +485,15 @@ class _PlanCard extends StatelessWidget {
                         style: AppTypography.bodyMedium.copyWith(
                           fontWeight: FontWeight.bold,
                           fontSize: 14.sp,
+                          color: isDark ? AppColors.white : null,
                         ),
                       ),
                       SizedBox(width: 8.w),
                       IqText(
-                        'اشتراك اليوم :',
+                        AppStrings.dailySubscription,
                         style: AppTypography.bodySmall.copyWith(
                           fontSize: 14.sp,
+                          color: isDark ? AppColors.darkGray : null,
                         ),
                       ),
                     ],
@@ -497,7 +509,7 @@ class _PlanCard extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.black,
+                  color: isDark ? AppColors.white : AppColors.black,
                   width: 1.5,
                 ),
               ),
@@ -506,9 +518,9 @@ class _PlanCard extends StatelessWidget {
                   ? Container(
                       width: 14.w,
                       height: 14.w,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.black,
+                        color: isDark ? AppColors.white : AppColors.black,
                       ),
                     )
                   : null,
@@ -537,6 +549,7 @@ class _ChoiceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -544,7 +557,9 @@ class _ChoiceChip extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8.r),
           border: Border.all(
-            color: isSelected ? AppColors.black : const Color(0xFFDADADA),
+            color: isSelected
+                ? (isDark ? AppColors.white : AppColors.black)
+                : (isDark ? AppColors.darkDivider : const Color(0xFFDADADA)),
           ),
         ),
         child: Row(
@@ -552,7 +567,10 @@ class _ChoiceChip extends StatelessWidget {
           children: [
             IqText(
               label,
-              style: AppTypography.bodyMedium.copyWith(fontSize: 16.sp),
+              style: AppTypography.bodyMedium.copyWith(
+                fontSize: 16.sp,
+                color: isDark ? AppColors.white : null,
+              ),
             ),
             SizedBox(width: 10.w),
             // Checkbox icon
@@ -560,17 +578,21 @@ class _ChoiceChip extends StatelessWidget {
               width: 24.w,
               height: 24.w,
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.black : Colors.transparent,
+                color: isSelected
+                    ? (isDark ? AppColors.white : AppColors.black)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(4.r),
                 border: Border.all(
-                  color: isSelected ? AppColors.black : AppColors.grayBorder,
+                  color: isSelected
+                      ? (isDark ? AppColors.white : AppColors.black)
+                      : (isDark ? AppColors.darkDivider : AppColors.grayBorder),
                   width: 1.5,
                 ),
               ),
               child: isSelected
                   ? Icon(
                       Icons.check,
-                      color: AppColors.white,
+                      color: isDark ? AppColors.black : AppColors.white,
                       size: 16.w,
                     )
                   : null,
@@ -599,33 +621,26 @@ class _SuccessView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 30.w),
       child: Column(
         children: [
           const Spacer(flex: 1),
 
-          // Green check circle
-          Container(
+          // Green check circle — subscription active
+          SvgPicture.asset(
+            'assets/svg/supscription_working.svg',
             width: 200.w,
             height: 200.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF50D1AA).withValues(alpha: 0.2),
-            ),
-            child: Icon(
-              Icons.check,
-              size: 100.w,
-              color: const Color(0xFF50D1AA),
-            ),
           ),
 
           SizedBox(height: 50.h),
 
           IqText(
-            'تم الاشتراك بنجاح',
+            AppStrings.subscriptionSuccess,
             style: AppTypography.heading2.copyWith(
-              color: AppColors.black,
+              color: isDark ? AppColors.white : AppColors.black,
             ),
             textAlign: TextAlign.center,
           ),
@@ -634,21 +649,21 @@ class _SuccessView extends StatelessWidget {
 
           if (subscription != null) ...[
             _InfoRow(
-              label: 'نوع الإشتراك :',
+              label: AppStrings.subscriptionType,
               value: subscription!.subscriptionName.isNotEmpty
                   ? subscription!.subscriptionName
-                  : 'أسبوعي',
+                  : AppStrings.defaultPlanName,
             ),
             SizedBox(height: 15.h),
             _InfoRow(
-              label: 'السعر :',
+              label: AppStrings.price,
               value: '${subscription!.paidAmount} IQD',
             ),
             SizedBox(height: 15.h),
             _InfoRow(
-              label: 'تاريخ ووقت اللإنتهاء :',
+              label: AppStrings.expiryDateTime,
               value:
-                  'صالحة حتى ${subscription!.expiredAt.split(' ').first}',
+                  '${AppStrings.validUntil} ${subscription!.expiredAt.split(' ').first}',
             ),
           ],
 
@@ -672,7 +687,7 @@ class _SuccessView extends StatelessWidget {
                 elevation: 0,
               ),
               child: IqText(
-                'نعم',
+                AppStrings.yes,
                 style: AppTypography.heading3.copyWith(
                   color: AppColors.black,
                   fontSize: 18.sp,
@@ -705,33 +720,26 @@ class _ExpiredView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 30.w),
       child: Column(
         children: [
           const Spacer(flex: 1),
 
-          // Expired illustration — red/orange warning icon
-          Container(
+          // Expired illustration — subscription ended
+          SvgPicture.asset(
+            'assets/svg/supscription_ended.svg',
             width: 200.w,
             height: 200.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.error.withValues(alpha: 0.1),
-            ),
-            child: Icon(
-              Icons.block_rounded,
-              size: 100.w,
-              color: AppColors.error,
-            ),
           ),
 
           SizedBox(height: 50.h),
 
           IqText(
-            'انتهت صلاحية الاشتراك',
+            AppStrings.subscriptionExpired,
             style: AppTypography.heading2.copyWith(
-              color: AppColors.black,
+              color: isDark ? AppColors.white : AppColors.black,
             ),
             textAlign: TextAlign.center,
           ),
@@ -740,21 +748,21 @@ class _ExpiredView extends StatelessWidget {
 
           if (subscription != null) ...[
             _InfoRow(
-              label: 'نوع الإشتراك :',
+              label: AppStrings.subscriptionType,
               value: subscription!.subscriptionName.isNotEmpty
                   ? subscription!.subscriptionName
-                  : 'أسبوعي',
+                  : AppStrings.defaultPlanName,
             ),
             SizedBox(height: 15.h),
             _InfoRow(
-              label: 'السعر :',
+              label: AppStrings.price,
               value: '${subscription!.paidAmount} $currencySymbol',
             ),
             SizedBox(height: 15.h),
             _InfoRow(
-              label: 'تاريخ ووقت اللإنتهاء :',
+              label: AppStrings.expiryDateTime,
               value:
-                  'كانت صالحة حتى ${subscription!.expiredAt.split(' ').first}',
+                  '${AppStrings.wasValidUntil} ${subscription!.expiredAt.split(' ').first}',
             ),
           ],
 
@@ -778,7 +786,7 @@ class _ExpiredView extends StatelessWidget {
                 elevation: 0,
               ),
               child: IqText(
-                'اختر الخطة',
+                AppStrings.choosePlan,
                 style: AppTypography.heading3.copyWith(
                   color: AppColors.black,
                   fontSize: 18.sp,
@@ -805,6 +813,7 @@ class _NoSubscriptionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 30.w),
       child: Column(
@@ -814,15 +823,15 @@ class _NoSubscriptionView extends StatelessWidget {
           Icon(
             Icons.card_membership_rounded,
             size: 120.w,
-            color: AppColors.grayLight,
+            color: isDark ? AppColors.darkGray : AppColors.grayLight,
           ),
 
           SizedBox(height: 40.h),
 
           IqText(
-            'لا يوجد اشتراك',
+            AppStrings.noSubscription,
             style: AppTypography.heading2.copyWith(
-              color: AppColors.black,
+              color: isDark ? AppColors.white : AppColors.black,
             ),
             textAlign: TextAlign.center,
           ),
@@ -830,7 +839,7 @@ class _NoSubscriptionView extends StatelessWidget {
           SizedBox(height: 20.h),
 
           IqText(
-            'ليس لديك اشتراك حالياً. اختر خطة للبدء في استقبال الطلبات.',
+            AppStrings.noSubscriptionHint,
             style: AppTypography.bodyMedium.copyWith(
               color: AppColors.gray3,
               fontSize: 16.sp,
@@ -858,7 +867,7 @@ class _NoSubscriptionView extends StatelessWidget {
                 elevation: 0,
               ),
               child: IqText(
-                'اختر الخطة',
+                AppStrings.choosePlan,
                 style: AppTypography.heading3.copyWith(
                   color: AppColors.black,
                   fontSize: 18.sp,
@@ -903,7 +912,7 @@ class _ErrorView extends StatelessWidget {
             TextButton(
               onPressed: onRetry,
               child: IqText(
-                'إعادة المحاولة',
+                AppStrings.retry,
                 style: AppTypography.labelLarge.copyWith(
                   color: AppColors.primary,
                 ),
@@ -928,23 +937,25 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        IqText(
+          label,
+          style: AppTypography.bodySmall.copyWith(
+            color: isDark ? AppColors.darkGray : AppColors.gray3,
+            fontSize: 14.sp,
+          ),
+        ),
         Flexible(
           child: IqText(
             value,
             style: AppTypography.bodyMedium.copyWith(
               fontWeight: FontWeight.bold,
               fontSize: 14.sp,
+              color: isDark ? AppColors.white : null,
             ),
-          ),
-        ),
-        IqText(
-          label,
-          style: AppTypography.bodySmall.copyWith(
-            color: AppColors.gray3,
-            fontSize: 14.sp,
           ),
         ),
       ],

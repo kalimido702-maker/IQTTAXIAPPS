@@ -52,12 +52,12 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
       Marker(
         markerId: MapMarkerIds.pickup,
         position: LatLng(widget.request.pickLat, widget.request.pickLng),
-        icon: MapIcons.pickup,
+        icon: MapIcons.numberedSync(1),
       ),
       Marker(
         markerId: MapMarkerIds.dropoff,
         position: LatLng(widget.request.dropLat, widget.request.dropLng),
-        icon: MapIcons.dropoff,
+        icon: MapIcons.numberedSync(2),
       ),
     };
     _secondsLeft = widget.acceptDuration;
