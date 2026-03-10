@@ -535,4 +535,15 @@ class AppStrings {
   static const String continueWithoutPlans = 'الاستمرار بدون خطط';
   static const String commissionModeHint =
       'يمكنك العمل بنظام العمولة بدون الحاجة إلى اشتراك';
+
+  // ─── POS QR Payment ───
+  static const String scanQrCode = 'مسح QR الدفع';
+  static const String scanQrInstruction =
+      'وجّه الكاميرا نحو رمز الـ QR الظاهر على جهاز الدفع';
+  static const String posPaymentSuccess = 'تم الدفع بنجاح';
+  static const String posPaymentFailed = 'فشلت عملية الدفع';
+  static const String invalidQrCode = 'رمز QR غير صالح — يرجى مسح الرمز الصحيح';
+  static const String responseCode = 'كود الاستجابة';
+  static const String scanPosQr = 'مسح QR جهاز الدفع';
+  static const String orConfirmCash = 'أو تأكيد الدفع النقدي';
 }

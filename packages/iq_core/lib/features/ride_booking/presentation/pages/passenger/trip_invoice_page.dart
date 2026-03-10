@@ -16,8 +16,10 @@ import '../../../../wallet/presentation/pages/payment_web_view_page.dart';
 import '../../../data/datasources/trip_stream_data_source.dart';
 import '../../../data/models/active_trip_model.dart';
 import '../../../data/models/invoice_model.dart';
+import '../../../data/models/pos_transaction_model.dart';
 import '../../../domain/repositories/booking_repository.dart';
 import '../../widgets/trip_fare_breakdown.dart';
+import '../driver/pos_qr_scanner_page.dart';
 import 'trip_rating_page.dart';
 
 /// Trip invoice / summary page (Figma 7:894).
@@ -214,11 +216,32 @@ class _InvoiceContentState extends State<_InvoiceContent> {
     );
   }
 
+  /// Opens the POS QR scanner. On successful scan → confirm payment → rating.
+  Future<void> _handlePosQrPayment() async {
+    final transaction = await Navigator.of(context).push<PosTransactionModel?>(
+      MaterialPageRoute(builder: (_) => const PosQrScannerPage()),
+    );
+
+    if (!mounted || transaction == null) return;
+
+    // Transaction is already validated (ResponseCode == "00") by the scanner.
+    // Mark payment as confirmed on the backend.
+    sl<BookingRepository>().confirmPayment(requestId: widget.requestId);
+
+    // Notify passenger via Firebase.
+    sl<TripStreamDataSource>().updateTripNode(
+      requestId: widget.requestId,
+      data: {'is_paid': 1, 'is_user_paid': true},
+    );
+
+    _navigateToRating();
+  }
+
   void _onActionPressed() {
     HapticFeedback.mediumImpact();
 
     if (widget.isDriver) {
-      // Driver confirms payment → go to rating
+      // Driver confirms cash payment → go to rating
       sl<BookingRepository>().confirmPayment(requestId: widget.requestId);
       _navigateToRating();
       return;
@@ -674,7 +697,7 @@ class _InvoiceContentState extends State<_InvoiceContent> {
           ),
           SizedBox(height: 24.h),
 
-          // ── Action Button ──
+          // ── Action Buttons ──
           if (!widget.isDriver && !_isPaid && widget.invoice.paymentMethod != 0)
             // Waiting for driver to confirm payment
             Padding(
@@ -700,6 +723,26 @@ class _InvoiceContentState extends State<_InvoiceContent> {
                 ],
               ),
             ),
+
+          // ── Driver: POS QR scan button ──
+          if (widget.isDriver) ...[
+            IqPrimaryButton(
+              text: AppStrings.scanPosQr,
+              icon: Icon(Icons.qr_code_scanner_rounded, size: 20.w),
+              onPressed: _handlePosQrPayment,
+            ),
+            SizedBox(height: 10.h),
+            Center(
+              child: IqText(
+                AppStrings.orConfirmCash,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+            SizedBox(height: 10.h),
+          ],
+
           IqPrimaryButton(
             text: widget.isDriver
                 ? AppStrings.paymentReceived

@@ -120,39 +120,87 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
       return;
     }
 
-    // Don't show loading overlay — stay idle until API returns real data.
-    debugPrint('🚕 _onFetchPendingDetails: calling API for request ${event.firebaseRequestId}');
-    final result = await repository.fetchPendingRequest();
+    // ── FIX: Race-condition delay ──
+    // The backend writes to Firebase first, then to the database.
+    // If we call the API immediately, `metaRequest` may still be null.
+    // Wait a few seconds so the DB write completes before we read.
+    debugPrint('🚕 _onFetchPendingDetails: waiting 3s for DB sync before calling API…');
+    await Future<void>.delayed(const Duration(seconds: 3));
 
-    // Re-check after await — status may have changed while awaiting API.
+    // Re-check after delay — status may have changed while waiting.
     if (_activeStatuses.contains(state.status)) {
-      debugPrint('🚕 _onFetchPendingDetails: skipping emit — status changed to ${state.status} during API call');
+      debugPrint('🚕 _onFetchPendingDetails: skipping — status changed to ${state.status} during delay');
       return;
     }
 
-    result.fold(
-      (failure) {
-        debugPrint('🚕 _onFetchPendingDetails: API failed — ${failure.message}');
-        // API call failed — fall back to idle rather than showing empty data
-        emit(state.copyWith(status: DriverTripStatus.idle));
-      },
-      (fullRequest) {
-        debugPrint('🚕 _onFetchPendingDetails: API returned ${fullRequest == null ? "null" : "request id=${fullRequest.requestId}, pickAddr=${fullRequest.pickAddress}"}');
-        if (fullRequest != null) {
-          emit(state.copyWith(
-            status: DriverTripStatus.incomingRequest,
-            incomingRequest: fullRequest,
-            requestId: fullRequest.requestId,
-          ));
-        } else {
-          // metaRequest is null — request may have been cancelled/expired.
-          // Clean up the stale request-meta entry so it doesn't
-          // trigger a wasted API call on every app open.
-          tripStream.deleteRequestMeta(event.firebaseRequestId);
-          emit(state.copyWith(status: DriverTripStatus.idle));
+    // Try up to 3 times with increasing delay to handle the
+    // Firebase → DB race condition. If metaRequest is still null
+    // after retries, it was genuinely cancelled/expired.
+    IncomingRequestModel? fullRequest;
+    bool apiFailed = false;
+    String failMessage = '';
+
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      debugPrint('🚕 _onFetchPendingDetails: API attempt $attempt for request ${event.firebaseRequestId}');
+      final result = await repository.fetchPendingRequest();
+
+      // Re-check after await — status may have changed while awaiting API.
+      if (_activeStatuses.contains(state.status)) {
+        debugPrint('🚕 _onFetchPendingDetails: skipping emit — status changed to ${state.status} during API call');
+        return;
+      }
+
+      bool shouldRetry = false;
+      result.fold(
+        (failure) {
+          debugPrint('🚕 _onFetchPendingDetails: API attempt $attempt failed — ${failure.message}');
+          apiFailed = true;
+          failMessage = failure.message;
+        },
+        (request) {
+          apiFailed = false;
+          if (request != null) {
+            fullRequest = request;
+          } else {
+            // metaRequest is null — might be a timing issue, retry
+            debugPrint('🚕 _onFetchPendingDetails: API returned null metaRequest on attempt $attempt');
+            shouldRetry = true;
+          }
+        },
+      );
+
+      // Got a valid request or a hard API failure — stop retrying.
+      if (fullRequest != null || apiFailed) break;
+
+      // Still null — wait before next attempt (2s, then 3s).
+      if (shouldRetry && attempt < 3) {
+        final waitSeconds = attempt + 1;
+        debugPrint('🚕 _onFetchPendingDetails: retrying in ${waitSeconds}s…');
+        await Future<void>.delayed(Duration(seconds: waitSeconds));
+
+        if (_activeStatuses.contains(state.status)) {
+          debugPrint('🚕 _onFetchPendingDetails: skipping — status changed during retry wait');
+          return;
         }
-      },
-    );
+      }
+    }
+
+    if (apiFailed) {
+      debugPrint('🚕 _onFetchPendingDetails: API failed — $failMessage');
+      emit(state.copyWith(status: DriverTripStatus.idle));
+    } else if (fullRequest != null) {
+      debugPrint('🚕 _onFetchPendingDetails: success — request id=${fullRequest!.requestId}, pickAddr=${fullRequest!.pickAddress}');
+      emit(state.copyWith(
+        status: DriverTripStatus.incomingRequest,
+        incomingRequest: fullRequest,
+        requestId: fullRequest!.requestId,
+      ));
+    } else {
+      // metaRequest is still null after 3 attempts — genuinely cancelled/expired.
+      debugPrint('🚕 _onFetchPendingDetails: metaRequest null after 3 attempts — cleaning up');
+      tripStream.deleteRequestMeta(event.firebaseRequestId);
+      emit(state.copyWith(status: DriverTripStatus.idle));
+    }
   }
 
   Future<void> _onAccepted(
@@ -219,6 +267,13 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     if (!sent) {
       debugPrint('❌ _onRejected: reject API failed after 3 attempts — '
           'backend may not re-dispatch to another driver');
+    }
+
+    // Re-affirm driver availability in Firebase so the next dispatch can
+    // reach this driver if needed (avoids stale is_active / is_available).
+    final driverId = state.driverId;
+    if (driverId != null && driverId.isNotEmpty) {
+      tripStream.reaffirmDriverAvailability(driverId);
     }
   }
 
@@ -563,6 +618,14 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     _waitingTimer?.cancel();
     _waitingTimer = null;
     emit(const DriverTripState());
+
+    // FIX: Re-affirm the driver's availability in Firebase.
+    // After a trip ends the backend may not reset `is_active` /
+    // `is_available`, causing the matching algorithm to skip this
+    // driver for future requests.
+    if (driverId != null) {
+      tripStream.reaffirmDriverAvailability(driverId);
+    }
 
     // Re-subscribe to incoming requests so that any request that arrived
     // while the driver was in tripCompleted/rated state gets picked up.

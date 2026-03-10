@@ -40,6 +40,14 @@ abstract class TripStreamDataSource {
   /// Delete a stale `request-meta/{metaId}` entry.
   Future<void> deleteRequestMeta(String metaId);
 
+  /// Re-affirm that the driver is active & available in Firebase.
+  ///
+  /// After a trip ends (cancel / reject / complete / rate), the backend
+  /// may not reset `is_active` / `is_available` in the driver's Firebase
+  /// node. If these stay stale the matching algorithm skips the driver
+  /// for future requests. Call this after going back to idle.
+  Future<void> reaffirmDriverAvailability(String driverId);
+
   /// Remove trip listener (cleanup).
   void dispose();
 }
@@ -154,6 +162,17 @@ class TripStreamDataSourceImpl implements TripStreamDataSource {
     if (!_isFirebaseReady) return;
     debugPrint('🔥 deleteRequestMeta: removing stale entry $metaId');
     await _db.ref('request-meta/$metaId').remove();
+  }
+
+  @override
+  Future<void> reaffirmDriverAvailability(String driverId) async {
+    if (!_isFirebaseReady) return;
+    debugPrint('🔥 reaffirmDriverAvailability: setting is_active=1, is_available=true for driver_$driverId');
+    await _db.ref('drivers/driver_$driverId').update({
+      'is_active': 1,
+      'is_available': true,
+      'updated_at': ServerValue.timestamp,
+    });
   }
 
   @override
