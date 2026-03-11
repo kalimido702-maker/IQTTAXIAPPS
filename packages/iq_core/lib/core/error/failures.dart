@@ -35,6 +35,20 @@ class AuthFailure extends Failure {
   const AuthFailure({required super.message});
 }
 
+/// Server returned a WhatsApp registration redirect (new driver)
+class RegistrationRedirectFailure extends AuthFailure {
+  final String whatsappLink;
+  final String displayMessage;
+
+  const RegistrationRedirectFailure({
+    required this.whatsappLink,
+    required this.displayMessage,
+  }) : super(message: 'needs_whatsapp_registration');
+
+  @override
+  List<Object?> get props => [message, whatsappLink, displayMessage];
+}
+
 /// Validation failure
 class ValidationFailure extends Failure {
   const ValidationFailure({required super.message});

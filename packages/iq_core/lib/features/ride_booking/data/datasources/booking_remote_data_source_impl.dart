@@ -35,6 +35,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     String? polyline,
     String? pickAddress,
     String? dropAddress,
+    List<Map<String, dynamic>>? stops,
   }) async {
     try {
       final requestData = {
@@ -57,6 +58,8 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
           if (dropAddress != null) 'drop_address': dropAddress,
           if (dropAddress != null)
             'drop_short_address': dropAddress.split(',')[0],
+          if (stops != null && stops.isNotEmpty)
+            'stops': jsonEncode(_enrichStops(stops)),
       };
       debugPrint('🚕 [RideETA] REQUEST: $requestData');
       final response = await dio.post(
@@ -107,6 +110,7 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     String? duration,
     String? promocodeId,
     double? discountedTotal,
+    List<Map<String, dynamic>>? stops,
   }) async {
     try {
       final response = await dio.post(
@@ -137,6 +141,8 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
             'preferences': jsonEncode(selectedPreferences),
           if (distance != null) 'distance': distance,
           if (duration != null) 'duration': duration,
+          if (stops != null && stops.isNotEmpty)
+            'stops': jsonEncode(_enrichStops(stops)),
         }),
       );
       final body = response.data as Map<String, dynamic>;
@@ -820,5 +826,25 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
       return ValidationFailure(message: message ?? AppStrings.invalidData);
     }
     return ServerFailure(message: message ?? AppStrings.serverError);
+  }
+
+  /// Normalises each stop map for the backend:
+  /// - renames 'lat'/'lng' → 'latitude'/'longitude'
+  /// - injects 'short_address'
+  static List<Map<String, dynamic>> _enrichStops(
+    List<Map<String, dynamic>> stops,
+  ) {
+    return stops.map((s) {
+      final addr = (s['address'] as String?) ?? '';
+      return {
+        ...s,
+        'latitude': s['lat'] ?? s['latitude'],
+        'longitude': s['lng'] ?? s['longitude'],
+        'short_address': addr.split(',').first.trim(),
+        'poc_name': s['poc_name'] ?? '',
+        'poc_mobile': s['poc_mobile'] ?? '',
+        'poc_instruction': s['poc_instruction'] ?? '',
+      };
+    }).toList();
   }
 }

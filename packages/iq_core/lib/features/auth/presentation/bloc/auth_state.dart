@@ -42,11 +42,17 @@ class AuthAuthenticated extends AuthState {
 /// User needs to register (new user)
 class AuthNeedsRegistration extends AuthState {
   final String phone;
+  final String? whatsappLink;
+  final String? displayMessage;
 
-  const AuthNeedsRegistration({required this.phone});
+  const AuthNeedsRegistration({
+    required this.phone,
+    this.whatsappLink,
+    this.displayMessage,
+  });
 
   @override
-  List<Object?> get props => [phone];
+  List<Object?> get props => [phone, whatsappLink, displayMessage];
 }
 
 /// User logged out

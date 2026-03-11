@@ -23,6 +23,7 @@ class PassengerTripEtaRequested extends PassengerTripEvent {
     this.distance,
     this.duration,
     this.polyline,
+    this.stops,
   });
 
   final double pickLat;
@@ -42,10 +43,13 @@ class PassengerTripEtaRequested extends PassengerTripEvent {
   /// Encoded polyline string (from Google Directions).
   final String? polyline;
 
+  /// Intermediate stops (max 2). Each map: {lat, lng, address, order}.
+  final List<Map<String, dynamic>>? stops;
+
   @override
   List<Object?> get props => [
         pickLat, pickLng, dropLat, dropLng, promoCode,
-        distance, duration, polyline,
+        distance, duration, polyline, stops,
       ];
 }
 
@@ -176,6 +180,31 @@ class PassengerTripInstructionsChanged extends PassengerTripEvent {
 
   @override
   List<Object?> get props => [instructions];
+}
+
+/// User added an intermediate stop (max 2).
+class PassengerTripStopAdded extends PassengerTripEvent {
+  const PassengerTripStopAdded({
+    required this.lat,
+    required this.lng,
+    required this.address,
+  });
+
+  final double lat;
+  final double lng;
+  final String address;
+
+  @override
+  List<Object?> get props => [lat, lng, address];
+}
+
+/// User removed an intermediate stop by index.
+class PassengerTripStopRemoved extends PassengerTripEvent {
+  const PassengerTripStopRemoved(this.index);
+  final int index;
+
+  @override
+  List<Object?> get props => [index];
 }
 
 /// Restore an ongoing trip from the home carousel.

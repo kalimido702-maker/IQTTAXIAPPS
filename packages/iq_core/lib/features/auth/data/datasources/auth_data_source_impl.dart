@@ -59,6 +59,27 @@ class AuthDataSourceImpl implements AuthDataSource {
         );
 
         final data = _parseJson(response.data);
+
+        // ── Old-app compat: check active/mode/whatsapp_deeplink ──
+        final active = data['active'];
+        final mode = data['mode']?.toString() ?? '';
+        final whatsappLink = data['whatsapp_deeplink']?.toString() ?? '';
+        final serverMsg = data['message']?.toString() ?? '';
+
+        // New / unapproved driver → redirect to WhatsApp
+        if ((active == 0 || active == '0') &&
+            mode == 'register' &&
+            whatsappLink.isNotEmpty) {
+          return Left(
+            RegistrationRedirectFailure(
+              whatsappLink: whatsappLink,
+              displayMessage: serverMsg.isNotEmpty
+                  ? serverMsg
+                  : AppStrings.registrationPending,
+            ),
+          );
+        }
+
         // uuid present → OTP was sent
         if (response.statusCode == 200 &&
             data['uuid'] != null &&
@@ -68,8 +89,9 @@ class AuthDataSourceImpl implements AuthDataSource {
 
         return Left(
           ServerFailure(
-            message: data['message']?.toString() ??
-                '\u0641\u0634\u0644 \u0625\u0631\u0633\u0627\u0644 \u0631\u0645\u0632 \u0627\u0644\u062A\u062D\u0642\u0642',
+            message: serverMsg.isNotEmpty
+                ? serverMsg
+                : '\u0641\u0634\u0644 \u0625\u0631\u0633\u0627\u0644 \u0631\u0645\u0632 \u0627\u0644\u062A\u062D\u0642\u0642',
           ),
         );
       } else {

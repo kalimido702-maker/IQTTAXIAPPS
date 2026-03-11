@@ -471,12 +471,24 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     _waitingTimer?.cancel();
     _waitingTimer = null;
 
-    // Use the BLoC's accumulated trip distance if the event distance is 0.
-    // Fall back to the request's pre-calculated distance if GPS accumulation
-    // is too small (e.g. short test trips).
-    double distance = event.distance > 0
-        ? event.distance
-        : double.parse(state.tripDistance.toStringAsFixed(2));
+    // Use straight-line (Haversine) distance for pricing — keeps fares lower.
+    // Falls back to GPS accumulated / request data only if pickup/drop are missing.
+    final pickLat = event.pickLat;
+    final pickLng = event.pickLng;
+    final dropLat = event.dropLat;
+    final dropLng = event.dropLng;
+
+    double distance = 0;
+    if (pickLat != 0 && pickLng != 0 && dropLat != 0 && dropLng != 0) {
+      distance = GeoUtils.haversineDistance(pickLat, pickLng, dropLat, dropLng);
+    }
+
+    // Fallback chain if Haversine couldn't be computed.
+    if (distance <= 0) {
+      distance = event.distance > 0
+          ? event.distance
+          : double.parse(state.tripDistance.toStringAsFixed(2));
+    }
     if (distance <= 0) {
       distance = state.activeTripData?.distance ?? 0;
     }

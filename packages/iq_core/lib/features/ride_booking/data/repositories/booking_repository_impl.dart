@@ -29,6 +29,7 @@ class BookingRepositoryImpl implements BookingRepository {
     String? polyline,
     String? pickAddress,
     String? dropAddress,
+    List<Map<String, dynamic>>? stops,
   }) =>
       dataSource.getEta(
         pickLat: pickLat,
@@ -43,6 +44,7 @@ class BookingRepositoryImpl implements BookingRepository {
         polyline: polyline,
         pickAddress: pickAddress,
         dropAddress: dropAddress,
+        stops: stops,
       );
 
   @override
@@ -70,6 +72,7 @@ class BookingRepositoryImpl implements BookingRepository {
     String? duration,
     String? promocodeId,
     double? discountedTotal,
+    List<Map<String, dynamic>>? stops,
   }) =>
       dataSource.createRideRequest(
         pickLat: pickLat,
@@ -95,6 +98,7 @@ class BookingRepositoryImpl implements BookingRepository {
         duration: duration,
         promocodeId: promocodeId,
         discountedTotal: discountedTotal,
+        stops: stops,
       );
 
   @override

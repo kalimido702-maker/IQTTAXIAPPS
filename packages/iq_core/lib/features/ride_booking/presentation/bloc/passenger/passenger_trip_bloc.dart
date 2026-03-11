@@ -34,6 +34,8 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
     on<PassengerTripScheduleChanged>(_onScheduleChanged);
     on<PassengerTripPreferencesChanged>(_onPreferencesChanged);
     on<PassengerTripInstructionsChanged>(_onInstructionsChanged);
+    on<PassengerTripStopAdded>(_onStopAdded);
+    on<PassengerTripStopRemoved>(_onStopRemoved);
     on<PassengerTripRestoreOngoing>(_onRestoreOngoing);
     on<PassengerTripDetailsFetched>(_onDetailsFetched);
     on<PassengerTripChangeDropRequested>(_onChangeDropRequested);
@@ -65,6 +67,7 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
       pickAddress: event.pickAddress,
       dropAddress: event.dropAddress,
       promoCode: event.promoCode,
+      stops: event.stops ?? state.stops,
     ));
 
     final result = await repository.getEta(
@@ -78,6 +81,7 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
       polyline: event.polyline,
       pickAddress: event.pickAddress,
       dropAddress: event.dropAddress,
+      stops: event.stops,
     );
 
     result.fold(
@@ -149,6 +153,7 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
       discountedTotal: state.selectedVehicle!.hasDiscount
           ? state.selectedVehicle!.discountedTotal
           : null,
+      stops: state.stops.isNotEmpty ? state.stops : null,
     );
 
     result.fold(
@@ -445,6 +450,37 @@ class PassengerTripBloc extends Bloc<PassengerTripEvent, PassengerTripState> {
     } else {
       emit(state.copyWith(instructions: event.instructions));
     }
+  }
+
+  void _onStopAdded(
+    PassengerTripStopAdded event,
+    Emitter<PassengerTripState> emit,
+  ) {
+    if (state.stops.length >= 2) return; // Max 2 intermediate stops.
+    final newStops = [
+      ...state.stops,
+      {
+        'order': state.stops.length + 1,
+        'lat': event.lat,
+        'lng': event.lng,
+        'address': event.address,
+      },
+    ];
+    emit(state.copyWith(stops: newStops));
+  }
+
+  void _onStopRemoved(
+    PassengerTripStopRemoved event,
+    Emitter<PassengerTripState> emit,
+  ) {
+    if (event.index < 0 || event.index >= state.stops.length) return;
+    final newStops = List<Map<String, dynamic>>.from(state.stops)
+      ..removeAt(event.index);
+    // Re-number remaining stops.
+    for (var i = 0; i < newStops.length; i++) {
+      newStops[i] = {...newStops[i], 'order': i + 1};
+    }
+    emit(state.copyWith(stops: newStops));
   }
 
   // ─── Change Drop Location ───

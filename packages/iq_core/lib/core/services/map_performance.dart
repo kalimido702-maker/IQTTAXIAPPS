@@ -742,6 +742,7 @@ class RouteHelper {
     required double originLng,
     required double destLat,
     required double destLng,
+    List<LatLng>? waypoints,
   }) async {
     try {
       final result = await service.getDirections(
@@ -749,6 +750,7 @@ class RouteHelper {
         originLng: originLng,
         destLat: destLat,
         destLng: destLng,
+        waypoints: waypoints,
       );
       if (result == null) return null;
 

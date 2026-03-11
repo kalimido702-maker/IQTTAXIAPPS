@@ -53,6 +53,7 @@ class PassengerTripState extends Equatable {
     this.dropLng = 0,
     this.pickAddress = '',
     this.dropAddress = '',
+    this.stops = const [],
     this.requestId,
     this.activeTripData,
     this.invoice,
@@ -81,6 +82,9 @@ class PassengerTripState extends Equatable {
   final double dropLng;
   final String pickAddress;
   final String dropAddress;
+
+  /// Intermediate stops (max 2). Each map: {lat, lng, address}.
+  final List<Map<String, dynamic>> stops;
 
   /// Active trip request ID.
   final String? requestId;
@@ -117,6 +121,7 @@ class PassengerTripState extends Equatable {
     double? dropLng,
     String? pickAddress,
     String? dropAddress,
+    List<Map<String, dynamic>>? stops,
     String? requestId,
     ActiveTripModel? activeTripData,
     InvoiceModel? invoice,
@@ -139,6 +144,7 @@ class PassengerTripState extends Equatable {
       dropLng: dropLng ?? this.dropLng,
       pickAddress: pickAddress ?? this.pickAddress,
       dropAddress: dropAddress ?? this.dropAddress,
+      stops: stops ?? this.stops,
       requestId: requestId ?? this.requestId,
       activeTripData: activeTripData ?? this.activeTripData,
       invoice: invoice ?? this.invoice,
@@ -170,5 +176,6 @@ class PassengerTripState extends Equatable {
         dropLng,
         pickAddress,
         dropAddress,
+        stops,
       ];
 }

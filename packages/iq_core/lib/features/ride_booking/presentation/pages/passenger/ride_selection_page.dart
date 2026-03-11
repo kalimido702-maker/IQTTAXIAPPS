@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/services/google_maps_service.dart';
+import '../../../../../core/utils/geo_utils.dart';
 import '../../../../../core/services/map_performance.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
@@ -38,6 +39,7 @@ class RideSelectionPage extends StatelessWidget {
     required this.dropoffAddress,
     required this.dropoffLat,
     required this.dropoffLng,
+    this.stops = const [],
   });
 
   final String pickupAddress;
@@ -46,6 +48,9 @@ class RideSelectionPage extends StatelessWidget {
   final String dropoffAddress;
   final double dropoffLat;
   final double dropoffLng;
+
+  /// Intermediate stops (max 2). Each: {order, lat, lng, address}.
+  final List<Map<String, dynamic>> stops;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +63,7 @@ class RideSelectionPage extends StatelessWidget {
         dropoffAddress: dropoffAddress,
         dropoffLat: dropoffLat,
         dropoffLng: dropoffLng,
+        stops: stops,
       ),
     );
   }
@@ -71,6 +77,7 @@ class _Body extends StatefulWidget {
     required this.dropoffAddress,
     required this.dropoffLat,
     required this.dropoffLng,
+    this.stops = const [],
   });
 
   final String pickupAddress;
@@ -79,6 +86,7 @@ class _Body extends StatefulWidget {
   final String dropoffAddress;
   final double dropoffLat;
   final double dropoffLng;
+  final List<Map<String, dynamic>> stops;
 
   @override
   State<_Body> createState() => _BodyState();
@@ -98,16 +106,27 @@ class _BodyState extends State<_Body> {
   late Set<Polyline> _polylines;
 
   void _rebuildMapObjects() {
+    // Marker numbering: 1=pickup, 2..N=stops, N+1=dropoff.
+    final totalPoints = 2 + widget.stops.length;
     _markers = {
       Marker(
         markerId: MapMarkerIds.pickup,
         position: LatLng(widget.pickupLat, widget.pickupLng),
         icon: MapIcons.numberedSync(1),
       ),
+      for (var i = 0; i < widget.stops.length; i++)
+        Marker(
+          markerId: MarkerId('stop_$i'),
+          position: LatLng(
+            (widget.stops[i]['lat'] as num).toDouble(),
+            (widget.stops[i]['lng'] as num).toDouble(),
+          ),
+          icon: MapIcons.numberedSync(i + 2),
+        ),
       Marker(
         markerId: MapMarkerIds.dropoff,
         position: LatLng(widget.dropoffLat, widget.dropoffLng),
-        icon: MapIcons.numberedSync(2),
+        icon: MapIcons.numberedSync(totalPoints),
       ),
     };
 
@@ -142,12 +161,22 @@ class _BodyState extends State<_Body> {
   /// receives distance + duration + polyline and returns the correct fare.
   Future<void> _fetchDirections() async {
     setState(() => _isLoadingRoute = true);
+
+    // Build waypoints from intermediate stops.
+    final waypoints = widget.stops
+        .map((s) => LatLng(
+              (s['lat'] as num).toDouble(),
+              (s['lng'] as num).toDouble(),
+            ))
+        .toList();
+
     final result = await RouteHelper.fetchRoute(
       service: sl<GoogleMapsService>(),
       originLat: widget.pickupLat,
       originLng: widget.pickupLng,
       destLat: widget.dropoffLat,
       destLng: widget.dropoffLng,
+      waypoints: waypoints.isNotEmpty ? waypoints : null,
     );
 
     if (!mounted) return;
@@ -162,9 +191,17 @@ class _BodyState extends State<_Body> {
       final bounds = calculateBounds(result.polylinePoints);
       _mapKey.currentState?.fitBounds(bounds);
 
-      // Fire ETA with full route data so the server can price correctly.
-      // Duration must be in MINUTES (not seconds) — the server uses it
-      // directly in its fare formula (time × price_per_time).
+      // Fire ETA with route data.
+      // Distance for PRICING → straight-line (Haversine) so fares are lower.
+      // Duration → real Google duration so ETA stays accurate.
+      final straightLineKm = GeoUtils.haversineDistance(
+        widget.pickupLat,
+        widget.pickupLng,
+        widget.dropoffLat,
+        widget.dropoffLng,
+      );
+      final straightLineMeters = straightLineKm * 1000;
+
       if (!mounted) return;
       context.read<PassengerTripBloc>().add(PassengerTripEtaRequested(
             pickLat: widget.pickupLat,
@@ -173,9 +210,10 @@ class _BodyState extends State<_Body> {
             dropLng: widget.dropoffLng,
             pickAddress: widget.pickupAddress,
             dropAddress: widget.dropoffAddress,
-            distance: result.distanceMeters.toDouble(),
+            distance: straightLineMeters,
             duration: result.durationSeconds / 60.0,
             polyline: result.encodedPolyline,
+            stops: widget.stops.isNotEmpty ? widget.stops : null,
           ));
     } else {
       setState(() => _isLoadingRoute = false);
@@ -188,15 +226,19 @@ class _BodyState extends State<_Body> {
             dropLng: widget.dropoffLng,
             pickAddress: widget.pickupAddress,
             dropAddress: widget.dropoffAddress,
+            stops: widget.stops.isNotEmpty ? widget.stops : null,
           ));
     }
   }
 
   void _fitRoute() {
-    final bounds = calculateBounds([
+    final points = [
       LatLng(widget.pickupLat, widget.pickupLng),
+      for (final s in widget.stops)
+        LatLng((s['lat'] as num).toDouble(), (s['lng'] as num).toDouble()),
       LatLng(widget.dropoffLat, widget.dropoffLng),
-    ]);
+    ];
+    final bounds = calculateBounds(points);
     _mapKey.currentState?.fitBounds(bounds);
   }
 

@@ -26,6 +26,9 @@ class AppStrings {
   static String get noAccount => _t('ليس لديك حساب ؟', "Don't have an account?");
   static String get createAccount => _t('إنشاء حساب', 'Create Account');
   static String get joinUs => _t('إنضم إلينا', 'Join Us');
+  static String get registrationPending =>
+      _t('تم تسجيل طلبك. سيتم التواصل معك عبر واتساب',
+          'Your registration request has been submitted. You will be contacted via WhatsApp');
   static String get welcomeBack => _t('مرحباً بك,', 'Welcome Back,');
   static String get loginSubtitle =>
       _t('سجّل دخولك لحسابك, عن طريق رقم جوالك',
@@ -85,6 +88,10 @@ class AppStrings {
   static String get toWhere => _t('إلى أين؟', 'Where to?');
   static String get whereToGo =>
       _t('إلى أين أنت ذاهب؟', 'Where are you going?');
+  static String get addStop => _t('إضافة نقطة توقف', 'Add a stop');
+  static String get stopHint => _t('نقطة توقف', 'Stop');
+  static String get maxStopsReached =>
+      _t('الحد الأقصى نقطتين توقف', 'Maximum 2 stops allowed');
   static String get quickPlaces => _t('أماكن سريعة', 'Quick Places');
   static String get taxi => _t('تاكسي', 'Taxi');
   static String get delegate => _t('مندوب', 'Courier');

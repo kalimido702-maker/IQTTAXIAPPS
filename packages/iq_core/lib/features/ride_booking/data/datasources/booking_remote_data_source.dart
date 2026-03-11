@@ -28,6 +28,7 @@ abstract class BookingRemoteDataSource {
     String? polyline,
     String? pickAddress,
     String? dropAddress,
+    List<Map<String, dynamic>>? stops,
   });
 
   /// Create a ride request.
@@ -55,6 +56,7 @@ abstract class BookingRemoteDataSource {
     String? duration,
     String? promocodeId,
     double? discountedTotal,
+    List<Map<String, dynamic>>? stops,
   });
 
   /// Cancel a ride request.

@@ -66,13 +66,20 @@ class _BodyState extends State<_Body> {
   final _dropFocus = FocusNode();
   Timer? _debounce;
 
+  /// Controllers and focus nodes for intermediate stops (max 2).
+  final List<TextEditingController> _stopControllers = [];
+  final List<FocusNode> _stopFocusNodes = [];
+
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, dynamic>> _recentPlaces = [];
   bool _isSearching = false;
   bool _isLoadingRecents = false;
 
-  /// Tracks which field is currently being edited (pickup vs dropoff).
-  bool _isEditingPickup = false;
+  /// Tracks which field is active: -1 = pickup, 0..N = stop index, 99 = dropoff.
+  int _activeField = 99;
+
+  /// Intermediate stops data. Each: {lat, lng, address}.
+  final List<Map<String, dynamic>> _stops = [];
 
   /// Mutable pickup coordinates — updated when the user picks a new location.
   late double _pickupLat = widget.pickupLat;
@@ -87,10 +94,10 @@ class _BodyState extends State<_Body> {
 
     // Track which field is focused.
     _pickupFocus.addListener(() {
-      if (_pickupFocus.hasFocus) setState(() => _isEditingPickup = true);
+      if (_pickupFocus.hasFocus) setState(() => _activeField = -1);
     });
     _dropFocus.addListener(() {
-      if (_dropFocus.hasFocus) setState(() => _isEditingPickup = false);
+      if (_dropFocus.hasFocus) setState(() => _activeField = 99);
     });
 
     // Auto-focus dropoff field
@@ -106,8 +113,54 @@ class _BodyState extends State<_Body> {
     _searchController.dispose();
     _pickupFocus.dispose();
     _dropFocus.dispose();
+    for (final c in _stopControllers) {
+      c.dispose();
+    }
+    for (final f in _stopFocusNodes) {
+      f.dispose();
+    }
     _debounce?.cancel();
     super.dispose();
+  }
+
+  void _addStopField() {
+    if (_stops.length >= 2) return;
+    final index = _stops.length;
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) setState(() => _activeField = index);
+    });
+    _stopControllers.add(controller);
+    _stopFocusNodes.add(focusNode);
+    _stops.add({});
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      focusNode.requestFocus();
+    });
+  }
+
+  void _removeStop(int index) {
+    if (index < 0 || index >= _stops.length) return;
+    _stopControllers[index].dispose();
+    _stopFocusNodes[index].dispose();
+    _stopControllers.removeAt(index);
+    _stopFocusNodes.removeAt(index);
+    _stops.removeAt(index);
+    // Re-wire focus listeners with correct indices.
+    for (var i = 0; i < _stopFocusNodes.length; i++) {
+      final fn = _stopFocusNodes[i];
+      fn.removeListener(() {});
+      final idx = i;
+      fn.addListener(() {
+        if (fn.hasFocus) setState(() => _activeField = idx);
+      });
+    }
+    setState(() {
+      if (_activeField >= _stops.length && _activeField != 99 && _activeField != -1) {
+        _activeField = 99;
+      }
+    });
   }
 
   void _onSearchChanged(String query) {
@@ -188,8 +241,8 @@ class _BodyState extends State<_Body> {
 
     if (lat == 0 || lng == 0) return;
 
-    if (_isEditingPickup) {
-      // Update pickup location and move focus to dropoff.
+    // Editing pickup
+    if (_activeField == -1) {
       setState(() {
         _pickupLat = lat;
         _pickupLng = lng;
@@ -201,10 +254,45 @@ class _BodyState extends State<_Body> {
       return;
     }
 
-    // Unfocus text fields to prevent SystemContextMenu crash
+    // Editing an intermediate stop
+    if (_activeField >= 0 && _activeField < _stops.length) {
+      final idx = _activeField;
+      setState(() {
+        _stops[idx] = {
+          'order': idx + 1,
+          'lat': lat,
+          'lng': lng,
+          'address': address,
+        };
+        _stopControllers[idx].text = address;
+        _searchResults = [];
+      });
+      // Move focus to next empty field or dropoff.
+      if (idx + 1 < _stops.length && _stops[idx + 1].isEmpty) {
+        _stopFocusNodes[idx + 1].requestFocus();
+      } else {
+        _dropFocus.requestFocus();
+      }
+      return;
+    }
+
+    // Editing dropoff — navigate to ride selection
     FocusScope.of(context).unfocus();
 
-    // Navigate to ride selection with (possibly updated) pickup
+    // Build stops list with only completed entries.
+    final validStops = <Map<String, dynamic>>[];
+    for (var i = 0; i < _stops.length; i++) {
+      final s = _stops[i];
+      if (s.containsKey('lat') && s.containsKey('lng')) {
+        validStops.add({
+          'order': validStops.length + 1,
+          'lat': s['lat'],
+          'lng': s['lng'],
+          'address': s['address'] ?? '',
+        });
+      }
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -215,6 +303,7 @@ class _BodyState extends State<_Body> {
           dropoffAddress: address,
           dropoffLat: lat,
           dropoffLng: lng,
+          stops: validStops,
         ),
       ),
     );
@@ -273,6 +362,40 @@ class _BodyState extends State<_Body> {
                   onChanged: _onSearchChanged,
                 ),
                 SizedBox(height: 12.h),
+                // Intermediate stop fields
+                for (var i = 0; i < _stops.length; i++) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _AddressField(
+                          controller: _stopControllers[i],
+                          hint: '${AppStrings.stopHint} ${i + 1}',
+                          iconPath: AppAssets.icLocation,
+                          focusNode: _stopFocusNodes[i],
+                          onChanged: _onSearchChanged,
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      GestureDetector(
+                        onTap: () => _removeStop(i),
+                        child: Container(
+                          width: 36.w,
+                          height: 36.w,
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.close,
+                            size: 18.w,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 12.h),
+                ],
                 // Dropoff field
                 _AddressField(
                   controller: _dropController,
@@ -281,6 +404,31 @@ class _BodyState extends State<_Body> {
                   focusNode: _dropFocus,
                   onChanged: _onSearchChanged,
                 ),
+                // "Add stop" button (max 2)
+                if (_stops.length < 2) ...[
+                  SizedBox(height: 10.h),
+                  GestureDetector(
+                    onTap: _addStopField,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IqText(
+                          AppStrings.addStop,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(width: 6.w),
+                        Icon(
+                          Icons.add_circle_outline,
+                          size: 18.w,
+                          color: AppColors.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

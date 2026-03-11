@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/error/failures.dart';
 import '../../../../core/network/auth_service.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -62,7 +63,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
     result.fold(
       (failure) {
-        if (failure.message == 'needs_registration') {
+        if (failure is RegistrationRedirectFailure) {
+          emit(AuthNeedsRegistration(
+            phone: event.phone,
+            whatsappLink: failure.whatsappLink,
+            displayMessage: failure.displayMessage,
+          ));
+        } else if (failure.message == 'needs_registration') {
           emit(AuthNeedsRegistration(phone: event.phone));
         } else {
           emit(AuthError(message: failure.message));

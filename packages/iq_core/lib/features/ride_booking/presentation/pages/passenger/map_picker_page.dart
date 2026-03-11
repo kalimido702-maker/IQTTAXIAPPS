@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -42,16 +45,73 @@ class MapPickerPage extends StatefulWidget {
 
 class _MapPickerPageState extends State<MapPickerPage> {
   final _mapKey = GlobalKey<IqMapViewState>();
+  final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
+  Timer? _debounce;
   late LatLng _target;
   bool _isResolving = false;
   String _currentAddress = '';
   bool _isAddressLoading = true;
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
     _target = LatLng(widget.initialLat, widget.initialLng);
     _resolveAddress();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
+    if (query.trim().length < 2) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+    setState(() => _isSearching = true);
+    _debounce = Timer(const Duration(milliseconds: 400), () async {
+      final repo = sl<LocationRepository>();
+      final result = await repo.searchPlaces(query.trim());
+      if (!mounted) return;
+      result.fold(
+        (_) => setState(() {
+          _searchResults = [];
+          _isSearching = false;
+        }),
+        (places) => setState(() {
+          _searchResults = places;
+          _isSearching = false;
+        }),
+      );
+    });
+  }
+
+  void _onSearchPlaceSelected(Map<String, dynamic> place) {
+    final lat = (place['lat'] as num?)?.toDouble() ?? 0;
+    final lng = (place['lng'] as num?)?.toDouble() ?? 0;
+    final address = place['address'] as String? ?? place['name'] as String? ?? '';
+    if (lat == 0 || lng == 0) return;
+
+    setState(() {
+      _target = LatLng(lat, lng);
+      _currentAddress = address;
+      _isAddressLoading = false;
+      _searchResults = [];
+      _searchController.clear();
+    });
+    _searchFocus.unfocus();
+    _mapKey.currentState?.animateTo(LatLng(lat, lng), zoom: 16);
   }
 
   /// Resolve the address for the current [_target] position.
@@ -127,6 +187,143 @@ class _MapPickerPageState extends State<MapPickerPage> {
               myLocationButtonEnabled: false,
               onCameraMove: (pos) => _target = pos.target,
               onCameraIdle: _resolveAddress,
+            ),
+          ),
+          // Search bar at top
+          Positioned(
+            top: 12.h,
+            left: AppDimens.screenPaddingH,
+            right: AppDimens.screenPaddingH,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 50.h,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(25.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.black.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 16.w),
+                      Icon(Icons.search, size: 22.w, color: AppColors.textMuted),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocus,
+                          onChanged: _onSearchChanged,
+                          style: AppTypography.bodyMedium,
+                          textDirection: TextDirection.rtl,
+                          decoration: InputDecoration(
+                            hintText: AppStrings.searchPlaceholder,
+                            hintStyle: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.grayPlaceholder,
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      if (_searchController.text.isNotEmpty)
+                        GestureDetector(
+                          onTap: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchResults = [];
+                              _isSearching = false;
+                            });
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12.w),
+                            child: Icon(Icons.close, size: 20.w, color: AppColors.textMuted),
+                          ),
+                        )
+                      else
+                        SizedBox(width: 16.w),
+                    ],
+                  ),
+                ),
+                // Search results dropdown
+                if (_isSearching)
+                  Container(
+                    margin: EdgeInsets.only(top: 4.h),
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.black.withValues(alpha: 0.1),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    ),
+                  )
+                else if (_searchResults.isNotEmpty)
+                  Container(
+                    margin: EdgeInsets.only(top: 4.h),
+                    constraints: BoxConstraints(maxHeight: 250.h),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.black.withValues(alpha: 0.1),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.symmetric(vertical: 8.h),
+                      itemCount: _searchResults.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, index) {
+                        final place = _searchResults[index];
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            Icons.location_on_outlined,
+                            size: 20.w,
+                            color: AppColors.textMuted,
+                          ),
+                          title: IqText(
+                            place['name'] as String? ?? '',
+                            style: AppTypography.labelMedium.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          subtitle: IqText(
+                            place['address'] as String? ?? '',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textMuted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            _onSearchPlaceSelected(place);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
           ),
           // Center pin

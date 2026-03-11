@@ -23,6 +23,7 @@ abstract class BookingRepository {
     String? polyline,
     String? pickAddress,
     String? dropAddress,
+    List<Map<String, dynamic>>? stops,
   });
 
   Future<Either<Failure, RideRequestResponseModel>> createRideRequest({
@@ -49,6 +50,7 @@ abstract class BookingRepository {
     String? duration,
     String? promocodeId,
     double? discountedTotal,
+    List<Map<String, dynamic>>? stops,
   });
 
   Future<Either<Failure, bool>> cancelRequest({

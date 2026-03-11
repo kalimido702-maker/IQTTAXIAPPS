@@ -91,9 +91,6 @@ class DriverApp extends StatelessWidget {
 class _AppHome extends StatelessWidget {
   const _AppHome();
 
-  /// External link for driver registration / joining.
-  static const _driverJoinUrl = 'https://iqtaxi.com/driver/join';
-
   @override
   Widget build(BuildContext context) {
     return SplashPage(
@@ -148,8 +145,12 @@ class _AppHome extends StatelessWidget {
             isDriver: true,
             headerBuilder: (_) => const DriverLoginHeader(),
             footerLinkLabel: AppStrings.joinUs,
-            onFooterLinkTap: (_) => _openJoinLink(),
+            onFooterLinkTap: (ctx) {
+              // Trigger the same phone validation → API flow
+              ctx.read<LoginFormBloc>().add(const LoginFormSubmitted());
+            },
             onOtpSent: (pageCtx, phone) => _navigateToOtp(pageCtx, phone),
+            onNeedsRegistration: (ctx, phone) => _handleRegistrationRedirect(ctx),
             role: 'driver',
           ),
         ),
@@ -174,10 +175,30 @@ class _AppHome extends StatelessWidget {
     );
   }
 
-  Future<void> _openJoinLink() async {
-    final uri = Uri.parse(_driverJoinUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  /// Handles the registration redirect: shows message + opens WhatsApp link.
+  Future<void> _handleRegistrationRedirect(BuildContext ctx) async {
+    // Read the state to get whatsappLink and displayMessage
+    final state = ctx.read<AuthBloc>().state;
+    String? whatsappLink;
+    String? displayMessage;
+    if (state is AuthNeedsRegistration) {
+      whatsappLink = state.whatsappLink;
+      displayMessage = state.displayMessage;
+    }
+
+    // Show message
+    if (displayMessage != null && displayMessage.isNotEmpty) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(content: Text(displayMessage)),
+      );
+    }
+
+    // Open WhatsApp deeplink
+    if (whatsappLink != null && whatsappLink.isNotEmpty) {
+      final uri = Uri.parse(whatsappLink);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
     }
   }
 
