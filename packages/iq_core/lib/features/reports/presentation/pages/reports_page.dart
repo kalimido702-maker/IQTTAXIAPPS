@@ -29,7 +29,7 @@ class ReportsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const IqAppBar(title: AppStrings.reports),
+      appBar: IqAppBar(title: AppStrings.reports),
       body: BlocBuilder<ReportsBloc, ReportsState>(
         builder: (context, state) {
           final dates = _extractDates(state);
@@ -196,9 +196,9 @@ class ReportsPage extends StatelessWidget {
     );
   }
 
-  /// Format a [DateTime] to Arabic date string using [AppStrings.arabicMonths].
+  /// Format a [DateTime] to a localized date string using [AppStrings.months].
   String _formatDate(DateTime date) {
-    return '${date.day} ${AppStrings.arabicMonths[date.month - 1]} , ${date.year}';
+    return '${date.day} ${AppStrings.months[date.month - 1]} , ${date.year}';
   }
 
   /// Extract (fromDate, toDate) from any [ReportsState].

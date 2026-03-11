@@ -48,7 +48,7 @@ class PackageDeliveryDataSourceImpl implements PackageDeliveryDataSource {
         return Right(list);
       }
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل في جلب أنواع البضائع',
+        message: body['message']?.toString() ?? AppStrings.failedToLoadGoodsTypes,
       ));
     } on DioException catch (e) {
       return Left(_handleDioError(e));

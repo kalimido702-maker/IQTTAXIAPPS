@@ -38,18 +38,33 @@ Future<void> clearSubscriptionSkipStatus() async {
 /// Determines whether the subscription prompt bottom sheet should be shown
 /// for the given [homeData].
 ///
-/// Mirrors the old app logic:
+/// The prompt is shown when:
 ///   - `hasSubscription == true` (subscription feature is enabled)
 ///   - `isApproved == true` (driver is approved)
-///   - `isSubscribed == false` (driver does NOT currently have an active sub)
+///   - driver does NOT have an active subscription
 ///   - `driverMode` is 'subscription' or 'both'
+///
+/// A driver is considered subscribed if `isSubscribed == true`,
+/// OR if they have `subscriptionData` that hasn't expired yet.
 bool shouldShowSubscriptionPrompt(HomeDataModel? homeData) {
   if (homeData == null) return false;
   final mode = homeData.driverMode;
-  return homeData.hasSubscription == true &&
-      homeData.isApproved == true &&
-      homeData.isSubscribed == false &&
-      (mode == 'subscription' || mode == 'both');
+
+  // Feature must be enabled, driver must be approved, mode must match.
+  if (homeData.hasSubscription != true) return false;
+  if (homeData.isApproved != true) return false;
+  if (mode != 'subscription' && mode != 'both') return false;
+
+  // If API explicitly says subscribed → don't show.
+  if (homeData.isSubscribed == true) return false;
+
+  // If subscription data exists and hasn't expired → treat as subscribed.
+  if (homeData.subscriptionData != null &&
+      homeData.isSubscriptionExpired != true) {
+    return false;
+  }
+
+  return true;
 }
 
 /// Shows the subscription prompt bottom sheet (non-dismissible).

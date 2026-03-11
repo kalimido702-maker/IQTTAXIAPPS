@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:share_plus/share_plus.dart';
@@ -34,6 +36,7 @@ class ReferralCubit extends Cubit<ReferralState> {
 
     await Share.share(
       '${AppStrings.referralShareMessage} ${currentState.referralCode} ${AppStrings.forDiscount}',
+      sharePositionOrigin: const Rect.fromLTWH(0, 0, 100, 100),
     );
   }
 }

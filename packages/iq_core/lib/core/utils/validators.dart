@@ -1,3 +1,5 @@
+import '../constants/app_strings.dart';
+
 /// Phone number validation for Iraqi numbers
 class Validators {
   Validators._();
@@ -5,11 +7,11 @@ class Validators {
   /// Validate Iraqi phone number (10 digits after country code)
   static String? validatePhone(String? value) {
     if (value == null || value.isEmpty) {
-      return 'يرجى إدخال رقم الجوال';
+      return AppStrings.pleaseEnterPhone;
     }
     final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.length < 10) {
-      return 'رقم الجوال غير صحيح';
+      return AppStrings.invalidPhone;
     }
     return null;
   }
@@ -17,10 +19,10 @@ class Validators {
   /// Validate OTP code
   static String? validateOtp(String? value, {int length = 6}) {
     if (value == null || value.isEmpty) {
-      return 'يرجى إدخال رمز التحقق';
+      return AppStrings.pleaseEnterOtp;
     }
     if (value.length != length) {
-      return 'رمز التحقق يجب أن يكون $length أرقام';
+      return '${AppStrings.otpMustBeDigits} $length ${AppStrings.digits}';
     }
     return null;
   }
@@ -28,10 +30,10 @@ class Validators {
   /// Validate name
   static String? validateName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'يرجى إدخال الإسم';
+      return AppStrings.pleaseEnterName;
     }
     if (value.trim().length < 2) {
-      return 'الإسم قصير جداً';
+      return AppStrings.nameTooShort;
     }
     return null;
   }
@@ -43,7 +45,7 @@ class Validators {
     }
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
-      return 'البريد الإلكتروني غير صحيح';
+      return AppStrings.invalidEmail;
     }
     return null;
   }

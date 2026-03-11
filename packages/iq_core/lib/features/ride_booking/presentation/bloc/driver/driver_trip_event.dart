@@ -96,6 +96,8 @@ class DriverTripEndRide extends DriverTripEvent {
     required this.dropLat,
     required this.dropLng,
     required this.distance,
+    this.pickLat = 0,
+    this.pickLng = 0,
     this.dropAddress = '',
     this.polyLine = '',
     this.beforeTripWaitingTime = 0,
@@ -105,6 +107,8 @@ class DriverTripEndRide extends DriverTripEvent {
   final String requestId;
   final double dropLat;
   final double dropLng;
+  final double pickLat;
+  final double pickLng;
   final double distance;
   final String dropAddress;
   final String polyLine;

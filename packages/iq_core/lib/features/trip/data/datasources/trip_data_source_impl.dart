@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/trip_entity.dart';
 import '../models/trip_history_model.dart';
@@ -34,7 +35,7 @@ class TripDataSourceImpl implements TripDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل تحميل سجل الرحلات',
+        message: body['message']?.toString() ?? AppStrings.failedToLoadTripHistory,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -66,13 +67,13 @@ class TripDataSourceImpl implements TripDataSource {
         if (trip.isNotEmpty) {
           return Right(trip.first);
         }
-        return const Left(
-          ServerFailure(message: 'لم يتم العثور على الرحلة'),
+        return Left(
+          ServerFailure(message: AppStrings.tripNotFound),
         );
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل تحميل تفاصيل الرحلة',
+        message: body['message']?.toString() ?? AppStrings.failedToLoadTripDetails,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -86,20 +87,20 @@ class TripDataSourceImpl implements TripDataSource {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
-      return const NetworkFailure(message: 'انتهت مهلة الاتصال');
+      return NetworkFailure(message: AppStrings.connectionTimeout);
     }
     if (e.type == DioExceptionType.connectionError) {
-      return const NetworkFailure();
+      return NetworkFailure();
     }
     final data = e.response?.data;
     if (data is Map<String, dynamic>) {
       return ServerFailure(
-        message: data['message']?.toString() ?? 'خطأ في الخادم',
+        message: data['message']?.toString() ?? AppStrings.serverError,
         statusCode: e.response?.statusCode,
       );
     }
     return ServerFailure(
-      message: e.message ?? 'خطأ في الخادم',
+      message: e.message ?? AppStrings.serverError,
       statusCode: e.response?.statusCode,
     );
   }

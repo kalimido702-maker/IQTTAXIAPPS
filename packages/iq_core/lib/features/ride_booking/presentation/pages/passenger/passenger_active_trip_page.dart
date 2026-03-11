@@ -12,6 +12,7 @@ import '../../../../../core/services/google_maps_service.dart';
 import '../../../../../core/services/map_performance.dart';
 import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/utils/car_color_helper.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/iq_image.dart';
 import '../../../../../core/widgets/iq_map_view.dart';
@@ -368,8 +369,8 @@ class _SearchingOverlay extends StatelessWidget {
         onAutoCancel: () {
           // Auto-cancel timeout: directly cancel trip without showing dialog
           context.read<PassengerTripBloc>().add(
-            const PassengerTripCancelRequested(
-              reason: 'لم يتم العثور على سائق',
+            PassengerTripCancelRequested(
+              reason: AppStrings.driverNotFound,
               isTimerCancel: true,
             ),
           );
@@ -641,17 +642,59 @@ class _TripPhaseHeader extends StatelessWidget {
         );
 
       case TripPhase.inProgress:
+        final etaMinutes =
+            trip.duration > 0 ? trip.duration.ceil() : null;
+        final distKm = trip.distance > 0 ? trip.distance : null;
+
         return Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-          child: Center(
-            child: IqText(
-              AppStrings.onWayToDropoff,
-              style: AppTypography.heading3.copyWith(
-                color: AppColors.black,
-                fontWeight: FontWeight.w700,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IqText(
+                AppStrings.onWayToDropoff,
+                style: AppTypography.heading3.copyWith(
+                  color: isDark ? AppColors.white : AppColors.black,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
+              if (etaMinutes != null || distKm != null) ...[
+                SizedBox(height: 8.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (etaMinutes != null) ...[
+                      Icon(Icons.access_time_rounded,
+                          size: 16.w, color: AppColors.primaryDark),
+                      SizedBox(width: 4.w),
+                      IqText(
+                        '$etaMinutes ${AppStrings.minutesPlural}',
+                        style: AppTypography.labelMedium.copyWith(
+                          color: AppColors.primaryDark,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    if (etaMinutes != null && distKm != null)
+                      SizedBox(width: 16.w),
+                    if (distKm != null) ...[
+                      Icon(Icons.straighten_rounded,
+                          size: 16.w, color: AppColors.primaryDark),
+                      SizedBox(width: 4.w),
+                      IqText(
+                        '${distKm.toStringAsFixed(1)} ${AppStrings.km}',
+                        style: AppTypography.labelMedium.copyWith(
+                          color: AppColors.primaryDark,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        dir: TextDirection.ltr,
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ],
           ),
         );
 
@@ -687,36 +730,7 @@ class _DriverRow extends StatelessWidget {
   final VoidCallback? onCall;
 
   /// Try to parse a vehicle colour name into a Flutter [Color].
-  Color? get _parsedColor {
-    if (vehicleColor == null || vehicleColor!.isEmpty) return null;
-    final lower = vehicleColor!.toLowerCase();
-    const map = <String, Color>{
-      'red': Colors.red,
-      'blue': Colors.blue,
-      'green': Colors.green,
-      'black': Colors.black,
-      'white': Colors.white,
-      'silver': Colors.grey,
-      'gray': Colors.grey,
-      'grey': Colors.grey,
-      'yellow': Colors.amber,
-      'orange': Colors.orange,
-      'brown': Colors.brown,
-      'gold': Color(0xFFFFD700),
-      'beige': Color(0xFFF5F5DC),
-      'أحمر': Colors.red,
-      'أزرق': Colors.blue,
-      'أخضر': Colors.green,
-      'أسود': Colors.black,
-      'أبيض': Colors.white,
-      'فضي': Colors.grey,
-      'رمادي': Colors.grey,
-      'أصفر': Colors.amber,
-      'برتقالي': Colors.orange,
-      'بني': Colors.brown,
-    };
-    return map[lower];
-  }
+  Color? get _parsedColor => tryGetCarColor(vehicleColor);
 
   @override
   Widget build(BuildContext context) {
@@ -1167,7 +1181,7 @@ void _showCancelConfirmation(BuildContext context, String requestId) {
     isScrollControlled: true,
     backgroundColor: AppColors.transparent,
     builder: (_) => CancelReasonsSheet(
-      reasons: const [
+      reasons: [
         CancelReasonModel(id: 1, reason: AppStrings.cancelReasonChangedMind, userType: 'user', arrivalStatus: 'before'),
         CancelReasonModel(id: 2, reason: AppStrings.cancelReasonDriverFar, userType: 'user', arrivalStatus: 'before'),
         CancelReasonModel(id: 3, reason: AppStrings.cancelReasonFoundOther, userType: 'user', arrivalStatus: 'before'),
@@ -1221,7 +1235,7 @@ Future<void> _showChangePaymentSheet(
 Future<void> _callPhone(BuildContext context, String? phone) async {
   if (phone == null || phone.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('رقم الهاتف غير متوفر')),
+      SnackBar(content: Text(AppStrings.phoneNotAvailable)),
     );
     return;
   }
@@ -1240,8 +1254,8 @@ Future<void> _shareTrip(
 }) async {
   final text = '${AppStrings.shareTrip}\n'
       '${AppStrings.driver}: $driverName\n'
-      'من: $pickAddress\n'
-      'إلى: $dropAddress';
+      '${AppStrings.fromLabel} $pickAddress\n'
+      '${AppStrings.toLabel} $dropAddress';
   await Share.share(text);
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_image.dart';
@@ -162,7 +163,7 @@ class PromoBannerCard extends StatelessWidget {
                       children: [
                         // Title
                         IqText(
-                          title ?? 'رحلتك الأولى مجاناً',
+                          title ?? AppStrings.firstTripFree,
                           style: AppTypography.heading3.copyWith(
                             color: textColor,
                             fontSize: 17.sp,
@@ -174,7 +175,7 @@ class PromoBannerCard extends StatelessWidget {
                         SizedBox(height: 6.h),
                         // Subtitle
                         IqText(
-                          subtitle ?? 'استمتع بأول رحلة مجانية مع IQ تاكسي',
+                          subtitle ?? AppStrings.firstTripFreeSubtitle,
                           style: AppTypography.bodySmall.copyWith(
                             color: subtitleColor,
                             fontSize: 12.sp,

@@ -302,7 +302,7 @@ class _ParcelBottomSheet extends StatelessWidget {
           IqText(
             AppStrings.sendReceiveSubtitle,
             style: AppTypography.bodyMedium.copyWith(
-              color: const Color(0xFF595959),
+              color: AppColors.muted,
             ),
             textAlign: TextAlign.center,
             maxLines: 3,

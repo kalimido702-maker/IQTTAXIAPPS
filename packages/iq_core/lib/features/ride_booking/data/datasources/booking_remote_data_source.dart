@@ -124,6 +124,8 @@ abstract class BookingRemoteDataSource {
     required String requestId,
     required double dropLat,
     required double dropLng,
+    double pickLat = 0,
+    double pickLng = 0,
     String dropAddress = '',
     String polyLine = '',
     required double distance,

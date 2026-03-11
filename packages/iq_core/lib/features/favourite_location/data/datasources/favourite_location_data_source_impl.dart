@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../../../home/data/models/home_data_model.dart';
 import 'favourite_location_data_source.dart';
@@ -35,7 +36,7 @@ class FavouriteLocationDataSourceImpl implements FavouriteLocationDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل جلب المواقع المفضلة',
+        message: body['message']?.toString() ?? AppStrings.failedToLoadFavourites,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -74,7 +75,7 @@ class FavouriteLocationDataSourceImpl implements FavouriteLocationDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل إضافة الموقع',
+        message: body['message']?.toString() ?? AppStrings.failedToAddLocation,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -99,7 +100,7 @@ class FavouriteLocationDataSourceImpl implements FavouriteLocationDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل حذف الموقع',
+        message: body['message']?.toString() ?? AppStrings.failedToDeleteLocation,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -113,20 +114,20 @@ class FavouriteLocationDataSourceImpl implements FavouriteLocationDataSource {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
-      return const NetworkFailure(message: 'انتهت مهلة الاتصال');
+      return NetworkFailure(message: AppStrings.connectionTimeout);
     }
     if (e.type == DioExceptionType.connectionError) {
-      return const NetworkFailure();
+      return NetworkFailure();
     }
     final data = e.response?.data;
     if (data is Map<String, dynamic>) {
       return ServerFailure(
-        message: data['message']?.toString() ?? 'خطأ في الخادم',
+        message: data['message']?.toString() ?? AppStrings.serverError,
         statusCode: e.response?.statusCode,
       );
     }
     return ServerFailure(
-      message: e.message ?? 'خطأ في الخادم',
+      message: e.message ?? AppStrings.serverError,
       statusCode: e.response?.statusCode,
     );
   }

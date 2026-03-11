@@ -12,12 +12,12 @@ import '../../data/models/cancel_reason_model.dart';
 
 /// Bottom sheet for selecting a cancellation reason.
 class CancelReasonsSheet extends StatefulWidget {
-  const CancelReasonsSheet({
+  CancelReasonsSheet({
     super.key,
     required this.reasons,
     required this.onConfirm,
-    this.title = AppStrings.cancelReason,
-  });
+    String? title,
+  }) : title = title ?? AppStrings.cancelReason;
 
   final List<CancelReasonModel> reasons;
   final void Function(String reason, String? customReason) onConfirm;

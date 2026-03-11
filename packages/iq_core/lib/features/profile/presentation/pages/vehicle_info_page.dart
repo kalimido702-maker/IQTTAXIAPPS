@@ -190,7 +190,7 @@ class _EditVehicleSheetState extends State<_EditVehicleSheet> {
 
         messenger.showSnackBar(
           SnackBar(
-            content: const Text(AppStrings.vehicleUpdatedSuccess),
+            content: Text(AppStrings.vehicleUpdatedSuccess),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -211,7 +211,7 @@ class _EditVehicleSheetState extends State<_EditVehicleSheet> {
   void _showError() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(AppStrings.vehicleUpdateFailed),
+        content: Text(AppStrings.vehicleUpdateFailed),
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(

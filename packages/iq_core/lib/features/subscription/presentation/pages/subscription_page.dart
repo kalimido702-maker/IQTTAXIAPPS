@@ -46,7 +46,7 @@ class SubscriptionPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const IqAppBar(title: AppStrings.subscriptionTitle),
+      appBar: IqAppBar(title: AppStrings.subscriptionTitle),
       body: BlocConsumer<SubscriptionBloc, SubscriptionState>(
         listenWhen: (prev, curr) =>
             prev.paymentUrl != curr.paymentUrl ||
@@ -123,8 +123,8 @@ class SubscriptionPage extends StatelessWidget {
     return Builder(builder: (context) {
       final isDark = Theme.of(context).brightness == Brightness.dark;
       return Shimmer.fromColors(
-        baseColor: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-        highlightColor: isDark ? Colors.grey.shade700 : Colors.grey.shade100,
+        baseColor: isDark ? AppColors.shimmerBaseDark : AppColors.shimmerBase,
+        highlightColor: isDark ? AppColors.shimmerHighlightDark : AppColors.shimmerHighlight,
       child: Padding(
         padding: EdgeInsets.all(24.w),
         child: Column(
@@ -134,7 +134,7 @@ class SubscriptionPage extends StatelessWidget {
               width: 120.w,
               height: 20.h,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(4.r),
               ),
             ),
@@ -143,7 +143,7 @@ class SubscriptionPage extends StatelessWidget {
               width: double.infinity,
               height: 80.h,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(12.r),
               ),
             ),
@@ -152,7 +152,7 @@ class SubscriptionPage extends StatelessWidget {
               width: 100.w,
               height: 20.h,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(4.r),
               ),
             ),
@@ -164,7 +164,7 @@ class SubscriptionPage extends StatelessWidget {
                   width: 100.w,
                   height: 44.h,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                 ),
@@ -173,7 +173,7 @@ class SubscriptionPage extends StatelessWidget {
                   width: 100.w,
                   height: 44.h,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                 ),
@@ -184,7 +184,7 @@ class SubscriptionPage extends StatelessWidget {
               width: 100.w,
               height: 20.h,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(4.r),
               ),
             ),
@@ -196,7 +196,7 @@ class SubscriptionPage extends StatelessWidget {
                   width: 100.w,
                   height: 44.h,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                 ),
@@ -205,7 +205,7 @@ class SubscriptionPage extends StatelessWidget {
                   width: 100.w,
                   height: 44.h,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                 ),
@@ -216,7 +216,7 @@ class SubscriptionPage extends StatelessWidget {
               width: double.infinity,
               height: 60.h,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(1000.r),
               ),
             ),
@@ -458,7 +458,7 @@ class _PlanCard extends StatelessWidget {
           border: Border.all(
             color: isSelected
                 ? (isDark ? AppColors.white : AppColors.black)
-                : (isDark ? AppColors.darkDivider : const Color(0xFFDADADA)),
+                : (isDark ? AppColors.darkDivider : AppColors.dividerLight),
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -559,7 +559,7 @@ class _ChoiceChip extends StatelessWidget {
           border: Border.all(
             color: isSelected
                 ? (isDark ? AppColors.white : AppColors.black)
-                : (isDark ? AppColors.darkDivider : const Color(0xFFDADADA)),
+                : (isDark ? AppColors.darkDivider : AppColors.dividerLight),
           ),
         ),
         child: Row(

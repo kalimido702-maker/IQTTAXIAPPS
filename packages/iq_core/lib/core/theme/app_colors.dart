@@ -145,4 +145,35 @@ class AppColors {
   static const Color darkInputBg = Color(0xFF2A2A2A);
   static const Color darkDivider = Color(0xFF3A3A3A);
   static const Color darkGray = Color(0xFF9E9E9E);
+
+  // ─── Shimmer ───
+  static const Color shimmerBase = Color(0xFFE0E0E0); // grey.shade300
+  static const Color shimmerHighlight = Color(0xFFF5F5F5); // grey.shade100
+  static const Color shimmerBaseDark = Color(0xFF616161); // grey.shade700
+  static const Color shimmerHighlightDark = Color(0xFF757575); // grey.shade600
+
+  // ─── Additional UI ───
+  static const Color silver = Color(0xFFC0C0C0);
+  static const Color gold = Color(0xFFFFD700);
+  static const Color beige = Color(0xFFF5F5DC);
+  static const Color fareGreen = Color(0xFF669C1A);
+  static const Color dividerLight = Color(0xFFDADADA);
+  static const Color inactiveBar = Color(0xFFD9D9D9);
+  static const Color markerText = Color(0xFF1A1A1A);
+  static const Color carMarkerDark = Color(0xFF242E42);
+  static const Color overlayDark = Color(0xCC000000);
+  static const Color amber = Color(0xFFFFC107);
+  static const Color muted = Color(0xFF595959);
+
+  // ─── Google Brand Colors ───
+  static const Color googleGreen = Color(0xFF34A853);
+  static const Color googleRed = Color(0xFFEA4335);
+
+  // ─── Overlay / Shadows ───
+  static const Color shadow25 = Color(0x40000000); // 25% black
+  static const Color shadow20 = Color(0x33000000); // 20% black
+  static const Color shadow10 = Color(0x1A000000); // 10% black
+  static const Color shadow06 = Color(0x0F000000); // 6% black
+  static const Color shadow55 = Color(0x8C000000); // 55% black
+  static const Color overlay50 = Color(0x80000000); // 50% black
 }

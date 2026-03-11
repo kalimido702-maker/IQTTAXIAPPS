@@ -109,7 +109,7 @@ class _AppHome extends StatelessWidget {
             Navigator.of(splashCtx).pushReplacement(
               MaterialPageRoute<void>(
                 builder: (_) => OnboardingPage(
-                  customPages: const [
+                  customPages: [
                     OnboardingPageData(
                       title: AppStrings.driverOnboardingTitle1,
                       subtitle: AppStrings.driverOnboardingSubtitle1,

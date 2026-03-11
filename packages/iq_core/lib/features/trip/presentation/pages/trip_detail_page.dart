@@ -8,6 +8,7 @@ import 'package:iq_core/core/utils/utils.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/car_color_helper.dart';
 import '../../../../core/widgets/iq_app_bar.dart';
 import '../../../../core/widgets/iq_text.dart';
 import '../../domain/entities/trip_entity.dart';
@@ -30,7 +31,7 @@ class TripDetailPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const IqAppBar(title: AppStrings.tripDetailsTitle),
+      appBar: IqAppBar(title: AppStrings.tripDetailsTitle),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 20.w),
         child: Column(
@@ -309,7 +310,7 @@ class _DriverInfoSection extends StatelessWidget {
                           width: 16.w,
                           height: 16.w,
                           decoration: BoxDecoration(
-                            color: _parseColor(driver.carColor!),
+                            color: getCarColor(driver.carColor!),
                             borderRadius: BorderRadius.circular(4.r),
                             border: Border.all(
                               color: AppColors.grayBorder,
@@ -361,43 +362,7 @@ class _DriverInfoSection extends StatelessWidget {
     );
   }
 
-  /// Try to parse a color name or hex string.
-  Color _parseColor(String colorStr) {
-    final lower = colorStr.toLowerCase().trim();
-    const colorMap = {
-      'red': Colors.red,
-      'blue': Colors.blue,
-      'green': Colors.green,
-      'white': Colors.white,
-      'black': Colors.black,
-      'yellow': Colors.yellow,
-      'orange': Colors.orange,
-      'grey': Colors.grey,
-      'gray': Colors.grey,
-      'silver': Color(0xFFC0C0C0),
-      'brown': Colors.brown,
-      'purple': Colors.purple,
-      'pink': Colors.pink,
-      'أحمر': Colors.red,
-      'أزرق': Colors.blue,
-      'أخضر': Colors.green,
-      'أبيض': Colors.white,
-      'أسود': Colors.black,
-      'أصفر': Colors.yellow,
-      'برتقالي': Colors.orange,
-      'رمادي': Colors.grey,
-      'فضي': Color(0xFFC0C0C0),
-      'بني': Colors.brown,
-    };
-    if (colorMap.containsKey(lower)) return colorMap[lower]!;
-    // Try hex
-    if (lower.startsWith('#') && lower.length >= 7) {
-      final hex = lower.replaceFirst('#', '');
-      final parsed = int.tryParse('FF$hex', radix: 16);
-      if (parsed != null) return Color(parsed);
-    }
-    return Colors.grey;
-  }
+
 }
 
 // ── Vehicle Type Chip ─────────────────────────────────────────
@@ -411,7 +376,7 @@ class _VehicleTypeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final isTaxi = trip.isTaxi;
     final color = isTaxi ? AppColors.taxiBadge : AppColors.deliveryBadge;
-    final label = isTaxi ? 'تاكسي' : trip.vehicleTypeName;
+    final label = isTaxi ? AppStrings.defaultVehicleType : trip.vehicleTypeName;
 
     return Row(
       mainAxisSize: MainAxisSize.min,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -43,6 +44,9 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
   StreamSubscription<IncomingRequestModel?>? _incomingSubscription;
   StreamSubscription<ActiveTripModel?>? _tripSubscription;
 
+  /// Diagnostic: unfiltered listener to see ALL new dispatches.
+  StreamSubscription<DatabaseEvent>? _diagnosticMetaSub;
+
   /// Periodic timer that increments waiting time each second.
   Timer? _waitingTimer;
 
@@ -59,6 +63,9 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
       driverId: event.driverId,
     ));
 
+    // ── One-time diagnostic: read this driver's Firebase node ──
+    _debugReadDriverNode(event.driverId);
+
     await _incomingSubscription?.cancel();
     _incomingSubscription =
         tripStream.watchIncomingRequests(event.driverId).listen(
@@ -72,6 +79,75 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
         debugPrint('🚕 DriverTripBloc: incoming stream error: $e');
       },
     );
+
+    // ── DIAGNOSTIC: watch ALL new request-meta entries (unfiltered) ──
+    // This shows every driver_id the backend dispatches to, so we can
+    // confirm whether 978 is being skipped by the matching algorithm.
+    await _diagnosticMetaSub?.cancel();
+    _diagnosticMetaSub = FirebaseDatabase.instance
+        .ref('request-meta')
+        .limitToLast(1)
+        .onChildAdded
+        .listen((event) {
+      final val = event.snapshot.value;
+      if (val is Map) {
+        debugPrint(
+          '🔔 NEW request-meta entry: key=${event.snapshot.key}, '
+          'driver_id=${val['driver_id']} (${val['driver_id'].runtimeType}), '
+          'active=${val['active']}, is_accepted=${val['is_accepted']}',
+        );
+      }
+    });
+  }
+
+  /// Fire-and-forget diagnostic: read back the driver's Firebase node
+  /// and a few request-meta entries so logs show EXACTLY what the backend sees.
+  void _debugReadDriverNode(String driverId) async {
+    try {
+      final db = FirebaseDatabase.instance;
+
+      // 1. Read the driver's own node
+      final driverSnap =
+          await db.ref('drivers/driver_$driverId').get();
+      if (driverSnap.exists) {
+        final d = driverSnap.value;
+        if (d is Map) {
+          debugPrint('');
+          debugPrint('🔍 ═══ DRIVER NODE (drivers/driver_$driverId) ═══');
+          debugPrint('   id: ${d['id']} (${d['id'].runtimeType})');
+          debugPrint('   is_active: ${d['is_active']}');
+          debugPrint('   is_available: ${d['is_available']}');
+          debugPrint('   service_location_id: ${d['service_location_id']} (${d['service_location_id'].runtimeType})');
+          debugPrint('   vehicle_types: ${d['vehicle_types']}');
+          debugPrint('   transport_type: ${d['transport_type']}');
+          debugPrint('   rating: ${d['rating']} (${d['rating'].runtimeType})');
+          debugPrint('   preferences: ${d['preferences']}');
+          debugPrint('   g: ${d['g']}');
+          debugPrint('   l: ${d['l']}');
+          debugPrint('   ownerid: ${d['ownerid']}');
+          debugPrint('🔍 ═══════════════════════════════════════════');
+          debugPrint('');
+        }
+      } else {
+        debugPrint('🔍 ⚠️ DRIVER NODE does NOT exist: drivers/driver_$driverId');
+      }
+
+      // 2. Read a sample of request-meta entries to see what driver_ids exist
+      final metaSnap = await db.ref('request-meta').limitToLast(5).get();
+      if (metaSnap.exists && metaSnap.value is Map) {
+        final map = metaSnap.value as Map;
+        debugPrint('🔍 ═══ SAMPLE request-meta (last ${map.length} entries) ═══');
+        for (final entry in map.entries) {
+          final val = entry.value;
+          if (val is Map) {
+            debugPrint('   ${entry.key}: driver_id=${val['driver_id']} (${val['driver_id'].runtimeType}), active=${val['active']}');
+          }
+        }
+        debugPrint('🔍 ═══════════════════════════════════════════════════');
+      }
+    } catch (e) {
+      debugPrint('🔍 Diagnostic read failed: $e');
+    }
   }
 
   void _onIncomingReceived(
@@ -396,9 +472,21 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     _waitingTimer = null;
 
     // Use the BLoC's accumulated trip distance if the event distance is 0.
-    final distance = event.distance > 0
+    // Fall back to the request's pre-calculated distance if GPS accumulation
+    // is too small (e.g. short test trips).
+    double distance = event.distance > 0
         ? event.distance
         : double.parse(state.tripDistance.toStringAsFixed(2));
+    if (distance <= 0) {
+      distance = state.activeTripData?.distance ?? 0;
+    }
+    if (distance <= 0) {
+      distance = state.incomingRequest?.distance ?? 0;
+    }
+    // Absolute minimum — backend rejects 0.
+    if (distance <= 0) {
+      distance = 0.01;
+    }
 
     final beforeWait = event.beforeTripWaitingTime > 0
         ? event.beforeTripWaitingTime
@@ -415,6 +503,8 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
       requestId: event.requestId,
       dropLat: event.dropLat,
       dropLng: event.dropLng,
+      pickLat: event.pickLat,
+      pickLng: event.pickLng,
       dropAddress: event.dropAddress,
       distance: distance,
       polyLine: event.polyLine,
@@ -612,27 +702,18 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     DriverTripReset event,
     Emitter<DriverTripState> emit,
   ) {
-    final driverId = state.driverId;
     _tripSubscription?.cancel();
     _tripSubscription = null;
+    _incomingSubscription?.cancel();
+    _incomingSubscription = null;
+    _diagnosticMetaSub?.cancel();
+    _diagnosticMetaSub = null;
     _waitingTimer?.cancel();
     _waitingTimer = null;
     emit(const DriverTripState());
-
-    // FIX: Re-affirm the driver's availability in Firebase.
-    // After a trip ends the backend may not reset `is_active` /
-    // `is_available`, causing the matching algorithm to skip this
-    // driver for future requests.
-    if (driverId != null) {
-      tripStream.reaffirmDriverAvailability(driverId);
-    }
-
-    // Re-subscribe to incoming requests so that any request that arrived
-    // while the driver was in tripCompleted/rated state gets picked up.
-    // The .onValue stream fires the current value on first listen.
-    if (driverId != null) {
-      add(DriverTripListenRequested(driverId));
-    }
+    // NOTE: Do NOT re-subscribe here. _onReset is only dispatched when
+    // the driver goes offline. When they go back online, the home page's
+    // BlocListener will dispatch DriverTripListenRequested.
   }
 
   /// Upload a shipment proof image (fire-and-forget — errors logged).
@@ -656,6 +737,7 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
   Future<void> close() {
     _incomingSubscription?.cancel();
     _tripSubscription?.cancel();
+    _diagnosticMetaSub?.cancel();
     _waitingTimer?.cancel();
     return super.close();
   }

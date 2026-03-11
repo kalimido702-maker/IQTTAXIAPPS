@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../data/models/subscription_models.dart';
 import '../../domain/repositories/subscription_repository.dart';
 
@@ -104,18 +105,6 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     final isFreeDay = state.isFreeDayOn;
     final paymentOpt = state.paymentOption;
 
-    // Wallet payment + NOT free day → check balance
-    if (paymentOpt == 2 && !isFreeDay) {
-      if (plan.amount > state.walletBalance) {
-        emit(state.copyWith(
-          errorMessage: 'رصيد المحفظة غير كافي للاشتراك',
-        ));
-        // Re-emit planList to clear the error on next build
-        emit(state.copyWith(status: SubscriptionViewStatus.planList));
-        return;
-      }
-    }
-
     emit(state.copyWith(status: SubscriptionViewStatus.submitting));
 
     final result = await repository.subscribe(
@@ -144,13 +133,13 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
           // Wallet or free → success
           emit(state.copyWith(
             status: SubscriptionViewStatus.success,
-            successMessage: msg ?? 'تم الاشتراك بنجاح',
+            successMessage: msg ?? AppStrings.subscriptionSuccess,
           ));
         } else {
           // Free subscription with expiry info
           emit(state.copyWith(
             status: SubscriptionViewStatus.success,
-            successMessage: msg ?? 'تم الاشتراك بنجاح',
+            successMessage: msg ?? AppStrings.subscriptionSuccess,
           ));
         }
       },
@@ -171,12 +160,12 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       result.fold(
         (_) => emit(state.copyWith(
           status: SubscriptionViewStatus.success,
-          successMessage: 'تم الاشتراك بنجاح',
+          successMessage: AppStrings.subscriptionSuccess,
         )),
         (plans) => emit(state.copyWith(
           status: SubscriptionViewStatus.success,
           plans: plans,
-          successMessage: 'تم الاشتراك بنجاح',
+          successMessage: AppStrings.subscriptionSuccess,
         )),
       );
     } else {
@@ -184,7 +173,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       emit(state.copyWith(
         status: SubscriptionViewStatus.planList,
         paymentUrl: null,
-        errorMessage: 'فشلت عملية الدفع، يرجى المحاولة مرة أخرى',
+        errorMessage: AppStrings.paymentFailedRetry,
       ));
     }
   }

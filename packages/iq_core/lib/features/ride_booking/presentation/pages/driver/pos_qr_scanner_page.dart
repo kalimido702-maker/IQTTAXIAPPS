@@ -134,7 +134,7 @@ class _PosQrScannerPageState extends State<PosQrScannerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.black,
       body: Stack(
         children: [
           // ── Camera Preview ──
@@ -160,12 +160,12 @@ class _PosQrScannerPageState extends State<PosQrScannerPage> {
                     child: Container(
                       padding: EdgeInsets.all(8.w),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
+                        color: AppColors.overlay50,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.close,
-                        color: Colors.white,
+                        color: AppColors.white,
                         size: 24.w,
                       ),
                     ),
@@ -174,7 +174,7 @@ class _PosQrScannerPageState extends State<PosQrScannerPage> {
                   IqText(
                     AppStrings.scanQrCode,
                     style: AppTypography.heading3.copyWith(
-                      color: Colors.white,
+                      color: AppColors.white,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -195,7 +195,7 @@ class _PosQrScannerPageState extends State<PosQrScannerPage> {
                 IqText(
                   AppStrings.scanQrInstruction,
                   style: AppTypography.bodyMedium.copyWith(
-                    color: Colors.white,
+                    color: AppColors.white,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -213,7 +213,7 @@ class _PosQrScannerPageState extends State<PosQrScannerPage> {
                     child: IqText(
                       _errorMessage!,
                       style: AppTypography.bodySmall.copyWith(
-                        color: Colors.white,
+                        color: AppColors.white,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -234,7 +234,7 @@ class _PosQrScannerPageState extends State<PosQrScannerPage> {
                 child: Container(
                   padding: EdgeInsets.all(14.w),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
+                    color: AppColors.overlay50,
                     shape: BoxShape.circle,
                   ),
                   child: ValueListenableBuilder(
@@ -243,7 +243,7 @@ class _PosQrScannerPageState extends State<PosQrScannerPage> {
                       final isOn = state.torchState == TorchState.on;
                       return Icon(
                         isOn ? Icons.flash_on : Icons.flash_off,
-                        color: isOn ? AppColors.primary : Colors.white,
+                        color: isOn ? AppColors.primary : AppColors.white,
                         size: 28.w,
                       );
                     },
@@ -282,7 +282,7 @@ class _OverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black.withValues(alpha: 0.55);
+    final paint = Paint()..color = AppColors.black.withValues(alpha: 0.55);
 
     final center = Offset(size.width / 2, size.height / 2);
     final cutoutRect = RRect.fromRectAndRadius(

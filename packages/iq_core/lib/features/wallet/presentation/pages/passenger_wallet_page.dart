@@ -469,7 +469,7 @@ class _TransactionItem extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    final months = AppStrings.arabicMonths;
+    final months = AppStrings.months;
     return '${dt.day} ${months[dt.month - 1]} , ${dt.year}';
   }
 }

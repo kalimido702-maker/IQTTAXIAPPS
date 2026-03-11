@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/constants/app_strings.dart';
 import 'register_form_event.dart';
 import 'register_form_state.dart';
 
@@ -61,17 +62,17 @@ class RegisterFormBloc extends Bloc<RegisterFormEvent, RegisterFormState> {
     String? genderErr;
 
     if (state.name.trim().isEmpty) {
-      nameErr = 'يرجى إدخال الإسم';
+      nameErr = AppStrings.pleaseEnterName;
     }
 
     if (state.phone.trim().isEmpty) {
-      phoneErr = 'يرجى إدخال رقم الجوال';
+      phoneErr = AppStrings.pleaseEnterPhone;
     } else if (state.phone.trim().length < 10) {
-      phoneErr = 'رقم الجوال غير صحيح';
+      phoneErr = AppStrings.invalidPhone;
     }
 
     if (state.selectedGender == null) {
-      genderErr = 'يرجى تحديد النوع';
+      genderErr = AppStrings.pleaseSelectGender;
     }
 
     final hasErrors = nameErr != null || phoneErr != null || genderErr != null;

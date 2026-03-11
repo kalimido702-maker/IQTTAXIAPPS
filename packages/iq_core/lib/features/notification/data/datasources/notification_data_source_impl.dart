@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../models/notification_model.dart';
 import 'notification_data_source.dart';
@@ -35,7 +36,7 @@ class NotificationDataSourceImpl implements NotificationDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل تحميل الاشعارات',
+        message: body['message']?.toString() ?? AppStrings.failedToLoadNotifications,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -57,7 +58,7 @@ class NotificationDataSourceImpl implements NotificationDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل حذف الاشعار',
+        message: body['message']?.toString() ?? AppStrings.failedToDeleteNotification,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -79,7 +80,7 @@ class NotificationDataSourceImpl implements NotificationDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل مسح الاشعارات',
+        message: body['message']?.toString() ?? AppStrings.failedToClearNotifications,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -93,20 +94,20 @@ class NotificationDataSourceImpl implements NotificationDataSource {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
-      return const NetworkFailure(message: 'انتهت مهلة الاتصال');
+      return NetworkFailure(message: AppStrings.connectionTimeout);
     }
     if (e.type == DioExceptionType.connectionError) {
-      return const NetworkFailure();
+      return NetworkFailure();
     }
     final data = e.response?.data;
     if (data is Map<String, dynamic>) {
       return ServerFailure(
-        message: data['message']?.toString() ?? 'خطأ في الخادم',
+        message: data['message']?.toString() ?? AppStrings.serverError,
         statusCode: e.response?.statusCode,
       );
     }
     return ServerFailure(
-      message: e.message ?? 'خطأ في الخادم',
+      message: e.message ?? AppStrings.serverError,
       statusCode: e.response?.statusCode,
     );
   }

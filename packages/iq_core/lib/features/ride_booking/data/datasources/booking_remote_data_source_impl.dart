@@ -471,6 +471,8 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     required String requestId,
     required double dropLat,
     required double dropLng,
+    double pickLat = 0,
+    double pickLng = 0,
     String dropAddress = '',
     String polyLine = '',
     required double distance,
@@ -480,16 +482,21 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     try {
       final response = await dio.post(
         'api/v1/request/end',
-        data: FormData.fromMap({
+        data: {
           'request_id': requestId,
+          'distance': distance,
           'drop_lat': dropLat,
           'drop_lng': dropLng,
+          'pick_lat': pickLat,
+          'pick_lng': pickLng,
           'drop_address': dropAddress,
-          'distance': distance,
           'before_trip_start_waiting_time': beforeTripWaitingTime,
           'after_trip_start_waiting_time': afterTripWaitingTime,
+          'before_arrival_waiting_time': 0,
+          'after_arrival_waiting_time': 0,
           if (polyLine.isNotEmpty) 'poly_line': polyLine,
-        }),
+        },
+        options: Options(contentType: 'application/json'),
       );
       final body = response.data as Map<String, dynamic>;
       if (response.statusCode == 200 && body['success'] == true) {
@@ -524,8 +531,8 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
         final data = body['data'] as Map<String, dynamic>? ?? {};
         final paymentUrl = data['payment_url']?.toString() ?? '';
         if (paymentUrl.isEmpty) {
-          return const Left(
-            ServerFailure(message: 'لم يتم استلام رابط الدفع'),
+          return Left(
+            ServerFailure(message: AppStrings.paymentLinkNotReceived),
           );
         }
         return Right(paymentUrl);

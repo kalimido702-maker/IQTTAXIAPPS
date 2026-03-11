@@ -85,7 +85,7 @@ class _ParcelRecipientPageState extends State<ParcelRecipientPage> {
               // ── Sender / Recipient name ──
               IqTextField(
                 label: AppStrings.senderName,
-                hintText: 'عبد الرحمن',
+                hintText: AppStrings.recipientNameHint,
                 controller: _nameController,
                 errorText: _nameError,
                 enabled: !_receiveSelf,
@@ -116,7 +116,7 @@ class _ParcelRecipientPageState extends State<ParcelRecipientPage> {
               // ── Instructions ──
               IqTextField(
                 label: AppStrings.instructions,
-                hintText: 'ملاحظات أو تعليمات إضافية...',
+                hintText: AppStrings.notesHint,
                 controller: _instructionsController,
                 maxLines: 4,
               ),
@@ -205,11 +205,11 @@ class _ParcelRecipientPageState extends State<ParcelRecipientPage> {
       bool hasError = false;
 
       if (name.isEmpty) {
-        _nameError = 'يرجى إدخال الإسم';
+        _nameError = AppStrings.pleaseEnterName;
         hasError = true;
       }
       if (phone.isEmpty || phone.length < 7) {
-        _phoneError = 'يرجى إدخال رقم هاتف صحيح';
+        _phoneError = AppStrings.pleaseEnterValidPhone;
         hasError = true;
       }
 

@@ -53,7 +53,7 @@ class EarningsBarChart extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.buttonYellow
-                        : const Color(0xFFD9D9D9),
+                        : AppColors.inactiveBar,
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(2.r),
                     ),

@@ -440,14 +440,14 @@ class _DriverTransactionItem extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    final months = AppStrings.arabicMonths;
+    final months = AppStrings.months;
     return '${dt.day} ${months[dt.month - 1]}, ${dt.year}';
   }
 
   String _formatTime(DateTime dt) {
     final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
     final minute = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour >= 12 ? 'م' : 'ص';
+    final period = dt.hour >= 12 ? AppStrings.pm : AppStrings.am;
     return '$hour:$minute $period';
   }
 }

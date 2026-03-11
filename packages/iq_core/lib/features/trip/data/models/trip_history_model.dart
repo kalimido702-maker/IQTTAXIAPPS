@@ -1,3 +1,4 @@
+import '../../../../core/constants/app_strings.dart';
 import '../../domain/entities/trip_entity.dart';
 
 /// Response wrapper for `GET api/v1/request/history`
@@ -147,7 +148,7 @@ class TripHistoryModel {
       dropoffLat: _toDouble(json['drop_lat']),
       dropoffLng: _toDouble(json['drop_lng']),
       status: status,
-      vehicleTypeName: (json['vehicle_type_name'] ?? 'تاكسي').toString(),
+      vehicleTypeName: (json['vehicle_type_name'] ?? AppStrings.defaultVehicleType).toString(),
       transportType: json['transport_type']?.toString(),
       totalDistance: _toDouble(json['total_distance']),
       totalTime: _toInt(json['total_time']),

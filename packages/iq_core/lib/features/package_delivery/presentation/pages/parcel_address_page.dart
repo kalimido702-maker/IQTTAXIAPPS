@@ -144,7 +144,7 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
           // ── Pickup ──
           _buildAddressField(
             icon: Icons.location_on,
-            iconColor: const Color(0xFF34A853),
+            iconColor: AppColors.googleGreen,
             label: AppStrings.pickupAddress,
             address: _pickupAddress,
             onTap: () => _startSearch(isPickup: true),
@@ -156,7 +156,7 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
           // ── Drop-off ──
           _buildAddressField(
             icon: Icons.location_on,
-            iconColor: const Color(0xFFEA4335),
+            iconColor: AppColors.googleRed,
             label: AppStrings.deliveryAddress,
             address: _dropAddress,
             onTap: () => _startSearch(isPickup: false),
@@ -374,7 +374,7 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
           child: _searchResults.isEmpty
               ? Center(
                   child: IqText(
-                    'ابحث عن مكان...',
+                    AppStrings.searchPlace,
                     style: AppTypography.bodyLarge
                         .copyWith(color: AppColors.grayInactive),
                   ),

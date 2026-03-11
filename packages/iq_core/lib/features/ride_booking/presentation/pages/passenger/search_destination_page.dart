@@ -62,6 +62,7 @@ class _BodyState extends State<_Body> {
   final _pickupController = TextEditingController();
   final _dropController = TextEditingController();
   final _searchController = TextEditingController();
+  final _pickupFocus = FocusNode();
   final _dropFocus = FocusNode();
   Timer? _debounce;
 
@@ -70,11 +71,28 @@ class _BodyState extends State<_Body> {
   bool _isSearching = false;
   bool _isLoadingRecents = false;
 
+  /// Tracks which field is currently being edited (pickup vs dropoff).
+  bool _isEditingPickup = false;
+
+  /// Mutable pickup coordinates — updated when the user picks a new location.
+  late double _pickupLat = widget.pickupLat;
+  late double _pickupLng = widget.pickupLng;
+  late String _pickupAddress = widget.pickupAddress;
+
   @override
   void initState() {
     super.initState();
     _pickupController.text = widget.pickupAddress;
     _loadRecentPlaces();
+
+    // Track which field is focused.
+    _pickupFocus.addListener(() {
+      if (_pickupFocus.hasFocus) setState(() => _isEditingPickup = true);
+    });
+    _dropFocus.addListener(() {
+      if (_dropFocus.hasFocus) setState(() => _isEditingPickup = false);
+    });
+
     // Auto-focus dropoff field
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _dropFocus.requestFocus();
@@ -86,6 +104,7 @@ class _BodyState extends State<_Body> {
     _pickupController.dispose();
     _dropController.dispose();
     _searchController.dispose();
+    _pickupFocus.dispose();
     _dropFocus.dispose();
     _debounce?.cancel();
     super.dispose();
@@ -169,17 +188,30 @@ class _BodyState extends State<_Body> {
 
     if (lat == 0 || lng == 0) return;
 
+    if (_isEditingPickup) {
+      // Update pickup location and move focus to dropoff.
+      setState(() {
+        _pickupLat = lat;
+        _pickupLng = lng;
+        _pickupAddress = address;
+        _pickupController.text = address;
+        _searchResults = [];
+      });
+      _dropFocus.requestFocus();
+      return;
+    }
+
     // Unfocus text fields to prevent SystemContextMenu crash
     FocusScope.of(context).unfocus();
 
-    // Navigate to ride selection
+    // Navigate to ride selection with (possibly updated) pickup
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => RideSelectionPage(
-          pickupAddress: widget.pickupAddress,
-          pickupLat: widget.pickupLat,
-          pickupLng: widget.pickupLng,
+          pickupAddress: _pickupAddress,
+          pickupLat: _pickupLat,
+          pickupLng: _pickupLng,
           dropoffAddress: address,
           dropoffLat: lat,
           dropoffLng: lng,
@@ -196,8 +228,8 @@ class _BodyState extends State<_Body> {
       context,
       MaterialPageRoute(
         builder: (_) => MapPickerPage(
-          initialLat: widget.pickupLat,
-          initialLng: widget.pickupLng,
+          initialLat: _pickupLat,
+          initialLng: _pickupLng,
         ),
       ),
     );
@@ -221,7 +253,7 @@ class _BodyState extends State<_Body> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: const IqAppBar(title: AppStrings.toWhere),
+      appBar: IqAppBar(title: AppStrings.toWhere),
       body: Column(
         children: [
           // ── Address fields ──
@@ -232,12 +264,13 @@ class _BodyState extends State<_Body> {
             ),
             child: Column(
               children: [
-                // Pickup field
+                // Pickup field (editable — search for a new pickup)
                 _AddressField(
                   controller: _pickupController,
                   hint: AppStrings.pickupLocationHint,
                   iconPath: AppAssets.icLocation,
-                  readOnly: true,
+                  focusNode: _pickupFocus,
+                  onChanged: _onSearchChanged,
                 ),
                 SizedBox(height: 12.h),
                 // Dropoff field
@@ -283,14 +316,12 @@ class _AddressField extends StatelessWidget {
     required this.hint,
     required this.iconPath,
     this.focusNode,
-    this.readOnly = false,
     this.onChanged,
   });
 
   final TextEditingController controller;
   final String hint;
   final FocusNode? focusNode;
-  final bool readOnly;
   final ValueChanged<String>? onChanged;
   final String iconPath;
 
@@ -321,13 +352,7 @@ class _AddressField extends StatelessWidget {
             child: TextField(
               controller: controller,
               focusNode: focusNode,
-              readOnly: readOnly,
               onChanged: onChanged,
-              contextMenuBuilder: readOnly
-                  ? (context, editableTextState) =>
-                      const SizedBox.shrink()
-                  : null,
-              enableInteractiveSelection: !readOnly,
               style: AppTypography.bodyMedium,
               textDirection: TextDirection.rtl,
               decoration: InputDecoration(

@@ -117,7 +117,7 @@ class _MapPickerPageState extends State<MapPickerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: const IqAppBar(title: AppStrings.selectLocation),
+      appBar: IqAppBar(title: AppStrings.selectLocation),
       body: Stack(
         children: [
           Positioned.fill(
@@ -150,7 +150,7 @@ class _MapPickerPageState extends State<MapPickerPage> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: AppColors.black.withValues(alpha: 0.08),
                     blurRadius: 10,
                     offset: const Offset(0, -2),
                   ),

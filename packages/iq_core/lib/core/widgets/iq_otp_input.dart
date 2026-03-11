@@ -222,7 +222,7 @@ class _IqOtpInputState extends State<IqOtpInput>
 
     final bgColor = hasValue
         ? AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.06)
-        : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.transparent);
+        : (isDark ? AppColors.white.withValues(alpha: 0.05) : Colors.transparent);
 
     return AnimatedBuilder(
       listenable: _scaleAnimations[index],
@@ -235,7 +235,7 @@ class _IqOtpInputState extends State<IqOtpInput>
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        width: 55.w,
+        width: 56.w,
         height: 54.h,
         margin: EdgeInsets.symmetric(horizontal: 5.w),
         decoration: BoxDecoration(
@@ -261,6 +261,7 @@ class _IqOtpInputState extends State<IqOtpInput>
             textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
             maxLength: 1,
+            scrollPadding: EdgeInsets.zero,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
               _OtpPasteFormatter(
@@ -275,15 +276,21 @@ class _IqOtpInputState extends State<IqOtpInput>
             cursorWidth: 2,
             style: AppTypography.numberLarge.copyWith(
               fontSize: 22.sp,
-              color: isDark ? Colors.white : AppColors.textDark,
+              color: isDark ? AppColors.white : AppColors.textDark,
             ),
             decoration: InputDecoration(
               counterText: '',
               border: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              fillColor: Colors.transparent,
+              contentPadding: EdgeInsets.zero,
               hintText: isFocused ? '' : '-',
               hintStyle: AppTypography.numberLarge.copyWith(
                 color: AppColors.black,
-                fontSize: 22.sp,
+                fontSize: 18.sp,
               ),
             ),
           ),

@@ -21,10 +21,10 @@ import 'trip_detail_page.dart';
 class TripHistoryPage extends StatelessWidget {
   const TripHistoryPage({super.key});
 
-  static const _tabs = [
-    AppStrings.completed, // مكتمل
-    AppStrings.upcoming, // قادم
-    AppStrings.cancelled, // تم الالغاء
+  static final _tabs = [
+    AppStrings.completed,
+    AppStrings.upcoming,
+    AppStrings.cancelled,
   ];
 
   @override
@@ -63,7 +63,7 @@ class TripHistoryPage extends StatelessWidget {
 
                 if (state is TripHistoryLoaded) {
                   if (state.trips.isEmpty) {
-                    return const IqEmptyState(
+                    return IqEmptyState(
                       icon: Icons.receipt_long_outlined,
                       message: AppStrings.noTripsFound,
                     );
@@ -157,7 +157,7 @@ class _TabBar extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: isDark ? Colors.white12 : AppColors.grayBorder,
+                color: isDark ? AppColors.white.withValues(alpha: 0.12) : AppColors.grayBorder,
                 width: 1,
               ),
             ),

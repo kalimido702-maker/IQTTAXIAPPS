@@ -11,6 +11,10 @@ import '../../../../../core/widgets/iq_image.dart';
 import '../../../../../core/widgets/iq_primary_button.dart';
 import '../../../../../core/widgets/iq_text.dart';
 import '../../../domain/repositories/booking_repository.dart';
+import '../../bloc/driver/driver_trip_bloc.dart';
+import '../../bloc/driver/driver_trip_event.dart';
+import '../../bloc/passenger/passenger_trip_bloc.dart';
+import '../../bloc/passenger/passenger_trip_event.dart';
 import '../../widgets/trip_rating_widget.dart';
 
 /// Trip rating page (Figma 7:1036 passenger, 7:6659 driver).
@@ -52,6 +56,21 @@ class _TripRatingPageState extends State<TripRatingPage> {
     if (!mounted) return;
 
     HapticFeedback.mediumImpact();
+
+    // Clean up trip state so the trip doesn't linger in the bloc.
+    // Reset the CORRECT bloc depending on who is rating.
+    if (widget.isDriver) {
+      final driverId = sl<DriverTripBloc>().state.driverId;
+      sl<DriverTripBloc>().add(const DriverTripReset());
+      // Re-subscribe to incoming requests so the driver can
+      // receive new trips immediately after rating.
+      if (driverId != null && driverId.isNotEmpty) {
+        sl<DriverTripBloc>().add(DriverTripListenRequested(driverId));
+      }
+    } else {
+      sl<PassengerTripBloc>().add(const PassengerTripReset());
+    }
+
     // Pop all the way back to home
     Navigator.of(context).popUntil((route) => route.isFirst);
   }

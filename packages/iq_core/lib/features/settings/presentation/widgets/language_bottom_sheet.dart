@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../bloc/locale_cubit.dart';
 import '../bloc/locale_state.dart';
@@ -48,7 +49,7 @@ class LanguageBottomSheet extends StatelessWidget {
 
               // ── Title ──
               Text(
-                'تغيير اللغة',
+                AppStrings.changeLanguageTitle,
                 style: TextStyle(
                   fontSize: 18.sp,
                   fontWeight: FontWeight.w700,
@@ -59,7 +60,7 @@ class LanguageBottomSheet extends StatelessWidget {
               // ── Arabic ──
               _LanguageTile(
                 flag: '🇮🇶',
-                label: 'العربية',
+                label: AppStrings.arabic,
                 isSelected: state.isArabic,
                 onTap: () {
                   context

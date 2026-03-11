@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_strings.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_text.dart';
 
@@ -10,20 +12,27 @@ import '../../../../core/widgets/iq_text.dart';
 /// Displays a countdown or count-up timer with a message label.
 /// Used for waiting time at pickup and ETA during trip.
 class WaitingTimerBanner extends StatefulWidget {
-  const WaitingTimerBanner({
+  WaitingTimerBanner({
     super.key,
-    this.message = 'الوقت المتبقي لانتظار الراكب',
+    String? message,
     this.warningMessage,
     this.startTime,
     this.isCountdown = false,
+    this.isLiveEta = false,
     this.totalSeconds,
     this.remainingDistanceKm,
-  });
+  }) : message = message ?? AppStrings.waitingForPassenger;
 
   final String message;
   final String? warningMessage;
   final DateTime? startTime;
   final bool isCountdown;
+
+  /// When true, no internal timer runs. The widget simply displays
+  /// [totalSeconds] and [remainingDistanceKm] as provided by the parent.
+  /// Values update only when the parent rebuilds with new data
+  /// (e.g. after each GPS-based route re-fetch).
+  final bool isLiveEta;
   final int? totalSeconds;
 
   /// If provided, shows remaining distance below the timer (e.g. "1.5 km").
@@ -40,6 +49,11 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
   @override
   void initState() {
     super.initState();
+    if (widget.isLiveEta) {
+      _seconds = widget.totalSeconds ?? 0;
+      // No timer — parent drives updates via rebuild.
+      return;
+    }
     if (widget.startTime != null) {
       _seconds = DateTime.now().difference(widget.startTime!).inSeconds;
     }
@@ -57,6 +71,15 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
         }
       });
     });
+  }
+
+  @override
+  void didUpdateWidget(WaitingTimerBanner old) {
+    super.didUpdateWidget(old);
+    // In live-ETA mode, sync displayed seconds when parent rebuilds.
+    if (widget.isLiveEta) {
+      _seconds = widget.totalSeconds ?? 0;
+    }
   }
 
   @override
@@ -78,7 +101,7 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
       decoration: BoxDecoration(
-        color: const Color(0xCC000000), // dark semi-transparent
+        color: AppColors.overlayDark, // dark semi-transparent
         borderRadius: BorderRadius.circular(16.r),
       ),
       child: Column(
@@ -88,7 +111,7 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
           IqText(
             widget.message,
             style: AppTypography.bodySmall.copyWith(
-              color: Colors.white.withValues(alpha: 0.85),
+              color: AppColors.white.withValues(alpha: 0.85),
               fontSize: 13.sp,
             ),
           ),
@@ -97,7 +120,7 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
           IqText(
             _formattedTime,
             style: AppTypography.numberLarge.copyWith(
-              color: Colors.white,
+              color: AppColors.white,
               fontWeight: FontWeight.w700,
               fontSize: 22.sp,
             ),
@@ -110,7 +133,7 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
             IqText(
               '${widget.remainingDistanceKm!.toStringAsFixed(1)} km',
               style: AppTypography.numberLarge.copyWith(
-                color: Colors.white.withValues(alpha: 0.9),
+                color: AppColors.white.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w600,
                 fontSize: 18.sp,
               ),
@@ -125,14 +148,14 @@ class _WaitingTimerBannerState extends State<WaitingTimerBanner> {
                 Icon(
                   Icons.warning_amber_rounded,
                   size: 14.w,
-                  color: const Color(0xFFFFC107),
+                  color: AppColors.amber,
                 ),
                 SizedBox(width: 4.w),
                 Flexible(
                   child: IqText(
                     widget.warningMessage!,
                     style: AppTypography.caption.copyWith(
-                      color: const Color(0xFFFFC107),
+                      color: AppColors.amber,
                       fontSize: 11.sp,
                     ),
                   ),

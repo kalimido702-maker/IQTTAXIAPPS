@@ -65,7 +65,7 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
     final onSurface = Theme.of(context).colorScheme.onSurface;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const IqAppBar(title: AppStrings.withdrawBalance),
+      appBar: IqAppBar(title: AppStrings.withdrawBalance),
       body: BlocBuilder<WalletBloc, WalletState>(
         builder: (context, state) {
           return Padding(

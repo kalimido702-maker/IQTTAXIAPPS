@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../constants/app_strings.dart';
 import '../theme/app_colors.dart';
 import 'iq_app_bar.dart';
 
@@ -90,7 +91,7 @@ class _IqWebViewPageState extends State<IqWebViewPage> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _error = 'فشل تحميل المحتوى';
+          _error = AppStrings.failedToLoadContent;
         });
       }
     }
@@ -104,7 +105,7 @@ class _IqWebViewPageState extends State<IqWebViewPage> {
           ? Center(
               child: Text(
                 _error!,
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                style: const TextStyle(fontSize: 16, color: AppColors.grayPlaceholder),
               ),
             )
           : Stack(

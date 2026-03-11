@@ -275,7 +275,7 @@ class RegisterPage extends StatelessWidget {
   void _openTermsUrl(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => const IqWebViewPage(
+        builder: (_) => IqWebViewPage(
           title: AppStrings.termsAndConditions,
           url: 'https://iqttaxi.com/api/v1/common/mobile/terms',
         ),

@@ -96,13 +96,13 @@ class _Header extends StatelessWidget {
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: Icon(Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white, size: 22.w),
+                      color: AppColors.white, size: 22.w),
                 ),
                 const Spacer(),
                 IqText(
                   AppStrings.incentives,
                   style: AppTypography.heading2.copyWith(
-                    color: Colors.white,
+                    color: AppColors.white,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -188,7 +188,7 @@ class _TabItem extends StatelessWidget {
                 style: AppTypography.bodyLarge.copyWith(
                   color: isActive
                       ? AppColors.primary
-                      : Colors.white.withAlpha(160),
+                      : AppColors.white.withAlpha(160),
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                   fontSize: 16.sp,
                 ),
@@ -219,10 +219,10 @@ class _ShimmerBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppColors.darkCard : Colors.white;
-    final baseColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
+    final cardColor = isDark ? AppColors.darkCard : AppColors.white;
+    final baseColor = isDark ? AppColors.shimmerBaseDark : AppColors.shimmerBase;
     final highlightColor =
-        isDark ? Colors.grey.shade600 : Colors.grey.shade100;
+        isDark ? AppColors.shimmerHighlightDark : AppColors.shimmerHighlight;
 
     return Column(
       children: [
@@ -266,7 +266,7 @@ class _ShimmerBody extends StatelessWidget {
                       width: double.infinity,
                       height: 130.h,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.white,
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                     ),
@@ -283,7 +283,7 @@ class _ShimmerBody extends StatelessWidget {
                               width: 18.w,
                               height: 18.w,
                               decoration: const BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.white,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -298,7 +298,7 @@ class _ShimmerBody extends StatelessWidget {
                                     width: 180.w,
                                     height: 14.h,
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color: AppColors.white,
                                       borderRadius:
                                           BorderRadius.circular(4.r),
                                     ),
@@ -308,7 +308,7 @@ class _ShimmerBody extends StatelessWidget {
                                     width: 100.w,
                                     height: 10.h,
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color: AppColors.white,
                                       borderRadius:
                                           BorderRadius.circular(4.r),
                                     ),
@@ -321,7 +321,7 @@ class _ShimmerBody extends StatelessWidget {
                               width: 60.w,
                               height: 14.h,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.white,
                                 borderRadius: BorderRadius.circular(4.r),
                               ),
                             ),
@@ -356,12 +356,12 @@ class _ErrorBody extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48.w, color: Colors.white70),
+            Icon(Icons.error_outline, size: 48.w, color: AppColors.white.withValues(alpha: 0.7)),
             SizedBox(height: 16.h),
             IqText(
               message,
               style:
-                  AppTypography.bodyLarge.copyWith(color: Colors.white),
+                  AppTypography.bodyLarge.copyWith(color: AppColors.white),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 24.h),
@@ -369,11 +369,11 @@ class _ErrorBody extends StatelessWidget {
               onPressed: () => context
                   .read<IncentiveBloc>()
                   .add(const IncentiveLoadRequested(type: 0)),
-              icon: const Icon(Icons.refresh, color: Colors.white),
+              icon: Icon(Icons.refresh, color: AppColors.white),
               label: IqText(
                 AppStrings.retry,
                 style: AppTypography.bodyLarge.copyWith(
-                  color: Colors.white,
+                  color: AppColors.white,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -410,7 +410,7 @@ class _LoadedBody extends StatelessWidget {
               IqText(
                 AppStrings.completeFirstTripForIncentive,
                 style: AppTypography.bodyLarge.copyWith(
-                  color: Colors.white,
+                  color: AppColors.white,
                   fontWeight: FontWeight.w600,
                 ),
                 textAlign: TextAlign.center,
@@ -516,7 +516,7 @@ class _DateStripState extends State<_DateStrip> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkCard : Colors.white;
+    final bgColor = isDark ? AppColors.darkCard : AppColors.white;
 
     return Container(
       height: 90.h,
@@ -526,7 +526,7 @@ class _DateStripState extends State<_DateStrip> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(30),
+            color: AppColors.black.withAlpha(30),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -567,7 +567,7 @@ class _DateStripState extends State<_DateStrip> {
                   d.day,
                   style: AppTypography.caption.copyWith(
                     color: isFuture
-                        ? Colors.grey
+                        ? AppColors.grayPlaceholder
                         : isSelected
                             ? onSurface
                             : onSurface.withAlpha(180),
@@ -599,9 +599,9 @@ class _DateStripState extends State<_DateStrip> {
                       fontSize:
                           widget.activeTab == 0 ? 16.sp : 10.sp,
                       color: isFuture
-                          ? Colors.grey
+                          ? AppColors.grayPlaceholder
                           : isSelected
-                              ? Colors.white
+                              ? AppColors.white
                               : onSurface,
                       fontWeight: isSelected
                           ? FontWeight.w700
@@ -630,7 +630,7 @@ class _MilestoneContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkBackground : Colors.white;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.white;
     final onSurface = Theme.of(context).colorScheme.onSurface;
 
     final hasIncentives = date.upcomingIncentives.isNotEmpty;
@@ -752,14 +752,14 @@ class _MilestoneContent extends StatelessWidget {
                   IqText(
                     AppStrings.earnUpTo,
                     style: AppTypography.bodyMedium.copyWith(
-                      color: Colors.white.withAlpha(210),
+                      color: AppColors.white.withAlpha(210),
                     ),
                   ),
                   SizedBox(height: 4.h),
                   IqText(
                     '${date.earnUpto} ${AppStrings.currencyIQD}',
                     style: AppTypography.heading1.copyWith(
-                      color: Colors.white,
+                      color: AppColors.white,
                       fontWeight: FontWeight.w800,
                       fontSize: 28.sp,
                     ),
@@ -769,7 +769,7 @@ class _MilestoneContent extends StatelessWidget {
                   IqText(
                     '${AppStrings.byCompletingTrips} ${date.totalRides} ${AppStrings.totalRidesCount}',
                     style: AppTypography.bodyMedium.copyWith(
-                      color: Colors.white.withAlpha(200),
+                      color: AppColors.white.withAlpha(200),
                     ),
                   ),
                   SizedBox(height: 14.h),
@@ -777,7 +777,7 @@ class _MilestoneContent extends StatelessWidget {
                     padding: EdgeInsets.symmetric(
                         horizontal: 20.w, vertical: 8.h),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.white,
                       borderRadius: BorderRadius.circular(20.r),
                     ),
                     child: IqText(
@@ -834,7 +834,7 @@ class _MilestoneContent extends StatelessWidget {
                             child: completed
                                 ? Icon(Icons.check,
                                     size: 13.w,
-                                    color: Colors.white)
+                                    color: AppColors.white)
                                 : null,
                           ),
                           if (!isLast)
@@ -842,8 +842,8 @@ class _MilestoneContent extends StatelessWidget {
                               child: Container(
                                 width: 2,
                                 color: isDark
-                                    ? Colors.white24
-                                    : Colors.grey.shade300,
+                                    ? AppColors.white.withValues(alpha: 0.24)
+                                    : AppColors.shimmerBase,
                               ),
                             ),
                         ],

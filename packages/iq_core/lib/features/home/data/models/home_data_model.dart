@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/constants/app_strings.dart';
+
 /// Banner image from API response.
 class BannerModel extends Equatable {
   final int id;
@@ -65,17 +67,17 @@ class WalletModel extends Equatable {
   final String currencyCode;
   final String currencySymbol;
 
-  const WalletModel({
+  WalletModel({
     this.balance = 0.0,
     this.currencyCode = 'IQD',
-    this.currencySymbol = 'د.ع',
-  });
+    String? currencySymbol,
+  }) : currencySymbol = currencySymbol ?? AppStrings.currencySymbolIQD;
 
   factory WalletModel.fromJson(Map<String, dynamic> json) {
     return WalletModel(
       balance: (json['amount_balance'] as num?)?.toDouble() ?? 0.0,
       currencyCode: (json['currency_code'] ?? 'IQD').toString(),
-      currencySymbol: (json['currency_symbol'] ?? 'د.ع').toString(),
+      currencySymbol: (json['currency_symbol'] ?? AppStrings.currencySymbolIQD).toString(),
     );
   }
 
@@ -150,7 +152,7 @@ class HomeDataModel extends Equatable {
   final String driverMode; // 'subscription', 'both', or ''
   final Map<String, dynamic>? subscriptionData;
 
-  const HomeDataModel({
+  HomeDataModel({
     required this.id,
     required this.name,
     this.lastName,
@@ -164,9 +166,9 @@ class HomeDataModel extends Equatable {
     this.showOutstation = false,
     this.showRental = false,
     this.currencyCode = 'IQD',
-    this.currencySymbol = 'د.ع',
+    String? currencySymbol,
     this.notifyCount = 0,
-    this.wallet = const WalletModel(),
+    WalletModel? wallet,
     this.banners = const [],
     this.homeLocations = const [],
     this.workLocations = const [],
@@ -196,7 +198,8 @@ class HomeDataModel extends Equatable {
     this.isSubscribed = false,
     this.driverMode = '',
     this.subscriptionData,
-  });
+  })  : currencySymbol = currencySymbol ?? AppStrings.currencySymbolIQD,
+        wallet = wallet ?? WalletModel();
 
   /// Parse from `GET api/v1/user` → `response.data['data']`.
   factory HomeDataModel.fromJson(Map<String, dynamic> json) {
@@ -232,7 +235,7 @@ class HomeDataModel extends Equatable {
     // ── Wallet ──
     final walletRaw = json['wallet'] as Map<String, dynamic>?;
     final wallet =
-        walletRaw != null ? WalletModel.fromJson(walletRaw) : const WalletModel();
+        walletRaw != null ? WalletModel.fromJson(walletRaw) : WalletModel();
 
     // ── Driver availability ──
     // The backend uses 'active' for online/offline status (toggled via
@@ -262,7 +265,7 @@ class HomeDataModel extends Equatable {
           json['show_outstation_ride_feature'] == true,
       showRental: json['show_rental_ride'] == true,
       currencyCode: (json['currency_code'] ?? 'IQD').toString(),
-      currencySymbol: (json['currency_symbol'] ?? 'د.ع').toString(),
+      currencySymbol: (json['currency_symbol'] ?? AppStrings.currencySymbolIQD).toString(),
       notifyCount: (json['notify_count'] as num?)?.toInt() ?? 0,
       wallet: wallet,
       banners: banners,
@@ -320,7 +323,7 @@ class HomeDataModel extends Equatable {
       if (carMake != null && carMake!.isNotEmpty) carMake!,
       if (carModel != null && carModel!.isNotEmpty) carModel!,
     ];
-    return parts.isNotEmpty ? parts.join(' - ') : 'سائق';
+    return parts.isNotEmpty ? parts.join(' - ') : AppStrings.defaultDriverName;
   }
 
   /// Active hours derived from total minutes.

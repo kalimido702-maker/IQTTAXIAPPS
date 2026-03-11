@@ -7,6 +7,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/utils/car_color_helper.dart';
 import '../../../../../core/theme/app_dimens.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/iq_image.dart';
@@ -241,7 +242,12 @@ class _InvoiceContentState extends State<_InvoiceContent> {
     HapticFeedback.mediumImpact();
 
     if (widget.isDriver) {
-      // Driver confirms cash payment → go to rating
+      // Driver confirms cash payment → update Firebase so passenger gets
+      // real-time notification, then confirm on backend and go to rating.
+      sl<TripStreamDataSource>().updateTripNode(
+        requestId: widget.requestId,
+        data: {'is_paid': 1, 'is_user_paid': true},
+      );
       sl<BookingRepository>().confirmPayment(requestId: widget.requestId);
       _navigateToRating();
       return;
@@ -428,7 +434,7 @@ class _InvoiceContentState extends State<_InvoiceContent> {
                                   width: 14.w,
                                   height: 14.w,
                                   decoration: BoxDecoration(
-                                    color: _parseColor(
+                                    color: getCarColor(
                                         widget.invoice.vehicleColor!),
                                     shape: BoxShape.circle,
                                     border: Border.all(
@@ -806,35 +812,7 @@ class _InvoiceAddressCard extends StatelessWidget {
   }
 }
 
-/// Color parser for vehicle color names.
-Color _parseColor(String colorName) {
-  final lower = colorName.toLowerCase();
-  const map = <String, Color>{
-    'red': Colors.red,
-    'blue': Colors.blue,
-    'green': Colors.green,
-    'black': Colors.black,
-    'white': Colors.white,
-    'silver': Colors.grey,
-    'gray': Colors.grey,
-    'grey': Colors.grey,
-    'yellow': Colors.amber,
-    'orange': Colors.orange,
-    'brown': Colors.brown,
-    'gold': Color(0xFFFFD700),
-    'أحمر': Colors.red,
-    'أزرق': Colors.blue,
-    'أخضر': Colors.green,
-    'أسود': Colors.black,
-    'أبيض': Colors.white,
-    'فضي': Colors.grey,
-    'رمادي': Colors.grey,
-    'أصفر': Colors.amber,
-    'برتقالي': Colors.orange,
-    'بني': Colors.brown,
-  };
-  return map[lower] ?? Colors.grey;
-}
+
 
 /// Payment icon based on method code.
 IconData _paymentIcon(int method) {

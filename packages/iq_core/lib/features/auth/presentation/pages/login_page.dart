@@ -31,18 +31,19 @@ class LoginPage extends StatelessWidget {
   final String role;
   final bool isDriver;
 
-  const LoginPage({
+  LoginPage({
     super.key,
     required this.headerBuilder,
     required this.onOtpSent,
     this.onNeedsRegistration,
-    this.footerText = AppStrings.noAccount,
+    String? footerText,
     required this.footerLinkLabel,
     required this.onFooterLinkTap,
-    this.title = AppStrings.login,
+    String? title,
     this.role = 'passenger',
     this.isDriver = false,
-  });
+  })  : footerText = footerText ?? AppStrings.noAccount,
+        title = title ?? AppStrings.login;
 
   @override
   Widget build(BuildContext context) {

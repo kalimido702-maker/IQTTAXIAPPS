@@ -59,6 +59,10 @@ class _BodyState extends State<_Body> {
   final _mapKey = GlobalKey<IqMapViewState>();
   StreamSubscription<Position>? _locationSub;
 
+  /// Live ETA data from Google Directions (refreshed on driver movement).
+  int _tripEtaSeconds = 0;
+  double _tripDistanceKm = 0;
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +77,13 @@ class _BodyState extends State<_Body> {
       if (status == DriverTripStatus.tripCompleted) {
         _navigateToInvoice();
       } else if (status == DriverTripStatus.cancelled) {
+        final driverId = context.read<DriverTripBloc>().state.driverId;
+        context.read<DriverTripBloc>().add(const DriverTripReset());
+        if (driverId != null && driverId.isNotEmpty) {
+          context.read<DriverTripBloc>().add(
+            DriverTripListenRequested(driverId),
+          );
+        }
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     });
@@ -83,6 +94,11 @@ class _BodyState extends State<_Body> {
     _locationSub?.cancel();
     super.dispose();
   }
+
+  /// Last position where we fetched a live ETA update.
+  double? _lastEtaLat;
+  double? _lastEtaLng;
+  bool _etaFetching = false;
 
   /// Continuously stream GPS position to Firebase so the passenger app
   /// can show the driver marker on the map in real-time.
@@ -102,11 +118,54 @@ class _BodyState extends State<_Body> {
                 bearing: pos.heading,
               ),
             );
+        // Refresh ETA from current position when driver moves enough.
+        _maybeRefreshEta(pos.latitude, pos.longitude);
       },
       onError: (e) {
         debugPrint('📍 DriverActiveTripPage: location stream error: $e');
       },
     );
+  }
+
+  /// Re-fetch Google Directions ETA when the driver has moved ≥ 100 m
+  /// from the last fetch point. Only runs during trip-in-progress.
+  Future<void> _maybeRefreshEta(double lat, double lng) async {
+    if (_etaFetching) return;
+    final state = context.read<DriverTripBloc>().state;
+    if (state.status != DriverTripStatus.tripInProgress) return;
+    final req = state.incomingRequest;
+    if (req == null || req.dropLat == 0) return;
+
+    // Check distance threshold (100 m).
+    if (_lastEtaLat != null && _lastEtaLng != null) {
+      final dist = Geolocator.distanceBetween(
+          _lastEtaLat!, _lastEtaLng!, lat, lng);
+      if (dist < 100) return;
+    }
+
+    _etaFetching = true;
+    _lastEtaLat = lat;
+    _lastEtaLng = lng;
+
+    try {
+      final result = await RouteHelper.fetchRoute(
+        service: sl<GoogleMapsService>(),
+        originLat: lat,
+        originLng: lng,
+        destLat: req.dropLat,
+        destLng: req.dropLng,
+      );
+      if (result != null && mounted) {
+        setState(() {
+          _tripEtaSeconds = result.durationSeconds;
+          _tripDistanceKm = result.distanceKm;
+        });
+      }
+    } catch (_) {
+      // Silently ignore — keep last known ETA.
+    } finally {
+      _etaFetching = false;
+    }
   }
 
   void _navigateToInvoice() {
@@ -133,6 +192,14 @@ class _BodyState extends State<_Body> {
           _navigateToInvoice();
         }
         if (state.status == DriverTripStatus.cancelled) {
+          // Reset bloc so the driver can receive new requests.
+          final driverId = context.read<DriverTripBloc>().state.driverId;
+          context.read<DriverTripBloc>().add(const DriverTripReset());
+          if (driverId != null && driverId.isNotEmpty) {
+            context.read<DriverTripBloc>().add(
+              DriverTripListenRequested(driverId),
+            );
+          }
           Navigator.of(context).popUntil((route) => route.isFirst);
         }
         // Show error feedback via SnackBar
@@ -158,6 +225,14 @@ class _BodyState extends State<_Body> {
                   child: _DriverTripMap(
                     mapKey: _mapKey,
                     state: state,
+                    onRouteResult: (result) {
+                      if (_tripEtaSeconds == 0 && result.durationSeconds > 0) {
+                        setState(() {
+                          _tripEtaSeconds = result.durationSeconds;
+                          _tripDistanceKm = result.distanceKm;
+                        });
+                      }
+                    },
                   ),
                 ),
                 // ── Dark timer overlay on map ──
@@ -173,21 +248,18 @@ class _BodyState extends State<_Body> {
                       startTime: DateTime.now(),
                     ),
                   ),
-                // ── ETA countdown overlay during trip ──
+                // ── Live ETA overlay during trip ──
                 if (state.activeTripData?.phase == TripPhase.inProgress)
                   Positioned(
                     top: MediaQuery.of(context).padding.top + 12.h,
                     left: 20.w,
                     right: 20.w,
                     child: WaitingTimerBanner(
-                      key: const ValueKey('trip_eta_countdown'),
+                      key: const ValueKey('trip_live_eta'),
                       message: AppStrings.onWayToDropoff,
-                      isCountdown: true,
-                      totalSeconds:
-                          ((state.activeTripData?.duration ?? 0) * 60).toInt(),
-                      startTime: DateTime.now(),
-                      remainingDistanceKm:
-                          state.activeTripData?.distance ?? 0,
+                      isLiveEta: true,
+                      totalSeconds: _tripEtaSeconds,
+                      remainingDistanceKm: _tripDistanceKm,
                     ),
                   ),
                 // Bottom sheet
@@ -212,10 +284,12 @@ class _DriverTripMap extends StatefulWidget {
   const _DriverTripMap({
     required this.mapKey,
     required this.state,
+    this.onRouteResult,
   });
 
   final GlobalKey<IqMapViewState> mapKey;
   final DriverTripState state;
+  final ValueChanged<DirectionsResult>? onRouteResult;
 
   @override
   State<_DriverTripMap> createState() => _DriverTripMapState();
@@ -315,6 +389,9 @@ class _DriverTripMapState extends State<_DriverTripMap> {
         setState(() => _routePoints = result.polylinePoints);
         final bounds = calculateBounds(result.polylinePoints);
         widget.mapKey.currentState?.fitBounds(bounds);
+
+        // Notify parent about the route ETA/distance.
+        widget.onRouteResult?.call(result);
 
         // Write the encoded polyline to Firebase so the passenger can
         // see the real route in real-time AND it's available at end-ride.
@@ -707,13 +784,15 @@ class _PassengerInfoRow extends StatelessWidget {
         // ── Chat + Call circle buttons ──
         _CircleActionBtn(
           icon: Icons.chat_bubble_outlined,
-          color: AppColors.success,
+          bgColor: AppColors.primary,
+          iconColor: AppColors.black,
           onTap: onChat,
         ),
         SizedBox(width: 8.w),
         _CircleActionBtn(
           icon: Icons.phone_outlined,
-          color: AppColors.primary,
+          bgColor: AppColors.primary,
+          iconColor: AppColors.black,
           onTap: onCall,
         ),
       ],
@@ -728,12 +807,14 @@ class _PassengerInfoRow extends StatelessWidget {
 class _CircleActionBtn extends StatelessWidget {
   const _CircleActionBtn({
     required this.icon,
-    required this.color,
+    required this.bgColor,
+    required this.iconColor,
     this.onTap,
   });
 
   final IconData icon;
-  final Color color;
+  final Color bgColor;
+  final Color iconColor;
   final VoidCallback? onTap;
 
   @override
@@ -746,10 +827,9 @@ class _CircleActionBtn extends StatelessWidget {
         height: 44.w,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: color.withValues(alpha: 0.12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: bgColor,
         ),
-        child: Icon(icon, size: 20.w, color: color),
+        child: Icon(icon, size: 20.w, color: iconColor),
       ),
     );
   }
@@ -833,7 +913,7 @@ class _FarePaymentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fareColor = const Color(0xFF669C1A); // Old app green for fare.
+    final fareColor = AppColors.fareGreen;
 
     return Container(
       width: double.infinity,
@@ -1023,6 +1103,8 @@ class _DriverPhaseButtons extends StatelessWidget {
             requestId: requestId,
             dropLat: incomingRequest?.dropLat ?? 0,
             dropLng: incomingRequest?.dropLng ?? 0,
+            pickLat: incomingRequest?.pickLat ?? 0,
+            pickLng: incomingRequest?.pickLng ?? 0,
             dropAddress: incomingRequest?.dropAddress ?? '',
             distance: accumulatedDistance > 0
                 ? accumulatedDistance
@@ -1149,7 +1231,7 @@ void _showDriverCancelSheet(BuildContext context, String requestId) {
 Future<void> _callPhone(BuildContext context, String? phone) async {
   if (phone == null || phone.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('رقم الهاتف غير متوفر')),
+      SnackBar(content: Text(AppStrings.phoneNotAvailable)),
     );
     return;
   }

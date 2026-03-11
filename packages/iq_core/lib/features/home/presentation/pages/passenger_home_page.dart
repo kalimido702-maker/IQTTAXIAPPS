@@ -132,7 +132,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
     // Reset bloc for a fresh trip flow
     sl<PassengerTripBloc>().add(const PassengerTripReset());
 
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SearchDestinationPage(
           pickupAddress: AppStrings.currentLocation,
@@ -142,13 +142,18 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
         ),
       ),
     );
+
+    // Refresh home data (ongoing rides) after returning from trip flow.
+    if (mounted) {
+      context.read<PassengerHomeBloc>().add(const PassengerHomeLoadRequested());
+    }
   }
 
   /// Tap on an ongoing ride from the carousel.
   ///
   /// Completed rides → TODO: navigate to invoice (not yet implemented).
   /// Active / searching rides → set up TripBloc & navigate to active trip page.
-  void _handleOngoingRideTap(BuildContext ctx, OngoingRideModel ride) {
+  Future<void> _handleOngoingRideTap(BuildContext ctx, OngoingRideModel ride) async {
     final tripBloc = sl<PassengerTripBloc>();
 
     // Reset any previous trip state first
@@ -166,11 +171,16 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
       dropLng: ride.dropLng,
     ));
 
-    Navigator.of(ctx).push(
+    await Navigator.of(ctx).push(
       MaterialPageRoute<void>(
         builder: (_) => const PassengerActiveTripPage(),
       ),
     );
+
+    // Refresh home data (ongoing rides list) after returning from trip flow.
+    if (ctx.mounted) {
+      ctx.read<PassengerHomeBloc>().add(const PassengerHomeLoadRequested());
+    }
   }
 
   @override
@@ -180,6 +190,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
     final topPadding = MediaQuery.paddingOf(context).top;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return ZoomDrawer(
       menuScreen: BlocBuilder<PassengerHomeBloc, PassengerHomeState>(
@@ -254,7 +265,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                             children: [
                               Expanded(
                                 child: IqText(
-                                  state.errorMessage ?? 'حدث خطأ',
+                                  state.errorMessage ?? AppStrings.errorOccurred,
                                   style: AppTypography.bodyMedium.copyWith(
                                     color: AppColors.white,
                                   ),
@@ -280,13 +291,14 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                 },
               ),
 
-              // Top bar (menu button — right side for RTL)
+              // Top bar (menu button)
               Positioned(
                 top: topPadding + 12.h,
                 left: 16.w,
                 right: 16.w,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment:
+                      isRtl ? MainAxisAlignment.end : MainAxisAlignment.start,
                   children: [
                     Builder(
                       builder: (drawerCtx) => IqMenuButton(
@@ -396,7 +408,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
         ),
       ),
       slideWidth: screenWidth * 0.65,
-      isRtl: true,
+      isRtl: isRtl,
       borderRadius: 24.0,
       showShadow: true,
       angle: 0.0,
@@ -411,16 +423,16 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
     // Always show taxi categories; delivery categories depend on flag
     const fallbackImage = 'assets/images/fake_car.png';
     final cats = <ServiceCategory>[
-      const ServiceCategory(label: 'تاكسي', imagePath: fallbackImage),
-      const ServiceCategory(label: 'تاكسيVIP', imagePath: fallbackImage),
-      const ServiceCategory(label: 'محافظات', imagePath: fallbackImage),
+      ServiceCategory(label: AppStrings.taxi, imagePath: fallbackImage),
+      ServiceCategory(label: AppStrings.taxiVip, imagePath: fallbackImage),
+      ServiceCategory(label: AppStrings.provinces, imagePath: fallbackImage),
     ];
 
     if (enableModules == 'delivery' || enableModules == 'both') {
       cats.insert(
         1,
-        const ServiceCategory(
-          label: 'مندوبك',
+        ServiceCategory(
+          label: AppStrings.yourDelegate,
           imagePath: fallbackImage,
           transportType: 'delivery',
         ),

@@ -110,7 +110,7 @@ class _CustomerSignaturePageState extends State<CustomerSignaturePage> {
                   child: Signature(
                     controller: _controller,
                     backgroundColor:
-                        isDark ? AppColors.darkCard : Colors.grey.shade200,
+                        isDark ? AppColors.darkCard : AppColors.shimmerBase,
                   ),
                 ),
               ),

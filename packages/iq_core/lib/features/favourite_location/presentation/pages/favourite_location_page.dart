@@ -26,7 +26,7 @@ class FavouriteLocationPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const IqAppBar(title: AppStrings.favouriteLocation),
+      appBar: IqAppBar(title: AppStrings.favouriteLocation),
       body: BlocBuilder<FavouriteLocationBloc, FavouriteLocationState>(
         builder: (context, state) {
           if (state is FavouriteLocationLoading ||

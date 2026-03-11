@@ -61,7 +61,7 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
     final onSurface = Theme.of(context).colorScheme.onSurface;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: const IqAppBar(title: AppStrings.addBalance),
+      appBar: IqAppBar(title: AppStrings.addBalance),
       body: Padding(
         padding: EdgeInsets.symmetric(horizontal: 20.w),
         child: Column(

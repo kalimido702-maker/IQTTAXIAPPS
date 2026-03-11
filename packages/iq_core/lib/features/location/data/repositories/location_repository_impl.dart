@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/repositories/location_repository.dart';
 import '../datasources/location_data_source.dart';
@@ -19,7 +20,7 @@ class LocationRepositoryImpl implements LocationRepository {
         final requested = await Geolocator.requestPermission();
         if (requested == LocationPermission.denied ||
             requested == LocationPermission.deniedForever) {
-          return const Left(PermissionFailure(message: 'تم رفض إذن الموقع'));
+          return Left(PermissionFailure(message: AppStrings.locationPermissionDenied));
         }
       }
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_text.dart';
@@ -139,29 +140,29 @@ class _StatusBadge extends StatelessWidget {
   static _BadgeConfig _getConfig(TripStatus status) {
     switch (status) {
       case TripStatus.completed:
-        return const _BadgeConfig(
-          label: 'مكتمل',
+        return _BadgeConfig(
+          label: AppStrings.statusCompletedShort,
           backgroundColor: AppColors.statusCompletedBg,
           textColor: AppColors.statusCompletedText,
           borderColor: AppColors.statusCompletedBorder,
         );
       case TripStatus.cancelled:
-        return const _BadgeConfig(
-          label: 'تم الإلغاء',
+        return _BadgeConfig(
+          label: AppStrings.statusCancelledShort,
           backgroundColor: AppColors.statusCancelledBg,
           textColor: AppColors.statusCancelledText,
           borderColor: AppColors.statusCancelledBorder,
         );
       case TripStatus.upcoming:
-        return const _BadgeConfig(
-          label: 'قادم',
+        return _BadgeConfig(
+          label: AppStrings.statusUpcoming,
           backgroundColor: AppColors.statusOngoingBg,
           textColor: AppColors.statusOngoingText,
           borderColor: AppColors.statusOngoingBorder,
         );
       case TripStatus.unknown:
-        return const _BadgeConfig(
-          label: 'غير معروف',
+        return _BadgeConfig(
+          label: AppStrings.statusUnknown,
           backgroundColor: AppColors.grayDivider,
           textColor: AppColors.grayDate,
           borderColor: AppColors.grayBorder,
@@ -196,7 +197,7 @@ class _VehicleTypeLabel extends StatelessWidget {
     final isTaxi = trip.isTaxi;
     final color = isTaxi ? AppColors.taxiBadge : AppColors.deliveryBadge;
     final label =
-        isTaxi ? 'تاكسي' : (trip.vehicleTypeName.isNotEmpty ? trip.vehicleTypeName : 'مندوب');
+        isTaxi ? AppStrings.defaultVehicleType : (trip.vehicleTypeName.isNotEmpty ? trip.vehicleTypeName : AppStrings.delegate);
 
     return Row(
       mainAxisSize: MainAxisSize.min,

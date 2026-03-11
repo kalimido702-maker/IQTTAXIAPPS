@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_map_view.dart';
@@ -71,10 +72,44 @@ class _DriverHomeBody extends StatefulWidget {
   State<_DriverHomeBody> createState() => _DriverHomeBodyState();
 }
 
-class _DriverHomeBodyState extends State<_DriverHomeBody> {
+class _DriverHomeBodyState extends State<_DriverHomeBody>
+    with WidgetsBindingObserver {
   /// Tracks whether the subscription bottom sheet was already shown
   /// in this session (prevents re-showing on rebuilds).
   bool _subscriptionPromptShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Re-establish Firebase location updates + trip listeners.
+      final homeBloc = context.read<DriverHomeBloc>();
+      homeBloc.add(const DriverHomeResumed());
+
+      // Also re-subscribe to incoming requests in case the
+      // Firebase listener died while in the background.
+      final homeState = homeBloc.state;
+      if (homeState.isOnline) {
+        final driverId = homeState.homeData?.id ?? '';
+        if (driverId.isNotEmpty) {
+          context.read<DriverTripBloc>().add(
+            DriverTripListenRequested(driverId),
+          );
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -157,6 +192,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody> {
   Widget _buildDrawer(BuildContext context, double topPadding) {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return ZoomDrawer(
       menuScreen: BlocBuilder<DriverHomeBloc, DriverHomeState>(
@@ -226,7 +262,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody> {
                             children: [
                               Expanded(
                                 child: IqText(
-                                  state.errorMessage ?? 'حدث خطأ',
+                                  state.errorMessage ?? AppStrings.errorOccurred,
                                   style: AppTypography.bodyMedium.copyWith(
                                     color: AppColors.white,
                                   ),
@@ -259,6 +295,13 @@ class _DriverHomeBodyState extends State<_DriverHomeBody> {
                 right: 16.w,
                 child: Row(
                   children: [
+                    // Menu button (start in LTR)
+                    if (!isRtl)
+                      Builder(
+                        builder: (drawerCtx) => IqMenuButton(
+                          onTap: () => ZoomDrawer.of(drawerCtx)?.toggle(),
+                        ),
+                      ),
                     const Spacer(),
                     // Online/Offline badge
                     BlocBuilder<DriverHomeBloc, DriverHomeState>(
@@ -276,12 +319,13 @@ class _DriverHomeBodyState extends State<_DriverHomeBody> {
                       },
                     ),
                     const Spacer(),
-                    // Menu button
-                    Builder(
-                      builder: (drawerCtx) => IqMenuButton(
-                        onTap: () => ZoomDrawer.of(drawerCtx)?.toggle(),
+                    // Menu button (end in RTL)
+                    if (isRtl)
+                      Builder(
+                        builder: (drawerCtx) => IqMenuButton(
+                          onTap: () => ZoomDrawer.of(drawerCtx)?.toggle(),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -339,7 +383,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody> {
         ),
       ),
       slideWidth: screenWidth * 0.65,
-      isRtl: true,
+      isRtl: isRtl,
       borderRadius: 24.0,
       showShadow: true,
       angle: 0.0,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_text.dart';
@@ -58,7 +59,7 @@ class _OngoingRidesCarouselState extends State<OngoingRidesCarousel> {
               Icon(Icons.bolt, color: AppColors.buttonYellow, size: 20.w),
               SizedBox(width: 6.w),
               IqText(
-                'الرحلات النشطة',
+                AppStrings.activeTrips,
                 style: AppTypography.heading3.copyWith(fontSize: 16.sp),
               ),
             ],
@@ -150,7 +151,7 @@ class _OngoingRideCard extends StatelessWidget {
                     // Pickup row
                     Row(
                       children: [
-                        _dot(const Color(0xFF4CAF50)),
+                        _dot(AppColors.success),
                         SizedBox(width: 8.w),
                         Expanded(
                           child: IqText(
@@ -169,7 +170,7 @@ class _OngoingRideCard extends StatelessWidget {
                     // Drop-off row
                     Row(
                       children: [
-                        _dot(const Color(0xFFF44336)),
+                        _dot(AppColors.error),
                         SizedBox(width: 8.w),
                         Expanded(
                           child: IqText(
@@ -272,11 +273,11 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      OngoingRideStatus.accepted => ('تم القبول', const Color(0xFF2196F3)),
-      OngoingRideStatus.arrived => ('السائق وصل', const Color(0xFFFF9800)),
-      OngoingRideStatus.tripStarted => ('في الطريق', const Color(0xFF4CAF50)),
-      OngoingRideStatus.completed => ('مكتملة', const Color(0xFF9E9E9E)),
-      OngoingRideStatus.cancelled => ('ملغية', const Color(0xFFF44336)),
+      OngoingRideStatus.accepted => (AppStrings.statusAccepted, AppColors.info),
+      OngoingRideStatus.arrived => (AppStrings.statusDriverArrived, AppColors.warning),
+      OngoingRideStatus.tripStarted => (AppStrings.statusOnWay, AppColors.success),
+      OngoingRideStatus.completed => (AppStrings.statusCompleted, AppColors.grayPlaceholder),
+      OngoingRideStatus.cancelled => (AppStrings.statusCancelled, AppColors.error),
     };
 
     return Container(

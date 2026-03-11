@@ -29,7 +29,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const IqAppBar(title: AppStrings.settings),
+      appBar: IqAppBar(title: AppStrings.settings),
       body: Padding(
         padding: EdgeInsets.symmetric(horizontal: 30.w),
         child: Column(
@@ -73,7 +73,7 @@ class SettingsPage extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const IqWebViewPage(
+                    builder: (_) => IqWebViewPage(
                       title: AppStrings.instructionsPage,
                       url: 'https://iqttaxi.com/api/v1/common/mobile/terms',
                     ),
@@ -99,7 +99,7 @@ class SettingsPage extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const IqWebViewPage(
+                    builder: (_) => IqWebViewPage(
                       title: AppStrings.privacyPolicy,
                       url: 'https://iqttaxi.com/api/v1/common/mobile/privacy',
                     ),

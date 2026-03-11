@@ -13,7 +13,7 @@ class ReferralPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const IqAppBar(title: AppStrings.solveAndWin),
+      appBar: IqAppBar(title: AppStrings.solveAndWin),
       body: BlocConsumer<ReferralCubit, ReferralState>(
         listener: (context, state) {
           if (state is ReferralLoaded && state.codeCopied) {

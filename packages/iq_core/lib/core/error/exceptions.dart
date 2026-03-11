@@ -1,3 +1,5 @@
+import '../constants/app_strings.dart';
+
 /// Custom exceptions for the app
 class ServerException implements Exception {
   final String message;
@@ -21,7 +23,7 @@ class CacheException implements Exception {
 class NetworkException implements Exception {
   final String message;
 
-  const NetworkException({this.message = 'لا يوجد اتصال بالإنترنت'});
+  NetworkException({String? message}) : message = message ?? AppStrings.noInternet;
 
   @override
   String toString() => 'NetworkException: $message';

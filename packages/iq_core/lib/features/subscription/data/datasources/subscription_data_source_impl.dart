@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../models/subscription_models.dart';
 import 'subscription_data_source.dart';
@@ -40,7 +41,7 @@ class SubscriptionDataSourceImpl implements SubscriptionDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل تحميل خطط الاشتراك',
+        message: body['message']?.toString() ?? AppStrings.failedToLoadSubscriptionPlans,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -105,7 +106,7 @@ class SubscriptionDataSourceImpl implements SubscriptionDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل الاشتراك',
+        message: body['message']?.toString() ?? AppStrings.failedToSubscribe,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -121,17 +122,17 @@ class SubscriptionDataSourceImpl implements SubscriptionDataSource {
   ServerFailure _handleDioError(DioException e) {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
-      return const ServerFailure(message: 'انتهت مهلة الاتصال');
+      return ServerFailure(message: AppStrings.connectionTimeout);
     }
     if (e.response != null) {
       final data = e.response!.data;
       if (data is Map<String, dynamic>) {
         return ServerFailure(
-          message: data['message']?.toString() ?? 'حدث خطأ في الخادم',
+          message: data['message']?.toString() ?? AppStrings.serverError,
           statusCode: e.response!.statusCode,
         );
       }
     }
-    return ServerFailure(message: e.message ?? 'حدث خطأ غير متوقع');
+    return ServerFailure(message: e.message ?? AppStrings.unexpectedError);
   }
 }

@@ -14,11 +14,11 @@ import '../../../../core/widgets/iq_text.dart';
 class DriverLoginHeader extends StatelessWidget {
   const DriverLoginHeader({super.key});
 
-  static const _benefits = [
-    'سيارتك ملكك ماكو نسبة من الأرباح',
-    'أرباح شهرية توصل 2,000,000',
-    'حوافز وجوائز',
-    'عمولة ثابتة 3000 بس باليوم الواحد',
+  static final _benefits = [
+    AppStrings.benefit1,
+    AppStrings.benefit2,
+    AppStrings.benefit3,
+    AppStrings.benefit4,
   ];
 
   @override
@@ -61,7 +61,7 @@ class DriverLoginHeader extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(color: AppColors.inputBorder),
-                      color: AppColors.white,
+                      color: Theme.of(context).colorScheme.surface,
                     ),
                     child: IqText(
                       _benefits[index],

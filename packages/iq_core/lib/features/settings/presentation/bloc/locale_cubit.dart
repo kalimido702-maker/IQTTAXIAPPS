@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/services/locale_service.dart';
 import 'locale_state.dart';
 
 /// Cubit that manages the app locale (Arabic / English).
@@ -22,6 +23,7 @@ class LocaleCubit extends Cubit<LocaleState> {
   void _loadFromPrefs() {
     final stored = _prefs.getString(_key);
     if (stored != null) {
+      LocaleService.setLocale(stored);
       emit(LocaleState(locale: Locale(stored)));
     }
   }
@@ -29,6 +31,7 @@ class LocaleCubit extends Cubit<LocaleState> {
   /// Switch to [locale].
   void setLocale(Locale locale) {
     _prefs.setString(_key, locale.languageCode);
+    LocaleService.setLocale(locale.languageCode);
     emit(LocaleState(locale: locale));
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_text.dart';
 
@@ -27,14 +28,14 @@ class TotalEarningsCard extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: 20.h),
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: AppColors.black,
         borderRadius: BorderRadius.circular(10.r),
       ),
       child: Column(
         children: [
           IqText(
             title,
-            style: AppTypography.heading3.copyWith(color: Colors.white),
+            style: AppTypography.heading3.copyWith(color: AppColors.white),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 15.h),
@@ -42,7 +43,7 @@ class TotalEarningsCard extends StatelessWidget {
             '$currencySymbol ${NumberFormat('#,###').format(totalEarnings.toInt())}',
             style: AppTypography.heading1.copyWith(
               fontSize: 35.sp,
-              color: Colors.white,
+              color: AppColors.white,
               fontFamily: AppTypography.fontFamilyLatin,
             ),
             dir: TextDirection.ltr,

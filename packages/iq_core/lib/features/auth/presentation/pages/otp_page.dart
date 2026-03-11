@@ -90,20 +90,34 @@ class OtpPage extends StatelessWidget {
                       IqAppBar(title: AppStrings.confirmCode),
                       Expanded(
                         child: SingleChildScrollView(
-                          padding: EdgeInsets.symmetric(horizontal: 40.w),
+                          // 
                           child: Column(
                             children: [
-                              SizedBox(height: 16.h),
-                              _buildWelcomeText(),
-                              SizedBox(height: 40.h),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 40.w),
+                                child: Column(
+                                  children: [
+                                    SizedBox(height: 16.h),
+                                    _buildWelcomeText(),
+                                    SizedBox(height: 40.h),
+                                  ],
+                                ),
+                              ),
                               _buildOtpInput(),
-                              SizedBox(height: 48.h),
-                              _buildTimer(),
-                              SizedBox(height: 30.h),
-                              _buildResendSection(),
-                              SizedBox(height: 40.h),
-                              _buildConfirmButton(),
-                              SizedBox(height: 24.h),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 40.w),
+                                child: Column(
+                                  children: [
+                                    SizedBox(height: 48.h),
+                                    _buildTimer(),
+                                    SizedBox(height: 30.h),
+                                    _buildResendSection(),
+                                    SizedBox(height: 40.h),
+                                    _buildConfirmButton(),
+                                    SizedBox(height: 24.h),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),

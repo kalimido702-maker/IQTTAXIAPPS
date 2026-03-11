@@ -10,12 +10,12 @@ import '../../../../core/widgets/iq_text.dart';
 /// A swipe-to-accept button for the driver incoming request screen.
 /// The thumb slides from left to right (visual left in RTL = start).
 class SwipeToAcceptButton extends StatefulWidget {
-  const SwipeToAcceptButton({
+  SwipeToAcceptButton({
     super.key,
     required this.onAccepted,
-    this.text = AppStrings.swipeToAcceptTrip,
+    String? text,
     this.height = 60,
-  });
+  }) : text = text ?? AppStrings.swipeToAcceptTrip;
 
   final VoidCallback onAccepted;
   final String text;

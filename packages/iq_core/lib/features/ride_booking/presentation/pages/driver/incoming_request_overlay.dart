@@ -7,6 +7,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../../core/constants/app_strings.dart';
+import '../../../../../core/di/injection_container.dart';
+import '../../../../../core/services/google_maps_service.dart';
 import '../../../../../core/services/map_performance.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
@@ -19,9 +21,8 @@ import '../../widgets/swipe_to_accept_button.dart';
 
 /// Full-screen overlay shown when a new ride request comes in.
 ///
-/// Re-designed to match the old app layout:
-/// Map on top → bottom sheet with trip details, user info, fare, distance,
-/// addresses, auto-cancel countdown bar, reject + swipe-to-accept.
+/// Full-screen interactive map with polyline, and a positioned bottom sheet
+/// overlay on top — matching the active trip page design.
 class IncomingRequestOverlay extends StatefulWidget {
   const IncomingRequestOverlay({
     super.key,
@@ -44,6 +45,15 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
 
   /// Cached markers — created once, never rebuilt by timer.
   late final Set<Marker> _markers;
+
+  /// Polyline fetched from Google Directions API.
+  Set<Polyline> _polylines = {};
+
+  /// Map controller for fitting bounds.
+  GoogleMapController? _mapController;
+
+  /// Cached bounds from route — used to fit when controller is ready.
+  LatLngBounds? _routeBounds;
 
   @override
   void initState() {
@@ -73,6 +83,46 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
         }
       });
     });
+    _fetchRoute();
+  }
+
+  Future<void> _fetchRoute() async {
+    final req = widget.request;
+    final result = await RouteHelper.fetchRoute(
+      service: sl<GoogleMapsService>(),
+      originLat: req.pickLat,
+      originLng: req.pickLng,
+      destLat: req.dropLat,
+      destLng: req.dropLng,
+    );
+    if (result != null && mounted) {
+      _routeBounds = LatLngBounds(
+        southwest: result.boundsSW,
+        northeast: result.boundsNE,
+      );
+      setState(() {
+        _polylines = {
+          Polyline(
+            polylineId: const PolylineId('route'),
+            points: result.polylinePoints,
+            color: AppColors.black,
+            width: 4,
+          ),
+        };
+      });
+      _fitBounds();
+    }
+  }
+
+  void _fitBounds() {
+    if (_mapController == null || _routeBounds == null) return;
+    // Delay so the map has fully laid out its viewport before animating.
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted || _mapController == null) return;
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(_routeBounds!, 80),
+      );
+    });
   }
 
   @override
@@ -94,65 +144,60 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
 
     return Material(
       color: isDark ? AppColors.darkBackground : AppColors.white,
-      child: SafeArea(
-        child: Column(
-          children: [
-            // ── Map preview (top) ─────────────────────────────
-            Expanded(
-              flex: 4,
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.vertical(
-                      bottom: Radius.circular(24.r),
-                    ),
-                    child: IqMapView(
-                      initialTarget: LatLng(req.pickLat, req.pickLng),
-                      initialZoom: 14,
-                      markers: _markers,
-                      myLocationEnabled: false,
-                      liteModeEnabled: true,
-                      keepAlive: false,
-                      scrollGesturesEnabled: false,
-                      zoomGesturesEnabled: false,
-                      rotateGesturesEnabled: false,
-                      tiltGesturesEnabled: false,
-                    ),
-                  ),
-                  // Back button
-                  Positioned(
-                    top: 8.h,
-                    left: 12.w,
-                    child: _CircleButton(
-                      icon: Icons.arrow_back_rounded,
-                      onTap: () {
-                        HapticFeedback.mediumImpact();
-                        context.read<DriverTripBloc>().add(
-                          DriverTripRejected(req.requestId),
-                        );
-                      },
-                    ),
+      child: Stack(
+        children: [
+          // ── Full-screen interactive map ─────────────────────
+          Positioned.fill(
+            child: IqMapView(
+              initialTarget: LatLng(req.pickLat, req.pickLng),
+              initialZoom: 13,
+              markers: _markers,
+              polylines: _polylines,
+              myLocationEnabled: false,
+              keepAlive: false,
+              mapPadding: EdgeInsets.only(bottom: 380.h),
+              onMapCreated: (controller) {
+                _mapController = controller;
+                _fitBounds();
+              },
+            ),
+          ),
+
+          // ── Back button (top-left, inside safe area) ────────
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8.h,
+            left: 12.w,
+            child: _CircleButton(
+              icon: Icons.arrow_back_rounded,
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                context.read<DriverTripBloc>().add(
+                  DriverTripRejected(req.requestId),
+                );
+              },
+            ),
+          ),
+
+          // ── Bottom sheet overlay ────────────────────────────
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : AppColors.white,
+                borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(24.r)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadow.withValues(alpha: 0.1),
+                    blurRadius: 16,
+                    offset: const Offset(0, -4),
                   ),
                 ],
               ),
-            ),
-
-            // ── Bottom sheet ──────────────────────────────────
-            Expanded(
-              flex: 5,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkCard : AppColors.white,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(24.r)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.shadow.withValues(alpha: 0.1),
-                      blurRadius: 16,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
-                ),
+              child: SafeArea(
+                top: false,
                 child: SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 16.h),
                   child: Column(
@@ -450,8 +495,8 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

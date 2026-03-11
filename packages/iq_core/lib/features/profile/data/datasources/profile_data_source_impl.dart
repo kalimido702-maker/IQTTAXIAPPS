@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../../../auth/data/models/user_model.dart';
 import 'profile_data_source.dart';
@@ -26,7 +27,7 @@ class ProfileDataSourceImpl implements ProfileDataSource {
 
       final body = response.data;
       if (body is! Map<String, dynamic>) {
-        return const Left(ServerFailure(message: 'استجابة غير صالحة'));
+        return Left(ServerFailure(message: AppStrings.invalidResponse));
       }
 
       if (response.statusCode == 200 && body['success'] == true) {
@@ -35,7 +36,7 @@ class ProfileDataSourceImpl implements ProfileDataSource {
       }
 
       return Left(ServerFailure(
-        message: _extractMessage(body) ?? 'فشل تحميل البروفايل',
+        message: _extractMessage(body) ?? AppStrings.failedToLoadProfile,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -89,7 +90,7 @@ class ProfileDataSourceImpl implements ProfileDataSource {
 
       final body = response.data;
       if (body is! Map<String, dynamic>) {
-        return const Left(ServerFailure(message: 'استجابة غير صالحة'));
+        return Left(ServerFailure(message: AppStrings.invalidResponse));
       }
 
       if (response.statusCode == 200 && body['success'] == true) {
@@ -98,7 +99,7 @@ class ProfileDataSourceImpl implements ProfileDataSource {
       }
 
       return Left(ServerFailure(
-        message: _extractMessage(body) ?? 'فشل تحديث البروفايل',
+        message: _extractMessage(body) ?? AppStrings.failedToUpdateProfile,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -120,17 +121,17 @@ class ProfileDataSourceImpl implements ProfileDataSource {
   ServerFailure _handleDioError(DioException e) {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
-      return const ServerFailure(message: 'انتهت مهلة الاتصال');
+      return ServerFailure(message: AppStrings.connectionTimeout);
     }
     if (e.response != null) {
       final data = e.response!.data;
       if (data is Map<String, dynamic>) {
         return ServerFailure(
-          message: data['message']?.toString() ?? 'حدث خطأ في الخادم',
+          message: data['message']?.toString() ?? AppStrings.serverError,
           statusCode: e.response!.statusCode,
         );
       }
     }
-    return ServerFailure(message: e.message ?? 'حدث خطأ غير متوقع');
+    return ServerFailure(message: e.message ?? AppStrings.unexpectedError);
   }
 }

@@ -109,7 +109,7 @@ class _BookingBody extends StatelessWidget {
                 // ── Address pills ──
                 _AddressPill(
                   icon: Icons.location_on,
-                  iconColor: const Color(0xFF34A853),
+                  iconColor: AppColors.googleGreen,
                   text: req.pickAddress.isNotEmpty
                       ? req.pickAddress
                       : AppStrings.pickupAddress,
@@ -117,7 +117,7 @@ class _BookingBody extends StatelessWidget {
                 SizedBox(height: 10.h),
                 _AddressPill(
                   icon: Icons.location_on,
-                  iconColor: const Color(0xFFEA4335),
+                  iconColor: AppColors.googleRed,
                   text: req.dropAddress.isNotEmpty
                       ? req.dropAddress
                       : AppStrings.deliveryAddress,

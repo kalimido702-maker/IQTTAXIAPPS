@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/services/google_maps_service.dart';
 import 'location_data_source.dart';
@@ -62,7 +63,7 @@ class LocationDataSourceImpl implements LocationDataSource {
       if (response.statusCode == 200 && body is Map && body['success'] == true) {
         return const Right(null);
       }
-      return const Left(ServerFailure(message: 'فشل تحديث الموقع'));
+      return Left(ServerFailure(message: AppStrings.failedToUpdateLocation));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
     } catch (e) {
@@ -93,10 +94,10 @@ class LocationDataSourceImpl implements LocationDataSource {
       if (response.data is Map<String, dynamic>) {
         final map = response.data as Map<String, dynamic>;
         final address = (map['display_name'] ?? '').toString();
-        return Right(address.isNotEmpty ? address : 'الموقع الحالي');
+        return Right(address.isNotEmpty ? address : AppStrings.currentLocation);
       }
 
-      return const Left(ServerFailure(message: 'فشل في تحديد العنوان'));
+      return Left(ServerFailure(message: AppStrings.failedToResolveAddress));
     } on DioException catch (e) {
       return Left(_handleDioError(e));
     } catch (e) {
@@ -108,13 +109,13 @@ class LocationDataSourceImpl implements LocationDataSource {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
-      return const NetworkFailure(message: 'انتهت مهلة الاتصال');
+      return NetworkFailure(message: AppStrings.connectionTimeout);
     }
 
     if (e.type == DioExceptionType.connectionError) {
-      return const NetworkFailure();
+      return NetworkFailure();
     }
 
-    return const ServerFailure(message: 'حدث خطأ في الخادم');
+    return ServerFailure(message: AppStrings.serverError);
   }
 }

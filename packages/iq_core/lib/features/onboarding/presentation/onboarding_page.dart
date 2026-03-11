@@ -42,7 +42,7 @@ class OnboardingPage extends StatelessWidget {
     this.customPages,
   });
 
-  static const _defaultPages = [
+  static final _defaultPages = [
     OnboardingPageData(
       title: AppStrings.onboardingTitle1,
       subtitle: AppStrings.onboardingSubtitle1,

@@ -10,14 +10,14 @@ import '../../../../core/widgets/iq_text_field.dart';
 
 /// Interactive star-rating widget with optional comment field.
 class TripRatingWidget extends StatefulWidget {
-  const TripRatingWidget({
+  TripRatingWidget({
     super.key,
     this.initialRating = 0,
     this.onRatingChanged,
     this.onCommentChanged,
     this.showComment = true,
-    this.commentHint = AppStrings.writeCommentHere,
-  });
+    String? commentHint,
+  }) : commentHint = commentHint ?? AppStrings.writeCommentHere;
 
   final int initialRating;
   final ValueChanged<int>? onRatingChanged;

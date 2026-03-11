@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/user_entity.dart';
 import '../models/user_model.dart';
@@ -271,7 +272,7 @@ class AuthDataSourceImpl implements AuthDataSource {
 
       return Left(
         ServerFailure(
-          message: data['message']?.toString() ?? 'فشل التسجيل',
+          message: data['message']?.toString() ?? AppStrings.failedToRegister,
         ),
       );
     } on DioException catch (e) {
@@ -371,7 +372,7 @@ class AuthDataSourceImpl implements AuthDataSource {
       return Left(
         ServerFailure(
           message:
-              data['message']?.toString() ?? 'فشل تحميل بيانات المستخدم',
+              data['message']?.toString() ?? AppStrings.failedToLoadUserData,
         ),
       );
     } on DioException catch (e) {
@@ -395,15 +396,15 @@ class AuthDataSourceImpl implements AuthDataSource {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return const NetworkFailure(
-          message: 'انتهت مهلة الاتصال، حاول مرة أخرى',
+        return NetworkFailure(
+          message: AppStrings.connectionTimeoutRetry,
         );
       case DioExceptionType.connectionError:
-        return const NetworkFailure();
+        return NetworkFailure();
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode ?? 0;
         final body = e.response?.data;
-        String message = 'حدث خطأ في الخادم';
+        String message = AppStrings.serverError;
 
         if (body is Map<String, dynamic>) {
           message = body['message']?.toString() ?? message;
@@ -415,7 +416,7 @@ class AuthDataSourceImpl implements AuthDataSource {
         return ServerFailure(message: message, statusCode: statusCode);
       default:
         return ServerFailure(
-          message: e.message ?? 'حدث خطأ غير متوقع',
+          message: e.message ?? AppStrings.unexpectedError,
         );
     }
   }

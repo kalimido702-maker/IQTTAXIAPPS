@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/constants/app_strings.dart';
+
 /// Trip status enum matching backend flags
 enum TripStatus { completed, cancelled, upcoming, unknown }
 
@@ -91,7 +93,7 @@ class TripEntity extends Equatable {
   final DriverInfo? driverInfo;
   final FareBreakdown? fareBreakdown;
 
-  const TripEntity({
+  TripEntity({
     required this.id,
     this.requestNumber,
     this.userId,
@@ -103,7 +105,7 @@ class TripEntity extends Equatable {
     required this.dropoffLat,
     required this.dropoffLng,
     required this.status,
-    this.vehicleTypeName = 'تاكسي',
+    String? vehicleTypeName,
     this.transportType,
     this.totalDistance,
     this.totalTime,
@@ -117,12 +119,12 @@ class TripEntity extends Equatable {
     this.completedAt,
     this.driverInfo,
     this.fareBreakdown,
-  });
+  }) : vehicleTypeName = vehicleTypeName ?? AppStrings.defaultVehicleType;
 
   /// Whether this is a taxi ride
   bool get isTaxi =>
       transportType == 'taxi' ||
-      vehicleTypeName.contains('تاكسي') ||
+      vehicleTypeName.contains(AppStrings.defaultVehicleType) ||
       vehicleTypeName.toLowerCase().contains('taxi');
 
   /// Formatted total amount for display

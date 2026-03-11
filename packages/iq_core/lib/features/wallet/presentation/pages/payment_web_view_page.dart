@@ -92,7 +92,7 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
         }
       },
       child: Scaffold(
-        appBar: const IqAppBar(title: AppStrings.onlinePayment),
+        appBar: IqAppBar(title: AppStrings.onlinePayment),
         body: Stack(
           children: [
             WebViewWidget(controller: _controller),

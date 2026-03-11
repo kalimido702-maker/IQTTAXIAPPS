@@ -48,7 +48,7 @@ class MarkerIconCache {
     required Color color,
     double size = 80,
     bool withArrow = false,
-    Color borderColor = Colors.white,
+    Color borderColor = AppColors.white,
     double borderWidth = 3,
   }) async {
     if (_cache.containsKey(key)) return _cache[key]!;
@@ -123,7 +123,7 @@ class MarkerIconCache {
     required Color color,
     double size = 80,
     bool withArrow = false,
-    Color borderColor = Colors.white,
+    Color borderColor = AppColors.white,
     double borderWidth = 3,
   }) async {
     final pictureRecorder = ui.PictureRecorder();
@@ -136,7 +136,7 @@ class MarkerIconCache {
       center + const Offset(0, 2),
       radius + 2,
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.25)
+        ..color = AppColors.black.withValues(alpha: 0.25)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
 
@@ -161,7 +161,7 @@ class MarkerIconCache {
     // Optional navigation arrow
     if (withArrow) {
       final arrowPaint = Paint()
-        ..color = Colors.white
+        ..color = AppColors.white
         ..style = PaintingStyle.fill;
       final path = Path()
         ..moveTo(center.dx, center.dy - radius * 0.5)
@@ -203,20 +203,20 @@ class MarkerIconCache {
     canvas.drawPath(
       pinPath.shift(const Offset(0, 2)),
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.2)
+        ..color = AppColors.black.withValues(alpha: 0.2)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
     canvas.drawCircle(
       center + const Offset(0, 2),
       circleRadius + 3,
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.2)
+        ..color = AppColors.black.withValues(alpha: 0.2)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
 
     canvas.drawPath(pinPath, Paint()..color = color);
     canvas.drawCircle(center, circleRadius + 3, Paint()..color = color);
-    canvas.drawCircle(center, circleRadius - 2, Paint()..color = Colors.white);
+    canvas.drawCircle(center, circleRadius - 2, Paint()..color = AppColors.white);
     canvas.drawCircle(center, circleRadius - 6, Paint()..color = color);
 
     final picture = pictureRecorder.endRecording();
@@ -227,12 +227,13 @@ class MarkerIconCache {
     return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
   }
 
-  /// Get or create a numbered marker — white circle with a bold number inside.
+  /// Get or create a numbered marker — compact circle with a number inside.
   ///
   /// Used for trip waypoints: 1 = pickup, 2..N-1 = intermediate stops, N = dropoff.
+  /// Kept small (36px) so markers don't obscure the map while driving.
   Future<BitmapDescriptor> getNumberedMarker({
     required int number,
-    double size = 96,
+    double size = 36,
   }) async {
     final key = 'numbered_marker_$number';
     if (_cache.containsKey(key)) return _cache[key]!;
@@ -244,20 +245,20 @@ class MarkerIconCache {
 
   static Future<BitmapDescriptor> _createNumberedMarker({
     required int number,
-    double size = 96,
+    double size = 36,
   }) async {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
     final center = Offset(size / 2, size / 2);
-    final radius = size / 2 - 4;
+    final radius = size / 2 - 2;
 
-    // Shadow
+    // Subtle shadow
     canvas.drawCircle(
-      center + const Offset(0, 3),
-      radius + 2,
+      center + const Offset(0, 1),
+      radius + 1,
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.3)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+        ..color = AppColors.black.withValues(alpha: 0.2)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
     );
 
     // White fill
@@ -265,28 +266,28 @@ class MarkerIconCache {
       center,
       radius,
       Paint()
-        ..color = Colors.white
+        ..color = AppColors.white
         ..style = PaintingStyle.fill,
     );
 
-    // Dark border
+    // Thin dark border
     canvas.drawCircle(
       center,
       radius,
       Paint()
-        ..color = const Color(0xFF1A1A1A)
+        ..color = AppColors.markerText
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
+        ..strokeWidth = 1.5,
     );
 
-    // Number text
+    // Number text — compact and readable
     final textPainter = TextPainter(
       text: TextSpan(
         text: '$number',
         style: TextStyle(
-          color: const Color(0xFF1A1A1A),
-          fontSize: size * 0.42,
-          fontWeight: FontWeight.w800,
+          color: AppColors.markerText,
+          fontSize: size * 0.44,
+          fontWeight: FontWeight.w700,
         ),
       ),
       textDirection: TextDirection.ltr,

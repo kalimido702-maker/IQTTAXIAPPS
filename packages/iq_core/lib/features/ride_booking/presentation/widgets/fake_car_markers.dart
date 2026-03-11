@@ -5,6 +5,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../../core/theme/app_colors.dart';
+
 /// Manages a set of 3–6 "ghost" car markers that randomly appear and
 /// disappear on the map around a central point while the passenger is
 /// waiting for a driver.
@@ -176,7 +178,7 @@ class FakeCarMarkersController {
         const Radius.circular(8),
       ),
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.25)
+        ..color = AppColors.black.withValues(alpha: 0.25)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
 
@@ -190,7 +192,7 @@ class FakeCarMarkersController {
         ),
         const Radius.circular(6),
       ),
-      Paint()..color = Colors.white,
+      Paint()..color = AppColors.white,
     );
 
     // Windshield
@@ -203,7 +205,7 @@ class FakeCarMarkersController {
         ),
         const Radius.circular(3),
       ),
-      Paint()..color = const Color(0xFF242E42),
+      Paint()..color = AppColors.carMarkerDark,
     );
 
     // Rear window
@@ -216,7 +218,7 @@ class FakeCarMarkersController {
         ),
         const Radius.circular(3),
       ),
-      Paint()..color = const Color(0xFF242E42),
+      Paint()..color = AppColors.carMarkerDark,
     );
 
     final picture = recorder.endRecording();

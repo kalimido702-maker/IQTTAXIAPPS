@@ -91,8 +91,14 @@ class TripStreamDataSourceImpl implements TripStreamDataSource {
       return Stream<IncomingRequestModel?>.empty();
     }
 
+    // Convert to int if possible — the backend writes driver_id as int
+    // in request-meta (it copies the value from the driver's Firebase
+    // node where we now write `id` as int).
     final queryValue = int.tryParse(driverId) ?? driverId;
-    debugPrint('🔥 watchIncomingRequests: listening for driver_id=$queryValue (type: ${queryValue.runtimeType})');
+    debugPrint(
+      '🔥 watchIncomingRequests: listening for driver_id=$queryValue '
+      '(type: ${queryValue.runtimeType}, raw driverId="$driverId")',
+    );
 
     return _db
         .ref('request-meta')
@@ -101,18 +107,38 @@ class TripStreamDataSourceImpl implements TripStreamDataSource {
         .onValue
         .map((event) {
       final data = event.snapshot.value;
-      debugPrint('🔥 request-meta event: ${data == null ? "null" : data.runtimeType} — children: ${event.snapshot.children.length}');
+      debugPrint(
+        '🔥 request-meta event: '
+        '${data == null ? "null" : data.runtimeType} '
+        '— children: ${event.snapshot.children.length}',
+      );
       if (data == null || data is! Map) return null;
 
-      final entries = data.entries.toList();
-      if (entries.isEmpty) return null;
+      // ── Match old app behaviour ──
+      // Iterate entries and only process nodes where:
+      //   active == 1   AND   is_accepted == null (not yet accepted/rejected)
+      // This filters out stale or already-processed entries.
+      for (final entry in data.entries) {
+        final key = entry.key.toString();
+        final value = entry.value;
+        if (value is! Map) continue;
 
-      final first = entries.first;
-      final key = first.key.toString();
-      final value = first.value;
-      if (value is! Map) return null;
+        final isActive = value['active'] == 1;
+        final notAccepted = value['is_accepted'] == null;
 
-      return IncomingRequestModel.fromFirebase(key, value);
+        debugPrint(
+          '🔥 request-meta node $key: '
+          'active=${value['active']}, is_accepted=${value['is_accepted']} '
+          '→ valid=${isActive && notAccepted}',
+        );
+
+        if (isActive && notAccepted) {
+          debugPrint('🔥 request-meta MATCH: key=$key');
+          return IncomingRequestModel.fromFirebase(key, value);
+        }
+      }
+
+      return null;
     });
   }
 

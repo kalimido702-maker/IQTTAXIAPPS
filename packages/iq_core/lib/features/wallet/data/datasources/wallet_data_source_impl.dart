@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../models/wallet_model.dart';
 import 'wallet_data_source.dart';
@@ -28,7 +29,7 @@ class WalletDataSourceImpl implements WalletDataSource {
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل تحميل المحفظة',
+        message: body['message']?.toString() ?? AppStrings.failedToLoadWallet,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -58,13 +59,13 @@ class WalletDataSourceImpl implements WalletDataSource {
         final data = body['data'] as Map<String, dynamic>? ?? {};
         final paymentUrl = data['payment_url']?.toString() ?? '';
         if (paymentUrl.isEmpty) {
-          return const Left(ServerFailure(message: 'لم يتم استلام رابط الدفع'));
+          return Left(ServerFailure(message: AppStrings.paymentLinkNotReceived));
         }
         return Right(paymentUrl);
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل إنشاء عملية الدفع',
+        message: body['message']?.toString() ?? AppStrings.failedToCreatePayment,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -95,11 +96,11 @@ class WalletDataSourceImpl implements WalletDataSource {
       final body = response.data as Map<String, dynamic>;
 
       if (response.statusCode == 200 && body['success'] == true) {
-        return Right(body['message']?.toString() ?? 'تم التحويل بنجاح');
+        return Right(body['message']?.toString() ?? AppStrings.transferSuccess);
       }
 
       return Left(ServerFailure(
-        message: body['message']?.toString() ?? 'فشل التحويل',
+        message: body['message']?.toString() ?? AppStrings.failedToTransfer,
         statusCode: response.statusCode,
       ));
     } on DioException catch (e) {
@@ -112,17 +113,17 @@ class WalletDataSourceImpl implements WalletDataSource {
   ServerFailure _handleDioError(DioException e) {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
-      return const ServerFailure(message: 'انتهت مهلة الاتصال');
+      return ServerFailure(message: AppStrings.connectionTimeout);
     }
     if (e.response != null) {
       final data = e.response!.data;
       if (data is Map<String, dynamic>) {
         return ServerFailure(
-          message: data['message']?.toString() ?? 'حدث خطأ في الخادم',
+          message: data['message']?.toString() ?? AppStrings.serverError,
           statusCode: e.response!.statusCode,
         );
       }
     }
-    return ServerFailure(message: e.message ?? 'حدث خطأ غير متوقع');
+    return ServerFailure(message: e.message ?? AppStrings.unexpectedError);
   }
 }

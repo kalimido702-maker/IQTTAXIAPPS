@@ -17,3 +17,8 @@ class DriverHomeLoadRequested extends DriverHomeEvent {
 class DriverHomeStatusToggled extends DriverHomeEvent {
   const DriverHomeStatusToggled();
 }
+
+/// App resumed from background — re-establish Firebase presence
+class DriverHomeResumed extends DriverHomeEvent {
+  const DriverHomeResumed();
+}

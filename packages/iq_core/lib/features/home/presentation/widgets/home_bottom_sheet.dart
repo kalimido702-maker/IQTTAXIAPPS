@@ -150,8 +150,8 @@ class HomeBottomSheet extends StatelessWidget {
           ),
         ),
         Shimmer.fromColors(
-          baseColor: Colors.grey.shade300,
-          highlightColor: Colors.grey.shade100,
+          baseColor: AppColors.shimmerBase,
+          highlightColor: AppColors.shimmerHighlight,
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 12.w),
             child: SizedBox(
@@ -165,7 +165,7 @@ class HomeBottomSheet extends StatelessWidget {
                       width: 90.w,
                       height: 100.h,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.white,
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                     ),
@@ -178,14 +178,14 @@ class HomeBottomSheet extends StatelessWidget {
         SizedBox(height: 16.h),
         // Search bar shimmer
         Shimmer.fromColors(
-          baseColor: Colors.grey.shade300,
-          highlightColor: Colors.grey.shade100,
+          baseColor: AppColors.shimmerBase,
+          highlightColor: AppColors.shimmerHighlight,
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 24.w),
             child: Container(
               height: 54.h,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(8.r),
               ),
             ),
@@ -194,14 +194,14 @@ class HomeBottomSheet extends StatelessWidget {
         SizedBox(height: 16.h),
         // Banner shimmer
         Shimmer.fromColors(
-          baseColor: Colors.grey.shade300,
-          highlightColor: Colors.grey.shade100,
+          baseColor: AppColors.shimmerBase,
+          highlightColor: AppColors.shimmerHighlight,
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 24.w),
             child: Container(
               height: 120.h,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(12.r),
               ),
             ),
@@ -210,8 +210,8 @@ class HomeBottomSheet extends StatelessWidget {
         SizedBox(height: 20.h),
         // Quick places shimmer
         Shimmer.fromColors(
-          baseColor: Colors.grey.shade300,
-          highlightColor: Colors.grey.shade100,
+          baseColor: AppColors.shimmerBase,
+          highlightColor: AppColors.shimmerHighlight,
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 24.w),
             child: Column(
@@ -221,7 +221,7 @@ class HomeBottomSheet extends StatelessWidget {
                   width: 100.w,
                   height: 18.h,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(4.r),
                   ),
                 ),
@@ -232,7 +232,7 @@ class HomeBottomSheet extends StatelessWidget {
                     child: Container(
                       height: 44.h,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.white,
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                     ),

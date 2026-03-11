@@ -33,7 +33,7 @@ class EarningsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const IqAppBar(title: AppStrings.earnings),
+      appBar: IqAppBar(title: AppStrings.earnings),
       body: BlocBuilder<EarningsBloc, EarningsState>(
         builder: (context, state) {
           if (state is EarningsLoading || state is EarningsInitial) {

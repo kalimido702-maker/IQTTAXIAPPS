@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../constants/app_strings.dart';
+
 /// Base Failure class for error handling
 abstract class Failure extends Equatable {
   final String message;
@@ -23,9 +25,9 @@ class CacheFailure extends Failure {
 
 /// Network connection failure
 class NetworkFailure extends Failure {
-  const NetworkFailure({
-    super.message = 'لا يوجد اتصال بالإنترنت',
-  });
+  NetworkFailure({
+    String? message,
+  }) : super(message: message ?? AppStrings.noInternet);
 }
 
 /// Authentication failure
@@ -50,7 +52,7 @@ class PermissionFailure extends Failure {
 
 /// Unknown/unexpected failure
 class UnexpectedFailure extends Failure {
-  const UnexpectedFailure({
-    super.message = 'حدث خطأ غير متوقع',
-  });
+  UnexpectedFailure({
+    String? message,
+  }) : super(message: message ?? AppStrings.unexpectedError);
 }

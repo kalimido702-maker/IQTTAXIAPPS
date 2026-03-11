@@ -1,6 +1,9 @@
+import 'dart:developer' as dev;
+
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/error/failures.dart';
 import '../models/home_data_model.dart';
 import '../models/ongoing_ride_model.dart';
@@ -28,13 +31,32 @@ class HomeDataSourceImpl implements HomeDataSource {
 
       if (response.statusCode == 200 && body['success'] == true) {
         final data = body['data'] as Map<String, dynamic>;
+
+        // ── DIAGNOSTIC: log critical API fields the backend uses ──
+        dev.log('🔍 [getUserDetails] API response keys: '
+            'active=${data['active']}, '
+            'available=${data['available']}, '
+            'approve=${data['approve']}, '
+            'onTripRequest=${data['onTripRequest'] != null ? 'PRESENT' : 'null'}, '
+            'metaRequest=${data['metaRequest'] != null ? 'PRESENT' : 'null'}, '
+            'service_location_id=${data['service_location_id']}, '
+            'vehicle_types=${data['vehicle_types']}');
+        if (data['onTripRequest'] != null) {
+          dev.log('⚠️ [getUserDetails] STUCK TRIP DETECTED! '
+              'onTripRequest=${data['onTripRequest']}');
+        }
+        if (data['metaRequest'] != null) {
+          dev.log('⚠️ [getUserDetails] PENDING META REQUEST! '
+              'metaRequest=${data['metaRequest']}');
+        }
+
         return Right(HomeDataModel.fromJson(data));
       }
 
       return Left(
         ServerFailure(
           message:
-              body['message']?.toString() ?? 'فشل تحميل بيانات المستخدم',
+              body['message']?.toString() ?? AppStrings.failedToLoadUserData,
           statusCode: response.statusCode,
         ),
       );
@@ -78,7 +100,7 @@ class HomeDataSourceImpl implements HomeDataSource {
 
       return Left(
         ServerFailure(
-          message: body['message']?.toString() ?? 'فشل تغيير الحالة',
+          message: body['message']?.toString() ?? AppStrings.failedToToggleStatus,
           statusCode: response.statusCode,
         ),
       );
@@ -113,7 +135,7 @@ class HomeDataSourceImpl implements HomeDataSource {
       return Left(
         ServerFailure(
           message:
-              body['message']?.toString() ?? 'فشل تحميل أنواع الخدمة',
+              body['message']?.toString() ?? AppStrings.failedToLoadServiceTypes,
           statusCode: response.statusCode,
         ),
       );
@@ -150,7 +172,7 @@ class HomeDataSourceImpl implements HomeDataSource {
       return Left(
         ServerFailure(
           message:
-              body['message']?.toString() ?? 'فشل تحميل الرحلات النشطة',
+              body['message']?.toString() ?? AppStrings.failedToLoadActiveTrips,
           statusCode: response.statusCode,
         ),
       );
@@ -169,16 +191,16 @@ class HomeDataSourceImpl implements HomeDataSource {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
-      return const NetworkFailure(message: 'انتهت مهلة الاتصال');
+      return NetworkFailure(message: AppStrings.connectionTimeout);
     }
 
     if (e.type == DioExceptionType.connectionError) {
-      return const NetworkFailure();
+      return NetworkFailure();
     }
 
     final statusCode = e.response?.statusCode;
     final data = e.response?.data;
-    String message = 'حدث خطأ في الخادم';
+    String message = AppStrings.serverError;
 
     if (data is Map<String, dynamic>) {
       message = data['message']?.toString() ?? message;

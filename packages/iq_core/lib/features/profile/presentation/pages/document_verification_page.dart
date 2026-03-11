@@ -45,7 +45,7 @@ class DocumentVerificationPage extends StatelessWidget {
             if (state.status == DriverDocumentsStatus.uploaded) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text(AppStrings.documentUploadedSuccess),
+                  content: Text(AppStrings.documentUploadedSuccess),
                   backgroundColor: AppColors.success,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
@@ -121,7 +121,7 @@ class DocumentVerificationPage extends StatelessWidget {
                 ),
                 if (isUploading)
                   Container(
-                    color: Colors.black26,
+                    color: AppColors.black.withValues(alpha: 0.26),
                     child: Center(
                       child: Container(
                         padding: EdgeInsets.all(24.w),
@@ -567,7 +567,7 @@ class _DocumentCard extends StatelessWidget {
                                 color: AppColors.error, size: 36.sp),
                             SizedBox(height: 8.h),
                             Text(
-                              'تعذر تحميل الصورة',
+                              AppStrings.failedToLoadImage,
                               style: TextStyle(
                                 color: AppColors.error,
                                 fontSize: 12.sp,
