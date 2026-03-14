@@ -104,7 +104,7 @@ class PassengerWalletPage extends StatelessWidget {
                         child: ListView(
                           shrinkWrap: true,
                           padding: EdgeInsets.zero,
-                          physics: const AlwaysScrollableScrollPhysics(),
+                          physics: const NeverScrollableScrollPhysics(),
                           children: [
                             _TransactionsSection(state: state),
                           ],
