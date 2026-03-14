@@ -50,6 +50,7 @@ class WalletDataSourceImpl implements WalletDataSource {
           'amount': amount,
           'currency': 'IQD',
           'payment_for': 'wallet',
+          'callback_url': 'https://iqttaxi.com/payment/callback',
         },
       );
 

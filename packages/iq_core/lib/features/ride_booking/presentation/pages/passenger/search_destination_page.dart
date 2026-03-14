@@ -310,6 +310,10 @@ class _BodyState extends State<_Body> {
   }
 
   Future<void> _pickFromMap() async {
+    // Save active field before unfocusing (unfocus doesn't change _activeField
+    // since listeners only fire when hasFocus becomes true, not false).
+    final savedActiveField = _activeField;
+
     // Unfocus text fields to prevent SystemContextMenu crash
     FocusScope.of(context).unfocus();
 
@@ -325,10 +329,10 @@ class _BodyState extends State<_Body> {
 
     if (result == null || !mounted) return;
 
-    // Update the dropoff field text so the user sees the selected address
-    setState(() {
-      _dropController.text = result.address;
-    });
+    // Restore the active field so _onPlaceSelected dispatches to the correct
+    // field (pickup vs stop vs dropoff). Without this the field that was
+    // focused before the map was opened is respected correctly.
+    _activeField = savedActiveField;
 
     _onPlaceSelected({
       'name': result.address,

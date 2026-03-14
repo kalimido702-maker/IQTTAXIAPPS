@@ -24,6 +24,7 @@ import '../../../domain/repositories/booking_repository.dart';
 import '../../bloc/passenger/passenger_trip_bloc.dart';
 import '../../bloc/passenger/passenger_trip_event.dart';
 import '../../bloc/passenger/passenger_trip_state.dart';
+import '../../../../trip_chat/trip_chat_page.dart';
 import '../../widgets/cancel_reasons_sheet.dart';
 import '../../widgets/fake_car_markers.dart';
 import '../../widgets/ride_bottom_sheets.dart';
@@ -506,7 +507,12 @@ class _ActiveTripSheet extends StatelessWidget {
                   vehicleInfo: trip.vehicleTypeName,
                   plateNumber: trip.vehicleNumber,
                   vehicleColor: trip.vehicleColor,
-                  onChat: () => _callPhone(context, trip.driverMobile),
+                  onChat: () => _openTripChat(
+                    context,
+                    requestId: state.requestId ?? '',
+                    otherPartyName: trip.driverName ?? '',
+                    otherPartyPhotoUrl: trip.driverProfilePic,
+                  ),
                   onCall: () => _callPhone(context, trip.driverMobile),
                 ),
                 SizedBox(height: 16.h),
@@ -1229,6 +1235,25 @@ Future<void> _showChangePaymentSheet(
       );
     }
   }
+}
+
+/// Opens the trip chat page between passenger and driver.
+void _openTripChat(
+  BuildContext context, {
+  required String requestId,
+  required String otherPartyName,
+  String? otherPartyPhotoUrl,
+}) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => TripChatPage(
+        requestId: requestId,
+        otherPartyName: otherPartyName,
+        myFromType: 1, // passenger = from_type 1
+        otherPartyPhotoUrl: otherPartyPhotoUrl,
+      ),
+    ),
+  );
 }
 
 /// Opens the phone dialer with the given phone number.

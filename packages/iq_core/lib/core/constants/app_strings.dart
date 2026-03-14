@@ -900,4 +900,7 @@ class AppStrings {
 
   // ─── Currency ───
   static String get currencySymbolIQD => _t('د.ع', 'IQD');
+
+  // ─── Trip Chat ───
+  static String get typeMessage => _t('اكتب رسالة...', 'Type a message...');
 }

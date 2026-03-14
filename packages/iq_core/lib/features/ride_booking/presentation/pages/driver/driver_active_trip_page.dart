@@ -24,6 +24,7 @@ import '../../bloc/driver/driver_trip_bloc.dart';
 import '../../bloc/driver/driver_trip_event.dart';
 import '../../bloc/driver/driver_trip_state.dart';
 import '../passenger/trip_invoice_page.dart';
+import '../../../../trip_chat/trip_chat_page.dart';
 import '../../widgets/cancel_reasons_sheet.dart';
 import '../../widgets/waiting_timer_banner.dart';
 import 'shipment_proof_page.dart';
@@ -576,10 +577,12 @@ class _DriverTripSheet extends StatelessWidget {
                 rating:
                     double.tryParse(req.userRating ?? '') ?? 0.0,
                 totalRides: req.totalRides,
-                onChat: () {
-                  // Open phone dialer for passenger (chat not built yet)
-                  _callPhone(context, req.userMobile);
-                },
+                onChat: () => _openTripChat(
+                  context,
+                  requestId: state.requestId ?? '',
+                  otherPartyName: req.userName ?? '',
+                  otherPartyPhotoUrl: req.userImage,
+                ),
                 onCall: () {
                   _callPhone(context, req.userMobile);
                 },
@@ -1223,6 +1226,25 @@ void _showDriverCancelSheet(BuildContext context, String requestId) {
               ),
             );
       },
+    ),
+  );
+}
+
+/// Opens the trip chat page between driver and passenger.
+void _openTripChat(
+  BuildContext context, {
+  required String requestId,
+  required String otherPartyName,
+  String? otherPartyPhotoUrl,
+}) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => TripChatPage(
+        requestId: requestId,
+        otherPartyName: otherPartyName,
+        myFromType: 2, // driver = from_type 2
+        otherPartyPhotoUrl: otherPartyPhotoUrl,
+      ),
     ),
   );
 }

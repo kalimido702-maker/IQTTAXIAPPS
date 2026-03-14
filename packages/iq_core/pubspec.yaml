@@ -71,6 +71,7 @@ dependencies:
   socket_io_client: ^3.0.2
   webview_flutter: ^4.10.0
   mobile_scanner: ^7.0.1
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:

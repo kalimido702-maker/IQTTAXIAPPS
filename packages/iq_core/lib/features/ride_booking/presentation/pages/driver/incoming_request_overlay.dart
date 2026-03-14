@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -42,6 +43,7 @@ class IncomingRequestOverlay extends StatefulWidget {
 class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
   Timer? _countdownTimer;
   late int _secondsLeft;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   /// Cached markers — created once, never rebuilt by timer.
   late final Set<Marker> _markers;
@@ -58,6 +60,7 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
   @override
   void initState() {
     super.initState();
+    _playRequestSound();
     _markers = {
       Marker(
         markerId: MapMarkerIds.pickup,
@@ -125,9 +128,20 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
     });
   }
 
+  Future<void> _playRequestSound() async {
+    try {
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.play(AssetSource('audio/request_sound.mp3'));
+    } catch (_) {
+      // Sound is non-critical — silently ignore if asset is missing.
+    }
+  }
+
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _audioPlayer.stop();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
