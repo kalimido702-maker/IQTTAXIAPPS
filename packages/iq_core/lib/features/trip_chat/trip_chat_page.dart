@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
+import '../../core/network/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -94,7 +94,7 @@ class _TripChatPageState extends State<TripChatPage> {
 
   Future<void> _loadHistory({bool silent = false}) async {
     try {
-      final dio = sl<Dio>();
+      final dio = sl<ApiClient>().dio;
       final response = await dio.get(
         'api/v1/request/chat-history/${widget.requestId}',
       );
@@ -126,7 +126,7 @@ class _TripChatPageState extends State<TripChatPage> {
 
   Future<void> _markSeen() async {
     try {
-      final dio = sl<Dio>();
+      final dio = sl<ApiClient>().dio;
       await dio.post(
         'api/v1/request/seen',
         data: {'request_id': widget.requestId},
@@ -143,7 +143,7 @@ class _TripChatPageState extends State<TripChatPage> {
     setState(() => _isSending = true);
 
     try {
-      final dio = sl<Dio>();
+      final dio = sl<ApiClient>().dio;
       await dio.post(
         'api/v1/request/send',
         data: {
