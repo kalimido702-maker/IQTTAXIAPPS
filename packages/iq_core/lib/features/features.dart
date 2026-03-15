@@ -19,3 +19,4 @@ export 'onboarding/onboarding.dart';
 export 'wallet/wallet.dart';
 export 'subscription/subscription.dart';
 export 'incentive/incentive.dart';
+export 'trip_chat/trip_chat.dart';

@@ -1,0 +1,9 @@
+export 'domain/entities/trip_chat_message_entity.dart';
+export 'domain/repositories/trip_chat_repository.dart';
+export 'data/datasources/trip_chat_data_source.dart';
+export 'data/datasources/trip_chat_data_source_impl.dart';
+export 'data/models/trip_chat_message_model.dart';
+export 'data/repositories/trip_chat_repository_impl.dart';
+export 'presentation/bloc/trip_chat_bloc.dart';
+export 'presentation/pages/trip_chat_page.dart';
+export 'presentation/widgets/trip_chat_message_bubble.dart';

@@ -24,7 +24,8 @@ import '../../../domain/repositories/booking_repository.dart';
 import '../../bloc/passenger/passenger_trip_bloc.dart';
 import '../../bloc/passenger/passenger_trip_event.dart';
 import '../../bloc/passenger/passenger_trip_state.dart';
-import '../../../../trip_chat/trip_chat_page.dart';
+import '../../../../../core/network/api_client.dart';
+import '../../../../trip_chat/trip_chat.dart';
 import '../../widgets/cancel_reasons_sheet.dart';
 import '../../widgets/fake_car_markers.dart';
 import '../../widgets/ride_bottom_sheets.dart';
@@ -1246,11 +1247,20 @@ void _openTripChat(
 }) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) => TripChatPage(
-        requestId: requestId,
-        otherPartyName: otherPartyName,
-        myFromType: 1, // passenger = from_type 1
-        otherPartyPhotoUrl: otherPartyPhotoUrl,
+      builder: (_) => BlocProvider(
+        create: (_) => TripChatBloc(
+          repository: TripChatRepositoryImpl(
+            dataSource: TripChatDataSourceImpl(
+              dio: sl<ApiClient>().dio,
+            ),
+          ),
+          requestId: requestId,
+          myFromType: 1, // passenger = from_type 1
+        ),
+        child: TripChatPage(
+          otherPartyName: otherPartyName,
+          otherPartyPhotoUrl: otherPartyPhotoUrl,
+        ),
       ),
     ),
   );

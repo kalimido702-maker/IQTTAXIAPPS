@@ -24,7 +24,8 @@ import '../../bloc/driver/driver_trip_bloc.dart';
 import '../../bloc/driver/driver_trip_event.dart';
 import '../../bloc/driver/driver_trip_state.dart';
 import '../passenger/trip_invoice_page.dart';
-import '../../../../trip_chat/trip_chat_page.dart';
+import '../../../../../core/network/api_client.dart';
+import '../../../../trip_chat/trip_chat.dart';
 import '../../widgets/cancel_reasons_sheet.dart';
 import '../../widgets/waiting_timer_banner.dart';
 import 'shipment_proof_page.dart';
@@ -1239,11 +1240,20 @@ void _openTripChat(
 }) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) => TripChatPage(
-        requestId: requestId,
-        otherPartyName: otherPartyName,
-        myFromType: 2, // driver = from_type 2
-        otherPartyPhotoUrl: otherPartyPhotoUrl,
+      builder: (_) => BlocProvider(
+        create: (_) => TripChatBloc(
+          repository: TripChatRepositoryImpl(
+            dataSource: TripChatDataSourceImpl(
+              dio: sl<ApiClient>().dio,
+            ),
+          ),
+          requestId: requestId,
+          myFromType: 2, // driver = from_type 2
+        ),
+        child: TripChatPage(
+          otherPartyName: otherPartyName,
+          otherPartyPhotoUrl: otherPartyPhotoUrl,
+        ),
       ),
     ),
   );
