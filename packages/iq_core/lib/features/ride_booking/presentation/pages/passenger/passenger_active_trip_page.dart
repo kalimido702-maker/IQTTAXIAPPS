@@ -105,6 +105,28 @@ class _BodyState extends State<_Body> {
                   ),
                 ),
 
+                // My location FAB
+                Positioned(
+                  bottom: 340.h,
+                  left: 16.w,
+                  child: SizedBox(
+                    width: 48.w,
+                    height: 48.w,
+                    child: FloatingActionButton(
+                      heroTag: 'my_location_trip',
+                      onPressed: () =>
+                          _mapKey.currentState?.goToMyLocation(),
+                      backgroundColor: AppColors.white,
+                      elevation: 4,
+                      child: Icon(
+                        Icons.my_location,
+                        color: AppColors.primary,
+                        size: 24.w,
+                      ),
+                    ),
+                  ),
+                ),
+
                 // Content overlay
                 if (state.status == PassengerTripStatus.searchingDriver)
                   _SearchingOverlay(state: state)

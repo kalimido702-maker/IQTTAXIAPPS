@@ -285,6 +285,20 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
     DriverHomeStatusToggled event,
     Emitter<DriverHomeState> emit,
   ) async {
+    final goingOnline = !state.isOnline;
+
+    // ── Subscription guard: block going online without active subscription ──
+    if (goingOnline) {
+      final homeData = state.homeData;
+      if (homeData != null && !homeData.isSubscribed) {
+        emit(state.copyWith(
+          isToggling: false,
+          errorMessage: 'يرجى تفعيل الاشتراك قبل البدء',
+        ));
+        return;
+      }
+    }
+
     // Mark as toggling so UI can show loading indicator
     emit(state.copyWith(isToggling: true));
 

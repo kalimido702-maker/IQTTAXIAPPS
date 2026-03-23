@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:iq_core/iq_core.dart';
 import 'package:iq_core/core/services/map_performance.dart';
+import 'package:iq_core/core/services/driver_foreground_service.dart';
 import 'app/app.dart';
 
 void main() async {
@@ -42,6 +43,9 @@ void main() async {
 
   // Pre-cache map icons so they're ready before any map page opens
   MapIcons.precache();
+
+  // Initialize foreground service for background keep-alive
+  DriverForegroundService.init();
 
   runApp(const DriverApp());
 }

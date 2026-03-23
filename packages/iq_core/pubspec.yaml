@@ -72,6 +72,7 @@ dependencies:
   webview_flutter: ^4.10.0
   mobile_scanner: ^7.0.1
   audioplayers: ^6.1.0
+  flutter_foreground_task: ^8.17.0
 
 dev_dependencies:
   flutter_test:

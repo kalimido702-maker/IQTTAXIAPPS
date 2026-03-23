@@ -1,5 +1,6 @@
 export 'iq_app_bar.dart';
 export 'iq_empty_state.dart';
+export 'iq_haptic_tap_wrapper.dart';
 export 'iq_image.dart';
 export 'iq_loading_overlay.dart';
 export 'iq_location_input.dart';

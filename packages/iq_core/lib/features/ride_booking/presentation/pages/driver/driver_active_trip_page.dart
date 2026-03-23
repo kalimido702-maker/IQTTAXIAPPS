@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/di/injection_container.dart';
+import '../../../../../core/services/driver_foreground_service.dart';
 import '../../../../../core/services/google_maps_service.dart';
 import '../../../../../core/services/map_performance.dart';
 import '../../../../../core/theme/app_colors.dart';
@@ -64,6 +65,7 @@ class _BodyState extends State<_Body> {
   /// Live ETA data from Google Directions (refreshed on driver movement).
   int _tripEtaSeconds = 0;
   double _tripDistanceKm = 0;
+  List<NavigationStep> _navigationSteps = [];
 
   @override
   void initState() {
@@ -190,6 +192,22 @@ class _BodyState extends State<_Body> {
           prev.status != curr.status ||
           prev.errorMessage != curr.errorMessage,
       listener: (context, state) {
+        // Update foreground notification based on trip status.
+        switch (state.status) {
+          case DriverTripStatus.navigatingToPickup:
+            DriverForegroundService.updateText(
+              AppStrings.onWayToPickupNotification,
+            );
+          case DriverTripStatus.arrivedAtPickup:
+            DriverForegroundService.updateText(AppStrings.awaitingPassenger);
+          case DriverTripStatus.tripInProgress:
+            DriverForegroundService.updateText(AppStrings.tripInProgress);
+          case DriverTripStatus.tripCompleted:
+            DriverForegroundService.updateText(AppStrings.driverOnlineReady);
+          default:
+            break;
+        }
+
         if (state.status == DriverTripStatus.tripCompleted) {
           _navigateToInvoice();
         }
@@ -234,6 +252,9 @@ class _BodyState extends State<_Body> {
                           _tripDistanceKm = result.distanceKm;
                         });
                       }
+                      if (result.steps.isNotEmpty) {
+                        setState(() => _navigationSteps = result.steps);
+                      }
                     },
                   ),
                 ),
@@ -244,10 +265,13 @@ class _BodyState extends State<_Body> {
                     left: 20.w,
                     right: 20.w,
                     child: WaitingTimerBanner(
-                      key: ValueKey(state.activeTripData?.phase),
+                      key: const ValueKey('waiting_arrived'),
                       message: AppStrings.remainingWaitTime,
                       warningMessage: AppStrings.waitingChargeWarning,
-                      startTime: DateTime.now(),
+                      startTime: state.activeTripData?.arrivedAt != null
+                          ? DateTime.fromMillisecondsSinceEpoch(
+                              state.activeTripData!.arrivedAt!)
+                          : DateTime.now(),
                     ),
                   ),
                 // ── Live ETA overlay during trip ──
@@ -271,6 +295,7 @@ class _BodyState extends State<_Body> {
                   bottom: 0,
                   child: _DriverTripSheet(
                     state: state,
+                    navigationSteps: _navigationSteps,
                   ),
                 ),
               ],
@@ -368,6 +393,7 @@ class _DriverTripMapState extends State<_DriverTripMap> {
           setState(() => _routePoints = result.polylinePoints);
           final bounds = calculateBounds(result.polylinePoints);
           widget.mapKey.currentState?.fitBounds(bounds);
+          widget.onRouteResult?.call(result);
         }
       } catch (e) {
         debugPrint('🗺️ DriverTripMap: failed to get driver position: $e');
@@ -515,8 +541,12 @@ enum _EffectivePhase { navigating, arrived, inProgress }
 // ---------------------------------------------------------------------------
 
 class _DriverTripSheet extends StatelessWidget {
-  const _DriverTripSheet({required this.state});
+  const _DriverTripSheet({
+    required this.state,
+    this.navigationSteps = const [],
+  });
   final DriverTripState state;
+  final List<NavigationStep> navigationSteps;
 
   @override
   Widget build(BuildContext context) {
@@ -610,8 +640,14 @@ class _DriverTripSheet extends StatelessWidget {
                 currencySymbol: req.currencySymbol,
                 paymentMethod: req.paymentMethod,
               ),
-              SizedBox(height: 20.h),
+              SizedBox(height: 16.h),
             ],
+
+            // ── Turn-by-turn navigation instructions ──
+            // if (navigationSteps.isNotEmpty) ...[
+            //   _NavigationStepsList(steps: navigationSteps),
+            //   SizedBox(height: 16.h),
+            // ],
 
             // ── Phase action buttons ──
             _DriverPhaseButtons(
@@ -693,6 +729,93 @@ class _TripStatusBadge extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 // Passenger info row: avatar + name + rating + rides | chat + call buttons.
+// ---------------------------------------------------------------------------
+
+class _NavigationStepsList extends StatelessWidget {
+  const _NavigationStepsList({required this.steps});
+  final List<NavigationStep> steps;
+
+  IconData _iconForManeuver(String maneuver) {
+    if (maneuver.contains('LEFT')) return Icons.turn_left;
+    if (maneuver.contains('RIGHT')) return Icons.turn_right;
+    if (maneuver.contains('UTURN')) return Icons.u_turn_left;
+    if (maneuver.contains('RAMP')) return Icons.ramp_left;
+    if (maneuver.contains('ROUNDABOUT')) return Icons.roundabout_left;
+    if (maneuver.contains('MERGE')) return Icons.merge;
+    if (maneuver.contains('FORK')) return Icons.fork_left;
+    return Icons.straight;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      constraints: BoxConstraints(maxHeight: 180.h),
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.white.withValues(alpha: 0.05)
+            : AppColors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(
+          color: isDark
+              ? AppColors.white.withValues(alpha: 0.1)
+              : AppColors.black.withValues(alpha: 0.08),
+        ),
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        padding: EdgeInsets.symmetric(vertical: 8.h),
+        itemCount: steps.length,
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          indent: 48.w,
+          color: isDark
+              ? AppColors.white.withValues(alpha: 0.06)
+              : AppColors.black.withValues(alpha: 0.06),
+        ),
+        itemBuilder: (context, index) {
+          final step = steps[index];
+          final distText = step.distanceMeters >= 1000
+              ? '${(step.distanceMeters / 1000).toStringAsFixed(1)} ${AppStrings.km}'
+              : '${step.distanceMeters} ${AppStrings.meterUnit}';
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+            child: Row(
+              children: [
+                Icon(
+                  _iconForManeuver(step.maneuver),
+                  size: 22.sp,
+                  color: AppColors.primary,
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: IqText(
+                    step.instruction,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: isDark ? AppColors.white : AppColors.textDark,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                IqText(
+                  distText,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Passenger info row (original): avatar + name + rating + rides | chat + call.
 // ---------------------------------------------------------------------------
 
 class _PassengerInfoRow extends StatelessWidget {

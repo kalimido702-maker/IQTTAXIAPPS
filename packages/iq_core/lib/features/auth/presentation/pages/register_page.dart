@@ -277,7 +277,7 @@ class RegisterPage extends StatelessWidget {
       MaterialPageRoute<void>(
         builder: (_) => IqWebViewPage(
           title: AppStrings.termsAndConditions,
-          url: 'https://iqttaxi.com/api/v1/common/mobile/terms',
+          url: 'https://taxi-new.elnoorphp.com/api/v1/common/mobile/terms',
         ),
       ),
     );

@@ -40,13 +40,14 @@ class SearchingDriverSheet extends StatefulWidget {
 
 class _SearchingDriverSheetState extends State<SearchingDriverSheet>
     with TickerProviderStateMixin {
-  int _elapsedSeconds = 0;
+  late int _remainingSeconds;
   Timer? _timer;
   late final AnimationController _dotsController;
 
   @override
   void initState() {
     super.initState();
+    _remainingSeconds = widget.autoCancelSeconds;
     _dotsController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -54,9 +55,8 @@ class _SearchingDriverSheetState extends State<SearchingDriverSheet>
 
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => _elapsedSeconds++);
-      if (widget.autoCancel &&
-          _elapsedSeconds >= widget.autoCancelSeconds) {
+      setState(() => _remainingSeconds--);
+      if (widget.autoCancel && _remainingSeconds <= 0) {
         // Stop timer FIRST to prevent calling onCancel every second.
         _timer?.cancel();
         _timer = null;
@@ -74,9 +74,9 @@ class _SearchingDriverSheetState extends State<SearchingDriverSheet>
   }
 
   String get _minutes =>
-      (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
+      (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
   String get _seconds =>
-      (_elapsedSeconds % 60).toString().padLeft(2, '0');
+      (_remainingSeconds % 60).toString().padLeft(2, '0');
 
   @override
   Widget build(BuildContext context) {

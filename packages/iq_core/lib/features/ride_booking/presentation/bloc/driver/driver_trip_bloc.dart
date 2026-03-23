@@ -367,6 +367,22 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     );
   }
 
+  /// Progression order for trip statuses — higher = further along.
+  /// Used to prevent Firebase stream from regressing the local state.
+  static int _statusOrder(DriverTripStatus s) => switch (s) {
+        DriverTripStatus.idle => 0,
+        DriverTripStatus.incomingRequest => 1,
+        DriverTripStatus.navigatingToPickup => 2,
+        DriverTripStatus.arrivedAtPickup => 3,
+        DriverTripStatus.tripInProgress => 4,
+        DriverTripStatus.tripCompleted => 5,
+        DriverTripStatus.rated => 6,
+        // These can be emitted from any state:
+        DriverTripStatus.cancelled => -1,
+        DriverTripStatus.loading => -1,
+        DriverTripStatus.error => -1,
+      };
+
   void _onStreamUpdated(
     DriverTripStreamUpdated event,
     Emitter<DriverTripState> emit,
@@ -378,40 +394,60 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     debugPrint('🚕 DriverTripBloc._onStreamUpdated: phase=$phase, '
         'current status=${state.status}');
 
+    final DriverTripStatus? newStatus;
     switch (phase) {
       case TripPhase.cancelled:
-        emit(state.copyWith(
-          status: DriverTripStatus.cancelled,
-          activeTripData: tripData,
-        ));
-
+        newStatus = DriverTripStatus.cancelled;
       case TripPhase.completed:
-        emit(state.copyWith(
-          status: DriverTripStatus.tripCompleted,
-          activeTripData: tripData,
-        ));
-
+        newStatus = DriverTripStatus.tripCompleted;
       case TripPhase.driverArrived:
-        emit(state.copyWith(
-          status: DriverTripStatus.arrivedAtPickup,
-          activeTripData: tripData,
-        ));
-
+        newStatus = DriverTripStatus.arrivedAtPickup;
       case TripPhase.inProgress:
-        emit(state.copyWith(
-          status: DriverTripStatus.tripInProgress,
-          activeTripData: tripData,
-        ));
-
+        newStatus = DriverTripStatus.tripInProgress;
       case TripPhase.driverOnWay:
-        emit(state.copyWith(
-          status: DriverTripStatus.navigatingToPickup,
-          activeTripData: tripData,
-        ));
-
+        newStatus = DriverTripStatus.navigatingToPickup;
       case TripPhase.searching:
-        // Still waiting for acceptance to propagate
-        break;
+        // Still waiting for acceptance to propagate — only update trip data.
+        newStatus = null;
+    }
+
+    if (newStatus == null) {
+      // Update trip data without changing status.
+      emit(state.copyWith(activeTripData: tripData));
+      return;
+    }
+
+    // Guard: never regress to an earlier trip phase.
+    // cancelled/completed (order -1 or 5) always go through.
+    final currentOrder = _statusOrder(state.status);
+    final newOrder = _statusOrder(newStatus);
+    if (newOrder >= 0 && currentOrder >= 0 && newOrder < currentOrder) {
+      debugPrint('⚠️ DriverTripBloc: ignoring phase regression '
+          '${state.status} → $newStatus (stream phase=$phase)');
+      // Still update the trip data so UI has fresh data (driver position, etc.)
+      emit(state.copyWith(activeTripData: tripData));
+      return;
+    }
+
+    emit(state.copyWith(
+      status: newStatus,
+      activeTripData: tripData,
+      waitingTimeBeforeStart: tripData.waitingTimeBeforeStart > state.waitingTimeBeforeStart
+          ? tripData.waitingTimeBeforeStart
+          : null,
+      waitingTimeAfterStart: tripData.waitingTimeAfterStart > state.waitingTimeAfterStart
+          ? tripData.waitingTimeAfterStart
+          : null,
+    ));
+
+    // Restart the waiting timer if we're in an arrived/inProgress phase
+    // and the timer isn't already running (e.g. after app restore).
+    if (_waitingTimer == null || !_waitingTimer!.isActive) {
+      if (newStatus == DriverTripStatus.arrivedAtPickup) {
+        _startWaitingTimer(isBeforeTrip: true);
+      } else if (newStatus == DriverTripStatus.tripInProgress) {
+        _startWaitingTimer(isBeforeTrip: false);
+      }
     }
   }
 
@@ -426,7 +462,10 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
         // Update Firebase so both driver & passenger apps see the change.
         tripStream.updateTripNode(
           requestId: event.requestId,
-          data: {'trip_arrived': '1'},
+          data: {
+            'trip_arrived': '1',
+            'arrived_at': DateTime.now().millisecondsSinceEpoch,
+          },
         );
         // Start the "before trip" waiting timer.
         _startWaitingTimer(isBeforeTrip: true);
@@ -499,6 +538,9 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     if (distance <= 0) {
       distance = 0.01;
     }
+
+    // Backend custom 'double' rule only allows up to 2 decimal places.
+    distance = double.parse(distance.toStringAsFixed(2));
 
     final beforeWait = event.beforeTripWaitingTime > 0
         ? event.beforeTripWaitingTime
@@ -580,7 +622,14 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     );
     result.fold(
       (failure) => emit(state.copyWith(errorMessage: failure.message)),
-      (_) => emit(state.copyWith(status: DriverTripStatus.cancelled)),
+      (_) {
+        emit(state.copyWith(status: DriverTripStatus.cancelled));
+        // Re-affirm availability so the backend picks up this driver again.
+        final driverId = state.driverId;
+        if (driverId != null && driverId.isNotEmpty) {
+          tripStream.reaffirmDriverAvailability(driverId);
+        }
+      },
     );
   }
 
@@ -595,7 +644,14 @@ class DriverTripBloc extends Bloc<DriverTripEvent, DriverTripState> {
     );
     result.fold(
       (failure) => emit(state.copyWith(errorMessage: failure.message)),
-      (_) => emit(state.copyWith(status: DriverTripStatus.rated)),
+      (_) {
+        emit(state.copyWith(status: DriverTripStatus.rated));
+        // Re-affirm availability so the backend picks up this driver again.
+        final driverId = state.driverId;
+        if (driverId != null && driverId.isNotEmpty) {
+          tripStream.reaffirmDriverAvailability(driverId);
+        }
+      },
     );
   }
 

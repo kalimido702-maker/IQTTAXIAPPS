@@ -764,6 +764,7 @@ class RouteHelper {
         encodedPolyline: result.encodedPolyline,
         boundsNE: result.boundsNE,
         boundsSW: result.boundsSW,
+        steps: result.steps,
       );
     } catch (_) {
       return null;

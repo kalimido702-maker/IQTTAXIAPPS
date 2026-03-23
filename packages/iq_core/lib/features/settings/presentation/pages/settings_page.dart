@@ -75,7 +75,7 @@ class SettingsPage extends StatelessWidget {
                   MaterialPageRoute<void>(
                     builder: (_) => IqWebViewPage(
                       title: AppStrings.instructionsPage,
-                      url: 'https://iqttaxi.com/api/v1/common/mobile/terms',
+                      url: 'https://taxi-new.elnoorphp.com/api/v1/common/mobile/terms',
                     ),
                   ),
                 );
@@ -101,7 +101,7 @@ class SettingsPage extends StatelessWidget {
                   MaterialPageRoute<void>(
                     builder: (_) => IqWebViewPage(
                       title: AppStrings.privacyPolicy,
-                      url: 'https://iqttaxi.com/api/v1/common/mobile/privacy',
+                      url: 'https://taxi-new.elnoorphp.com/api/v1/common/mobile/privacy',
                     ),
                   ),
                 );

@@ -334,6 +334,26 @@ class _MapPickerPageState extends State<MapPickerPage> {
               size: 44.w,
             ),
           ),
+          // My location FAB
+          Positioned(
+            bottom: 180.h,
+            left: 16.w,
+            child: SizedBox(
+              width: 48.w,
+              height: 48.w,
+              child: FloatingActionButton(
+                heroTag: 'my_location_picker',
+                onPressed: () => _mapKey.currentState?.goToMyLocation(),
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                elevation: 4,
+                child: Icon(
+                  Icons.my_location,
+                  color: AppColors.primary,
+                  size: 24.w,
+                ),
+              ),
+            ),
+          ),
           // Bottom section: address + button
           Positioned(
             left: 0,

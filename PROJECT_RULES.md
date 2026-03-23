@@ -108,7 +108,7 @@ All dimensions must use ScreenUtil extensions (`.w`, `.h`, `.r`, `.sp`).
 | Item | Value |
 |---|---|
 | Library | `dio ^5.8.0` |
-| Base URL | `https://iqttaxi.com/` |
+| Base URL | `https://taxi-new.elnoorphp.com/` |
 | Client | `ApiClient` (singleton in DI) |
 | Auth | `AuthInterceptor` adds `Bearer` token from `SharedPreferences` |
 | Error handling | Wrap Dio calls in try/catch, return `dartz Either<Failure, T>` |

@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/services/driver_foreground_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/iq_map_view.dart';
@@ -122,6 +123,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
           listenWhen: (prev, curr) => prev.isOnline != curr.isOnline,
           listener: (context, homeState) {
             if (homeState.isOnline) {
+              DriverForegroundService.start();
               final driverId = homeState.homeData?.id ?? '';
               context.read<DriverTripBloc>().add(
                 DriverTripListenRequested(driverId),
@@ -131,6 +133,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
                 const DriverTripCheckActiveTrip(),
               );
             } else {
+              DriverForegroundService.stop();
               context.read<DriverTripBloc>().add(const DriverTripReset());
             }
           },
@@ -144,6 +147,12 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
             if (_subscriptionPromptShown) return;
             final data = state.homeData;
             if (!shouldShowSubscriptionPrompt(data)) return;
+
+            // If subscription expired, clear any previous skip so the
+            // prompt shows again.
+            if (data?.isSubscriptionExpired == true) {
+              await setSubscriptionSkipStatus(false);
+            }
 
             // Check SharedPreferences skip status
             final skipped = await getSubscriptionSkipStatus();

@@ -344,7 +344,8 @@ class _PlanListView extends StatelessWidget {
 
               SizedBox(height: 30.h),
 
-              // ── Section: طريقة الدفع ──
+              // ── Section: طريقة الدفع (hidden for free plan) ──
+              if (!isFreeDayOn) ...[
               IqText(
                 AppStrings.paymentMethod,
                 style: AppTypography.heading3.copyWith(
@@ -373,6 +374,7 @@ class _PlanListView extends StatelessWidget {
                   ),
                 ],
               ),
+              ],
 
               SizedBox(height: 50.h),
 

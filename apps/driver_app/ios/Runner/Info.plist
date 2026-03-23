@@ -49,5 +49,14 @@
 	<string>يحتاج التطبيق إلى موقعك لعرض موقعك على الخريطة وتلقي الطلبات القريبة</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>يحتاج التطبيق إلى موقعك في الخلفية لتتبع رحلاتك وتلقي الطلبات</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>يحتاج التطبيق إلى موقعك في الخلفية لتتبع رحلاتك وتلقي الطلبات</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>location</string>
+		<string>processing</string>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

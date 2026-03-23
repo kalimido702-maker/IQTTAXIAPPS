@@ -7,7 +7,7 @@ import 'auth_service.dart';
 /// Central HTTP client wrapping [Dio].
 ///
 /// Provides a pre-configured Dio instance with:
-///  - Base URL: `https://iqttaxi.com/`
+///  - Base URL: `https://taxi-new.elnoorphp.com/`
 ///  - Auth interceptor (Bearer token from SharedPreferences)
 ///  - Logging interceptor (debug only)
 ///  - 30 s connect / receive timeouts
@@ -18,7 +18,7 @@ class ApiClient {
 
   /// Factory that builds a production-ready [ApiClient].
   static Future<ApiClient> create({
-    String baseUrl = 'https://iqttaxi.com/',
+    String baseUrl = 'https://taxi-new.elnoorphp.com/',
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final authService = AuthService();

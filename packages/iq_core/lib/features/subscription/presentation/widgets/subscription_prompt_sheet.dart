@@ -55,12 +55,16 @@ bool shouldShowSubscriptionPrompt(HomeDataModel? homeData) {
   if (homeData.isApproved != true) return false;
   if (mode != 'subscription' && mode != 'both') return false;
 
+  // If subscription is expired → always show the prompt regardless of
+  // isSubscribed flag (API may return both is_subscribed=true AND
+  // is_expired=true simultaneously).
+  if (homeData.isSubscriptionExpired == true) return true;
+
   // If API explicitly says subscribed → don't show.
   if (homeData.isSubscribed == true) return false;
 
   // If subscription data exists and hasn't expired → treat as subscribed.
-  if (homeData.subscriptionData != null &&
-      homeData.isSubscriptionExpired != true) {
+  if (homeData.subscriptionData != null) {
     return false;
   }
 

@@ -42,6 +42,7 @@ class IncomingRequestOverlay extends StatefulWidget {
 
 class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
   Timer? _countdownTimer;
+  Timer? _vibrationTimer;
   late int _secondsLeft;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
@@ -61,6 +62,7 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
   void initState() {
     super.initState();
     _playRequestSound();
+    _startVibrationPattern();
     _markers = {
       Marker(
         markerId: MapMarkerIds.pickup,
@@ -128,6 +130,15 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
     });
   }
 
+  /// Vibrate repeatedly so the driver notices the incoming request.
+  void _startVibrationPattern() {
+    HapticFeedback.heavyImpact();
+    _vibrationTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted) return;
+      HapticFeedback.heavyImpact();
+    });
+  }
+
   Future<void> _playRequestSound() async {
     try {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
@@ -140,6 +151,7 @@ class _IncomingRequestOverlayState extends State<IncomingRequestOverlay> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _vibrationTimer?.cancel();
     _audioPlayer.stop();
     _audioPlayer.dispose();
     super.dispose();

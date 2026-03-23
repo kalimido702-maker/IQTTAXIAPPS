@@ -2,6 +2,24 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+/// A single turn-by-turn navigation step.
+class NavigationStep {
+  const NavigationStep({
+    required this.instruction,
+    required this.maneuver,
+    required this.distanceMeters,
+  });
+
+  /// Human-readable instruction (e.g., "انعطف يسارًا").
+  final String instruction;
+
+  /// Maneuver type from Routes API (e.g., "TURN_LEFT", "STRAIGHT", "UTURN_RIGHT").
+  final String maneuver;
+
+  /// Distance of this step in meters.
+  final int distanceMeters;
+}
+
 /// Result from a Google Directions API call.
 class DirectionsResult {
   const DirectionsResult({
@@ -13,6 +31,7 @@ class DirectionsResult {
     required this.durationText,
     required this.boundsNE,
     required this.boundsSW,
+    this.steps = const [],
   });
 
   /// Decoded list of LatLng points for drawing on the map.
@@ -38,6 +57,9 @@ class DirectionsResult {
 
   /// Southwest corner of the route bounds.
   final LatLng boundsSW;
+
+  /// Turn-by-turn navigation steps.
+  final List<NavigationStep> steps;
 
   /// Distance in kilometers.
   double get distanceKm => distanceMeters / 1000.0;
@@ -137,7 +159,7 @@ class GoogleMapsService {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey,
         'X-Goog-FieldMask':
-            'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.viewport',
+            'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.viewport,routes.legs.steps.navigationInstruction,routes.legs.steps.distanceMeters',
       };
 
       final response = await _routesDio.post(
@@ -176,6 +198,30 @@ class GoogleMapsService {
       final durationText =
           '${(durationSeconds / 60).round()} min';
 
+      // Parse turn-by-turn navigation steps from legs.
+      final steps = <NavigationStep>[];
+      final legs = route['legs'] as List?;
+      if (legs != null) {
+        for (final leg in legs) {
+          final legSteps = (leg as Map<String, dynamic>)['steps'] as List?;
+          if (legSteps != null) {
+            for (final s in legSteps) {
+              final step = s as Map<String, dynamic>;
+              final nav =
+                  step['navigationInstruction'] as Map<String, dynamic>?;
+              if (nav != null) {
+                steps.add(NavigationStep(
+                  instruction: (nav['instructions'] as String?) ?? '',
+                  maneuver: (nav['maneuver'] as String?) ?? '',
+                  distanceMeters:
+                      (step['distanceMeters'] as num?)?.toInt() ?? 0,
+                ));
+              }
+            }
+          }
+        }
+      }
+
       return DirectionsResult(
         polylinePoints: polylinePoints,
         encodedPolyline: encodedPolyline,
@@ -191,6 +237,7 @@ class GoogleMapsService {
           (low?['latitude'] as num?)?.toDouble() ?? originLat,
           (low?['longitude'] as num?)?.toDouble() ?? originLng,
         ),
+        steps: steps,
       );
     } catch (e) {
       debugPrint('❌ [GoogleMapsService] Routes API v2 failed: $e');

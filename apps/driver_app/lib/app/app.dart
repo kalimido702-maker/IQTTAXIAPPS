@@ -47,11 +47,12 @@ class DriverApp extends StatelessWidget {
                       GlobalCupertinoLocalizations.delegate,
                     ],
                     builder: (context, child) {
-                      return Directionality(
-                        textDirection: localeState.isArabic
-                            ? TextDirection.rtl
-                            : TextDirection.ltr,
-                        child: BlocListener<AuthBloc, AuthState>(
+                      return IqHapticTapWrapper(
+                        child: Directionality(
+                          textDirection: localeState.isArabic
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
+                          child: BlocListener<AuthBloc, AuthState>(
                           listenWhen: (prev, curr) =>
                               prev is! AuthUnauthenticated &&
                               curr is AuthUnauthenticated,
@@ -66,6 +67,7 @@ class DriverApp extends StatelessWidget {
                             );
                           },
                           child: child ?? const SizedBox.shrink(),
+                        ),
                         ),
                       );
                     },

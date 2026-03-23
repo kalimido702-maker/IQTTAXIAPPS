@@ -197,8 +197,8 @@ class FavouriteLocationPage extends StatelessWidget {
     // 1. Get current location for map initial position
     final locRepo = sl<LocationRepository>();
     final locResult = await locRepo.getCurrentLocation();
-    double initLat = 33.312;
-    double initLng = 44.366;
+    double initLat = 0;
+    double initLng = 0;
     locResult.fold((_) {}, (coords) {
       initLat = coords.$1;
       initLng = coords.$2;

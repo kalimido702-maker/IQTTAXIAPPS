@@ -97,6 +97,7 @@ class ActiveTripModel extends Equatable {
     this.modifiedByDriver,
     this.modifiedByUser,
     this.destinationChange,
+    this.arrivedAt,
     this.enableShipmentLoad = false,
     this.enableShipmentUnload = false,
     this.enableDigitalSignature = false,
@@ -168,6 +169,9 @@ class ActiveTripModel extends Equatable {
   final int? modifiedByDriver;
   final int? modifiedByUser;
   final int? destinationChange;
+
+  /// Epoch millis when the driver marked arrived (written to Firebase).
+  final int? arrivedAt;
 
   /// Delivery feature flags
   final bool enableShipmentLoad;
@@ -280,6 +284,7 @@ class ActiveTripModel extends Equatable {
       modifiedByDriver: _parseInt(data['modified_by_driver']),
       modifiedByUser: _parseInt(data['modified_by_user']),
       destinationChange: _parseInt(data['destination_change']),
+      arrivedAt: _parseInt(data['arrived_at']),
       enableShipmentLoad:
           data['enable_shipment_load_feature'] == '1' ||
               data['enable_shipment_load_feature'] == 1 ||
@@ -395,6 +400,7 @@ class ActiveTripModel extends Equatable {
       modifiedByUser: modifiedByUser,
       destinationChange: destinationChange,
       isCompleted: isCompleted,
+      arrivedAt: arrivedAt,
       stops: stops,
     );
   }

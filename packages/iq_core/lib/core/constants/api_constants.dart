@@ -3,7 +3,7 @@ class ApiConstants {
   ApiConstants._();
 
   // Base URL - replace with your actual API base URL
-  static const String baseUrl = 'https://iqttaxi.com/api/v1';
+  static const String baseUrl = 'https://taxi-new.elnoorphp.com/api/v1';
 
   // ─── Auth ───
   static const String login = '/auth/login';

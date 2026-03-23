@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -473,12 +474,15 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
   // ═══════════════════════════════════════════════════════════════════
 
   Future<void> _pickFromMapFor({required bool isPickup}) async {
+    final cached = await _cachedUserLocation();
+    final fallbackLat = cached?.$1 ?? 0.0;
+    final fallbackLng = cached?.$2 ?? 0.0;
     final lat = isPickup
-        ? (_pickupLat != 0 ? _pickupLat : 33.3152)
-        : (_dropLat != 0 ? _dropLat : (_pickupLat != 0 ? _pickupLat : 33.3152));
+        ? (_pickupLat != 0 ? _pickupLat : fallbackLat)
+        : (_dropLat != 0 ? _dropLat : (_pickupLat != 0 ? _pickupLat : fallbackLat));
     final lng = isPickup
-        ? (_pickupLng != 0 ? _pickupLng : 44.3661)
-        : (_dropLng != 0 ? _dropLng : (_pickupLng != 0 ? _pickupLng : 44.3661));
+        ? (_pickupLng != 0 ? _pickupLng : fallbackLng)
+        : (_dropLng != 0 ? _dropLng : (_pickupLng != 0 ? _pickupLng : fallbackLng));
 
     final result = await Navigator.of(context).push<MapPickResult>(
       MaterialPageRoute(
@@ -506,13 +510,25 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
   // Map picker — auto-fills next empty field (from bottom button)
   // ═══════════════════════════════════════════════════════════════════
 
+  /// Returns (lat, lng) from cached GPS. Returns null if unavailable.
+  Future<(double, double)?> _cachedUserLocation() async {
+    try {
+      final pos = await Geolocator.getLastKnownPosition();
+      if (pos != null) return (pos.latitude, pos.longitude);
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _pickFromMap() async {
+    final cached = await _cachedUserLocation();
+    final fallbackLat = cached?.$1 ?? 0.0;
+    final fallbackLng = cached?.$2 ?? 0.0;
     final lat = _isSearchingPickup || _pickupLat == 0
-        ? (_pickupLat != 0 ? _pickupLat : 33.3152)
-        : (_dropLat != 0 ? _dropLat : 33.3152);
+        ? (_pickupLat != 0 ? _pickupLat : fallbackLat)
+        : (_dropLat != 0 ? _dropLat : fallbackLat);
     final lng = _isSearchingPickup || _pickupLng == 0
-        ? (_pickupLng != 0 ? _pickupLng : 44.3661)
-        : (_dropLng != 0 ? _dropLng : 44.3661);
+        ? (_pickupLng != 0 ? _pickupLng : fallbackLng)
+        : (_dropLng != 0 ? _dropLng : fallbackLng);
 
     final result = await Navigator.of(context).push<MapPickResult>(
       MaterialPageRoute(

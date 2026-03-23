@@ -903,4 +903,18 @@ class AppStrings {
 
   // ─── Trip Chat ───
   static String get typeMessage => _t('اكتب رسالة...', 'Type a message...');
+
+  // ─── Units ───
+  static String get meterUnit => _t('م', 'm');
+
+  // ─── Foreground Service / Notifications ───
+  static String get driverOnlineReady =>
+      _t('أنت متصل وجاهز لاستقبال الطلبات', 'Online & ready for trips');
+  static String get onWayToPickupNotification =>
+      _t('في الطريق لنقطة الالتقاط', 'On the way to pickup');
+  static String get awaitingPassenger =>
+      _t('في انتظار الراكب', 'Waiting for passenger');
+  static String get foregroundChannelDesc =>
+      _t('يبقي التطبيق شغال أثناء القيادة',
+          'Keeps the app running while driving');
 }

@@ -33,7 +33,7 @@ class IqOutlinedButton extends StatelessWidget {
         onPressed: onPressed == null
             ? null
             : () {
-                HapticFeedback.lightImpact();
+                HapticFeedback.mediumImpact();
                 onPressed!();
               },
         style: OutlinedButton.styleFrom(

@@ -36,7 +36,7 @@ class IqPrimaryButton extends StatelessWidget {
             : onPressed == null
                 ? null
                 : () {
-                    HapticFeedback.lightImpact();
+                    HapticFeedback.mediumImpact();
                     onPressed!();
                   },
         style: ElevatedButton.styleFrom(

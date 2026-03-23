@@ -236,6 +236,23 @@ class IqMapViewState extends State<IqMapView>
     if (_isDisposed || !mounted) return;
     _controller = controller;
     widget.onMapCreated?.call(controller);
+
+    // If no explicit target was given (map opened at fallback center),
+    // immediately try to jump to the user's cached GPS position so the
+    // Baghdad flash is as short as possible.
+    if (widget.initialTarget == null) {
+      _jumpToCachedLocation();
+    }
+  }
+
+  /// Quick async hop — uses cached (instant) GPS. No permission prompt.
+  Future<void> _jumpToCachedLocation() async {
+    try {
+      final cached = await Geolocator.getLastKnownPosition();
+      if (cached != null && !_isDisposed) {
+        await animateTo(LatLng(cached.latitude, cached.longitude));
+      }
+    } catch (_) {}
   }
 
   /// Technique 4: Throttled camera move — max ~10 updates/sec.

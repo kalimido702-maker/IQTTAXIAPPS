@@ -117,13 +117,23 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
         <Map<String, dynamic>>[];
 
     // Read cached GPS position — typically instant (no network).
-    double lat = 33.3152;
-    double lng = 44.3661;
+    double lat = 0;
+    double lng = 0;
     try {
       final lastPos = await Geolocator.getLastKnownPosition();
       if (lastPos != null) {
         lat = lastPos.latitude;
         lng = lastPos.longitude;
+      } else {
+        // No cached position — try a quick live fix.
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 3),
+          ),
+        );
+        lat = pos.latitude;
+        lng = pos.longitude;
       }
     } catch (_) {}
 
