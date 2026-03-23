@@ -5,6 +5,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/geo_hasher.dart';
 import '../../../home/data/models/home_data_model.dart';
 import '../../../home/domain/repositories/home_repository.dart';
@@ -269,14 +270,19 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
       )),
       (HomeDataModel data) {
         final online = data.isAvailable ?? false;
+        // Force offline if subscription is expired, regardless of server state.
+        final shouldBeOnline = online && (data.isSubscriptionExpired != true);
         emit(state.copyWith(
           status: DriverHomeStatus.loaded,
           homeData: data,
-          isOnline: online,
+          isOnline: shouldBeOnline,
         ));
-        // If the driver was already online (e.g. app restart),
-        // start pushing location right away.
-        if (online) _startLocationUpdates();
+        if (shouldBeOnline) {
+          _startLocationUpdates();
+        } else if (!shouldBeOnline && online) {
+          // Driver was online per server but we force offline due to expired sub.
+          _clearFirebaseAvailability();
+        }
       },
     );
   }
@@ -290,12 +296,16 @@ class DriverHomeBloc extends Bloc<DriverHomeEvent, DriverHomeState> {
     // ── Subscription guard: block going online without active subscription ──
     if (goingOnline) {
       final homeData = state.homeData;
-      if (homeData != null && !homeData.isSubscribed) {
-        emit(state.copyWith(
-          isToggling: false,
-          errorMessage: 'يرجى تفعيل الاشتراك قبل البدء',
-        ));
-        return;
+      if (homeData != null) {
+        final blocked = !homeData.isSubscribed ||
+            homeData.isSubscriptionExpired == true;
+        if (blocked) {
+          emit(state.copyWith(
+            isToggling: false,
+            errorMessage: AppStrings.subscriptionRequiredPrompt,
+          ));
+          return;
+        }
       }
     }
 

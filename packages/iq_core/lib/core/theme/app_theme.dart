@@ -177,6 +177,9 @@ class AppTheme {
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,
       ),
+
+      // ─── Haptic Feedback on every tap ───
+      splashFactory: const _IqHapticSplashFactory(),
     );
   }
 
@@ -360,6 +363,46 @@ class AppTheme {
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,
       ),
+
+      // ─── Haptic Feedback on every tap ───
+      splashFactory: const _IqHapticSplashFactory(),
+    );
+  }
+}
+
+/// Wraps Flutter's default InkRipple splash factory to fire haptic feedback
+/// on every Material interactive widget tap (InkWell, buttons, ListTiles,
+/// Chips, etc.). Fires on tap-down — the same moment the ripple starts.
+class _IqHapticSplashFactory extends InteractiveInkFeatureFactory {
+  const _IqHapticSplashFactory();
+
+  @override
+  InteractiveInkFeature create({
+    required MaterialInkController controller,
+    required RenderBox referenceBox,
+    required Offset position,
+    required Color color,
+    required TextDirection textDirection,
+    bool containedInkWell = false,
+    RectCallback? rectCallback,
+    BorderRadius? borderRadius,
+    ShapeBorder? customBorder,
+    double? radius,
+    VoidCallback? onRemoved,
+  }) {
+    HapticFeedback.lightImpact();
+    return InkRipple.splashFactory.create(
+      controller: controller,
+      referenceBox: referenceBox,
+      position: position,
+      color: color,
+      textDirection: textDirection,
+      containedInkWell: containedInkWell,
+      rectCallback: rectCallback,
+      borderRadius: borderRadius,
+      customBorder: customBorder,
+      radius: radius,
+      onRemoved: onRemoved,
     );
   }
 }

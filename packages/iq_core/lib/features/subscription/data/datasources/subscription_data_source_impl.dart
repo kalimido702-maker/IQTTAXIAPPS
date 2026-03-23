@@ -69,6 +69,7 @@ class SubscriptionDataSourceImpl implements SubscriptionDataSource {
           'payment_opt': paymentOpt,
           'day': day.toString(),
           'plan_id': planIds,
+          'callback_url': 'https://iqttaxi.com/payment/callback',
         },
       );
       final body = response.data as Map<String, dynamic>;

@@ -47,12 +47,11 @@ class DriverApp extends StatelessWidget {
                       GlobalCupertinoLocalizations.delegate,
                     ],
                     builder: (context, child) {
-                      return IqHapticTapWrapper(
-                        child: Directionality(
-                          textDirection: localeState.isArabic
-                              ? TextDirection.rtl
-                              : TextDirection.ltr,
-                          child: BlocListener<AuthBloc, AuthState>(
+                      return Directionality(
+                        textDirection: localeState.isArabic
+                            ? TextDirection.rtl
+                            : TextDirection.ltr,
+                        child: BlocListener<AuthBloc, AuthState>(
                           listenWhen: (prev, curr) =>
                               prev is! AuthUnauthenticated &&
                               curr is AuthUnauthenticated,
@@ -67,7 +66,6 @@ class DriverApp extends StatelessWidget {
                             );
                           },
                           child: child ?? const SizedBox.shrink(),
-                        ),
                         ),
                       );
                     },
@@ -171,6 +169,8 @@ class _AppHome extends StatelessWidget {
             onVerified: (pageCtx) {
               _navigateToHome(pageCtx);
             },
+            onNeedsRegistration: (pageCtx, _) =>
+                _handleRegistrationRedirect(pageCtx),
           ),
         ),
       ),
@@ -191,7 +191,7 @@ class _AppHome extends StatelessWidget {
     // Show message
     if (displayMessage != null && displayMessage.isNotEmpty) {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text(displayMessage)),
+        SnackBar(content: IqText(displayMessage)),
       );
     }
 

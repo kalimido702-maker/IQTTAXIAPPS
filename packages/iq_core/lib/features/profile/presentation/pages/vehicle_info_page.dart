@@ -80,29 +80,29 @@ class VehicleInfoPage extends StatelessWidget {
             ),
 
             // ── Edit button ──
-            Padding(
-              padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56.h,
-                child: ElevatedButton(
-                  onPressed: () => _showEditVehicleSheet(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28.r),
-                    ),
-                  ),
-                  child: IqText(
-                    AppStrings.edit,
-                    style: AppTypography.bodyLarge.copyWith(
-                      color: AppColors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            // Padding(
+            //   padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h),
+            //   child: SizedBox(
+            //     width: double.infinity,
+            //     height: 56.h,
+            //     child: ElevatedButton(
+            //       onPressed: () => _showEditVehicleSheet(context),
+            //       style: ElevatedButton.styleFrom(
+            //         backgroundColor: AppColors.primary,
+            //         shape: RoundedRectangleBorder(
+            //           borderRadius: BorderRadius.circular(28.r),
+            //         ),
+            //       ),
+            //       child: IqText(
+            //         AppStrings.edit,
+            //         style: AppTypography.bodyLarge.copyWith(
+            //           color: AppColors.white,
+            //           fontWeight: FontWeight.w700,
+            //         ),
+            //       ),
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),

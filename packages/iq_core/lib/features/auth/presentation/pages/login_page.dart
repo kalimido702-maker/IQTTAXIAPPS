@@ -42,7 +42,7 @@ class LoginPage extends StatelessWidget {
     String? title,
     this.role = 'passenger',
     this.isDriver = false,
-  })  : footerText = footerText ?? '',
+  })  : footerText = footerText ?? AppStrings.noAccount,
         title = title ?? AppStrings.login;
 
   @override

@@ -50,23 +50,22 @@ bool shouldShowSubscriptionPrompt(HomeDataModel? homeData) {
   if (homeData == null) return false;
   final mode = homeData.driverMode;
 
-  // Feature must be enabled, driver must be approved, mode must match.
-  if (homeData.hasSubscription != true) return false;
+  // Driver must be approved and in a subscription-based mode.
   if (homeData.isApproved != true) return false;
   if (mode != 'subscription' && mode != 'both') return false;
 
-  // If subscription is expired → always show the prompt regardless of
-  // isSubscribed flag (API may return both is_subscribed=true AND
-  // is_expired=true simultaneously).
+  // If subscription is expired → ALWAYS show the renewal prompt, even if
+  // hasSubscription or isSubscribed flags appear stale from the backend.
   if (homeData.isSubscriptionExpired == true) return true;
 
-  // If API explicitly says subscribed → don't show.
+  // Feature gate: subscription feature must be enabled for non-expired cases.
+  if (homeData.hasSubscription != true) return false;
+
+  // If API explicitly says subscribed and not expired → don't show.
   if (homeData.isSubscribed == true) return false;
 
-  // If subscription data exists and hasn't expired → treat as subscribed.
-  if (homeData.subscriptionData != null) {
-    return false;
-  }
+  // If active subscription data exists → treat as subscribed.
+  if (homeData.subscriptionData != null) return false;
 
   return true;
 }

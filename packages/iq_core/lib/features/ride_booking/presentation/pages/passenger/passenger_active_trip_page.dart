@@ -530,13 +530,19 @@ class _ActiveTripSheet extends StatelessWidget {
                   vehicleInfo: trip.vehicleTypeName,
                   plateNumber: trip.vehicleNumber,
                   vehicleColor: trip.vehicleColor,
-                  onChat: () => _openTripChat(
-                    context,
-                    requestId: state.requestId ?? '',
-                    otherPartyName: trip.driverName ?? '',
-                    otherPartyPhotoUrl: trip.driverProfilePic,
-                  ),
-                  onCall: () => _callPhone(context, trip.driverMobile),
+                  onChat: trip.driverMobile != null &&
+                          trip.driverMobile!.isNotEmpty
+                      ? () => _openTripChat(
+                            context,
+                            requestId: state.requestId ?? '',
+                            otherPartyName: trip.driverName ?? '',
+                            otherPartyPhotoUrl: trip.driverProfilePic,
+                          )
+                      : null,
+                  onCall: trip.driverMobile != null &&
+                          trip.driverMobile!.isNotEmpty
+                      ? () => _callPhone(context, trip.driverMobile)
+                      : null,
                 ),
                 SizedBox(height: 16.h),
 
@@ -890,17 +896,20 @@ class _DriverRow extends StatelessWidget {
         ),
 
         // ── Chat + Call ──
-        _PCircleActionBtn(
-          icon: Icons.phone_outlined,
-          color: AppColors.primary,
-          onTap: onCall,
-        ),
-        SizedBox(width: 8.w),
-        _PCircleActionBtn(
-          icon: Icons.chat_bubble_outlined,
-          color: AppColors.primary,
-          onTap: onChat,
-        ),
+        if (onCall != null) ...[
+          _PCircleActionBtn(
+            icon: Icons.phone_outlined,
+            color: AppColors.primary,
+            onTap: onCall,
+          ),
+          SizedBox(width: 8.w),
+        ],
+        if (onChat != null)
+          _PCircleActionBtn(
+            icon: Icons.chat_bubble_outlined,
+            color: AppColors.primary,
+            onTap: onChat,
+          ),
       ],
     );
   }

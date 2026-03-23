@@ -47,12 +47,11 @@ class PassengerApp extends StatelessWidget {
                       GlobalCupertinoLocalizations.delegate,
                     ],
                     builder: (context, child) {
-                      return IqHapticTapWrapper(
-                        child: Directionality(
-                          textDirection: localeState.isArabic
-                              ? TextDirection.rtl
-                              : TextDirection.ltr,
-                          child: BlocListener<AuthBloc, AuthState>(
+                      return Directionality(
+                        textDirection: localeState.isArabic
+                            ? TextDirection.rtl
+                            : TextDirection.ltr,
+                        child: BlocListener<AuthBloc, AuthState>(
                           listenWhen: (prev, curr) =>
                               prev is! AuthUnauthenticated &&
                               curr is AuthUnauthenticated,
@@ -67,7 +66,6 @@ class PassengerApp extends StatelessWidget {
                             );
                           },
                           child: child ?? const SizedBox.shrink(),
-                        ),
                         ),
                       );
                     },
