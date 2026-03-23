@@ -42,7 +42,7 @@ class LoginPage extends StatelessWidget {
     String? title,
     this.role = 'passenger',
     this.isDriver = false,
-  })  : footerText = footerText ?? AppStrings.noAccount,
+  })  : footerText = footerText ?? '',
         title = title ?? AppStrings.login;
 
   @override
@@ -93,7 +93,7 @@ class LoginPage extends StatelessWidget {
                   SizedBox(height: 40.h),
                   _buildContinueButton(),
                   SizedBox(height: 40.h),
-                  _buildFooterLink(context),
+                  if(footerText != '') _buildFooterLink(context),
                   SizedBox(height: 24.h),
                 ],
               ),
