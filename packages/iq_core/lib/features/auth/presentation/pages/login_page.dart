@@ -93,7 +93,7 @@ class LoginPage extends StatelessWidget {
                   SizedBox(height: 40.h),
                   _buildContinueButton(),
                   SizedBox(height: 40.h),
-                  if(footerText != '') _buildFooterLink(context),
+                  if(!isDriver) _buildFooterLink(context),
                   SizedBox(height: 24.h),
                 ],
               ),
