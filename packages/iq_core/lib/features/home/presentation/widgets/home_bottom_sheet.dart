@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:iq_core/core/constants/app_assets.dart';
 import 'package:shimmer/shimmer.dart';
@@ -294,7 +295,7 @@ class HomeBottomSheet extends StatelessWidget {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 24.w),
           child: GestureDetector(
-            onTap: onSearchTap,
+            onTap: onSearchTap == null ? null : () { HapticFeedback.lightImpact(); onSearchTap!(); },
             child: Container(
               height: 54.h,
               padding: EdgeInsets.symmetric(horizontal: 16.w),

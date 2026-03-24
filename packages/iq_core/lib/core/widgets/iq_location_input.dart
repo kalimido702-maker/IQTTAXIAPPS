@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -29,7 +30,7 @@ class IqLocationInput extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap == null ? null : () { HapticFeedback.lightImpact(); onTap!(); },
       child: Container(
         height: 48.h,
         decoration: BoxDecoration(

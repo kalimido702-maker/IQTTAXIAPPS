@@ -278,9 +278,7 @@ class _DriverHomeBodyState extends State<_DriverHomeBody>
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () => context
-                                    .read<DriverHomeBloc>()
-                                    .add(const DriverHomeLoadRequested()),
+                                onTap: () { HapticFeedback.lightImpact(); context.read<DriverHomeBloc>().add(const DriverHomeLoadRequested()); },
                                 child: Icon(
                                   Icons.refresh,
                                   color: AppColors.white,

@@ -993,7 +993,12 @@ class _BorderedAddressCard extends StatelessWidget {
           if (showChange) ...[
             SizedBox(width: 8.w),
             GestureDetector(
-              onTap: onChangeTap,
+              onTap: onChangeTap == null
+                  ? null
+                  : () {
+                      HapticFeedback.lightImpact();
+                      onChangeTap!();
+                    },
               child: IqText(
                 AppStrings.changeText,
                 style: AppTypography.labelSmall.copyWith(

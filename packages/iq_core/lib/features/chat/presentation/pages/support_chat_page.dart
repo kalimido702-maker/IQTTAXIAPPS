@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -161,7 +162,7 @@ class _SupportChatPageState extends State<SupportChatPage> {
           const Spacer(),
           // Back arrow — in RTL last child → LEFT side
           GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
+            onTap: () { HapticFeedback.lightImpact(); Navigator.of(context).pop(); },
             child: Padding(
               padding: EdgeInsets.all(8.w),
               child: Icon(
@@ -382,7 +383,7 @@ class _SupportChatPageState extends State<SupportChatPage> {
             Padding(
               padding: EdgeInsets.all(6.w),
               child: GestureDetector(
-                onTap: _onSend,
+                onTap: () { HapticFeedback.mediumImpact(); _onSend(); },
                 child: Container(
                   width: 44.w,
                   height: 44.w,

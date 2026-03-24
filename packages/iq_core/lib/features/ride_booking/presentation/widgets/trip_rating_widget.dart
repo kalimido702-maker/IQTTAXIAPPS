@@ -55,7 +55,7 @@ class _TripRatingWidgetState extends State<TripRatingWidget> {
           children: List.generate(5, (index) {
             final starIndex = index + 1;
             return GestureDetector(
-              onTap: () => _setRating(starIndex),
+              onTap: () { HapticFeedback.selectionClick(); _setRating(starIndex); },
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 6.w),
                 child: Icon(

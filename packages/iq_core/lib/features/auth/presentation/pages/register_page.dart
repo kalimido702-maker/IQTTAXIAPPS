@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -240,7 +241,7 @@ class RegisterPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             GestureDetector(
-              onTap: () => _openTermsUrl(context),
+              onTap: () { HapticFeedback.lightImpact(); _openTermsUrl(context); },
               child: IqText(
                 '\u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629 \u0639\u0644\u0649 \u0627\u0644\u0634\u0631\u0648\u0637 \u0648\u0627\u0644\u0623\u062D\u0643\u0627\u0645',
                 style: AppTypography.bodyLarge.copyWith(
@@ -307,7 +308,7 @@ class RegisterPage extends StatelessWidget {
 
   Widget _buildFooterLink(BuildContext context) {
     return GestureDetector(
-      onTap: () => onLoginTap(context),
+      onTap: () { HapticFeedback.lightImpact(); onLoginTap(context); },
       child: IqText.rich(
         TextSpan(
           children: [
@@ -346,7 +347,7 @@ class _GenderOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () { HapticFeedback.selectionClick(); onTap(); },
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
         decoration: BoxDecoration(

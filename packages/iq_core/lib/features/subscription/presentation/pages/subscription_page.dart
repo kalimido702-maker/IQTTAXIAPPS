@@ -450,7 +450,7 @@ class _PlanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap == null ? null : () { HapticFeedback.selectionClick(); onTap!(); },
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 15.h),
@@ -553,7 +553,7 @@ class _ChoiceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap == null ? null : () { HapticFeedback.selectionClick(); onTap!(); },
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
         decoration: BoxDecoration(

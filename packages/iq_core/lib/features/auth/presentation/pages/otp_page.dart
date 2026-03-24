@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -196,6 +197,7 @@ class OtpPage extends StatelessWidget {
             GestureDetector(
               onTap: formState.canResend
                   ? () {
+                      HapticFeedback.lightImpact();
                       context
                           .read<AuthBloc>()
                           .add(AuthResendOtpEvent(phone: phone, role: role));

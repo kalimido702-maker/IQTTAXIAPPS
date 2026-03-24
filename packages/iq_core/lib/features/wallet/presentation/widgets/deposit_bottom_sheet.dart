@@ -197,7 +197,7 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
                 padding: EdgeInsets.only(
                     left: index < _quickAmounts.length - 1 ? 12.w : 0),
                 child: GestureDetector(
-                  onTap: () => _selectChip(index),
+                  onTap: () { HapticFeedback.selectionClick(); _selectChip(index); },
                   child: Container(
                     height: 33.h,
                     padding: EdgeInsets.symmetric(horizontal: 15.w),

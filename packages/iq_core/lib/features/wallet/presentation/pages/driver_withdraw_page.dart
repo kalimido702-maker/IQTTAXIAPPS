@@ -158,6 +158,7 @@ class _DriverWithdrawPageState extends State<DriverWithdrawPage> {
                 // Update payment method link
                 GestureDetector(
                   onTap: () {
+                    HapticFeedback.lightImpact();
                     // TODO: navigate to payment method settings
                   },
                   child: IqText(

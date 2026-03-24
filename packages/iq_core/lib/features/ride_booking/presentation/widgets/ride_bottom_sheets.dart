@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/constants/app_strings.dart';
@@ -138,7 +139,7 @@ class _PaymentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () { HapticFeedback.selectionClick(); onTap(); },
       child: Container(
         width: double.infinity,
         margin: EdgeInsets.only(bottom: 10.h),
@@ -288,7 +289,10 @@ class _PromoCodeSheetState extends State<_PromoCodeSheet> {
                         widget.currentCode!.isNotEmpty)
                       Expanded(
                         child: GestureDetector(
-                          onTap: () => Navigator.pop(context, ''),
+                          onTap: () {
+                            HapticFeedback.mediumImpact();
+                            Navigator.pop(context, '');
+                          },
                           child: Container(
                             height: 54.h,
                             decoration: BoxDecoration(
@@ -316,6 +320,7 @@ class _PromoCodeSheetState extends State<_PromoCodeSheet> {
                         onTap: () {
                           final code = _controller.text.trim();
                           if (code.isNotEmpty) {
+                            HapticFeedback.mediumImpact();
                             Navigator.pop(context, code);
                           }
                         },
@@ -475,7 +480,7 @@ class _ScheduleRideSheetState extends State<_ScheduleRideSheet> {
                   if (widget.currentSchedule != null)
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => Navigator.pop(context, ''),
+                        onTap: () { HapticFeedback.mediumImpact(); Navigator.pop(context, ''); },
                         child: Container(
                           height: 54.h,
                           decoration: BoxDecoration(
@@ -497,8 +502,7 @@ class _ScheduleRideSheetState extends State<_ScheduleRideSheet> {
                   if (widget.currentSchedule != null) SizedBox(width: 12.w),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () =>
-                          Navigator.pop(context, _combinedDateTime),
+                      onTap: () { HapticFeedback.mediumImpact(); Navigator.pop(context, _combinedDateTime); },
                       child: Container(
                         height: 54.h,
                         decoration: BoxDecoration(
@@ -543,7 +547,7 @@ class _SchedulePickerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () { HapticFeedback.lightImpact(); onTap(); },
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
@@ -749,7 +753,7 @@ class _RidePreferencesSheetState extends State<_RidePreferencesSheet> {
 
                 // Confirm button
                 GestureDetector(
-                  onTap: _confirm,
+                  onTap: () { HapticFeedback.mediumImpact(); _confirm(); },
                   child: Container(
                     width: double.infinity,
                     height: 54.h,
@@ -791,7 +795,7 @@ class _PreferenceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () { HapticFeedback.selectionClick(); onTap(); },
       child: Container(
         width: double.infinity,
         margin: EdgeInsets.only(bottom: 10.h),

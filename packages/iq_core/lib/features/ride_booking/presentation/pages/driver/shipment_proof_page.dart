@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -86,7 +87,7 @@ class _ShipmentProofPageState extends State<ShipmentProofPage> {
 
               // ── Dotted upload area ──
               GestureDetector(
-                onTap: _pickImage,
+                onTap: () { HapticFeedback.lightImpact(); _pickImage(); },
                 child: Container(
                   width: double.infinity,
                   height: 200.h,

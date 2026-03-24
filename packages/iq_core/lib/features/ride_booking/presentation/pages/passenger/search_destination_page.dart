@@ -381,7 +381,7 @@ class _BodyState extends State<_Body> {
                       ),
                       SizedBox(width: 8.w),
                       GestureDetector(
-                        onTap: () => _removeStop(i),
+                        onTap: () { HapticFeedback.lightImpact(); _removeStop(i); },
                         child: Container(
                           width: 36.w,
                           height: 36.w,
@@ -412,7 +412,7 @@ class _BodyState extends State<_Body> {
                 if (_stops.length < 2) ...[
                   SizedBox(height: 10.h),
                   GestureDetector(
-                    onTap: _addStopField,
+                    onTap: () { HapticFeedback.lightImpact(); _addStopField(); },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [

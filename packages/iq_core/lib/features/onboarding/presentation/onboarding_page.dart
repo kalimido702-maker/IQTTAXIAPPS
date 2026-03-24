@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -187,9 +188,7 @@ class _OnboardingBody extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
-            onTap: () => context
-                .read<OnboardingBloc>()
-                .add(const OnboardingSkipped()),
+            onTap: () { HapticFeedback.lightImpact(); context.read<OnboardingBloc>().add(const OnboardingSkipped()); },
             child: IqText(
               AppStrings.skip,
               style: AppTypography.labelLarge.copyWith(
@@ -200,9 +199,7 @@ class _OnboardingBody extends StatelessWidget {
           IqImage(AppAssets.iqTaxiLogo, width: 74.w, height: 85.w),
           state.currentPage > 0
               ? GestureDetector(
-                  onTap: () => context
-                      .read<OnboardingBloc>()
-                      .add(const OnboardingBackPressed()),
+                  onTap: () { HapticFeedback.lightImpact(); context.read<OnboardingBloc>().add(const OnboardingBackPressed()); },
                   child: SizedBox(
                     width: 24.w,
                     height: 24.w,

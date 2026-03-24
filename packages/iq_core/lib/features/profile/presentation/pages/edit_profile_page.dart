@@ -236,7 +236,7 @@ class _AvatarSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onPickImage,
+      onTap: () { HapticFeedback.lightImpact(); onPickImage(); },
       child: Center(
         child: SizedBox(
           width: 173.w,
@@ -574,7 +574,7 @@ class _CancelButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () { HapticFeedback.lightImpact(); onTap(); },
       child: Container(
         width: 156.w,
         height: 55.h,
@@ -608,7 +608,7 @@ class _SaveButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: isLoading ? null : onTap,
+      onTap: isLoading ? null : () { HapticFeedback.mediumImpact(); onTap(); },
       child: Container(
         height: 55.h,
         decoration: BoxDecoration(

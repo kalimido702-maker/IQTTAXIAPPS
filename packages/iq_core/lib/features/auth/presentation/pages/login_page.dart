@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -163,7 +164,7 @@ class LoginPage extends StatelessWidget {
 
   Widget _buildFooterLink(BuildContext context) {
     return GestureDetector(
-      onTap: () => onFooterLinkTap(context),
+      onTap: () { HapticFeedback.lightImpact(); onFooterLinkTap(context); },
       child: IqText.rich(
         TextSpan(
           children: [

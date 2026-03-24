@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -177,7 +178,7 @@ class _TabItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () { HapticFeedback.selectionClick(); onTap(); },
         behavior: HitTestBehavior.opaque,
         child: Column(
           children: [
@@ -558,8 +559,10 @@ class _DateStripState extends State<_DateStrip> {
           return GestureDetector(
             onTap: isFuture
                 ? null
-                : () => widget.bloc
-                    .add(IncentiveDateSelected(dateIndex: index)),
+                : () {
+                    HapticFeedback.selectionClick();
+                    widget.bloc.add(IncentiveDateSelected(dateIndex: index));
+                  },
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [

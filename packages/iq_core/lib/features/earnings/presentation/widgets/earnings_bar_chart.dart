@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -39,7 +40,7 @@ class EarningsBarChart extends StatelessWidget {
             : 8.0;
 
         return GestureDetector(
-          onTap: () => onBarTap?.call(i),
+          onTap: () { HapticFeedback.selectionClick(); onBarTap?.call(i); },
           child: SizedBox(
             width: 31.w,
             child: Column(

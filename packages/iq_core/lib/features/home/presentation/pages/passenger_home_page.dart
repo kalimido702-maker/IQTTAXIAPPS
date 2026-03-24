@@ -282,9 +282,7 @@ class _PassengerHomeBodyState extends State<_PassengerHomeBody> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () => context
-                                    .read<PassengerHomeBloc>()
-                                    .add(const PassengerHomeLoadRequested()),
+                                onTap: () { HapticFeedback.lightImpact(); context.read<PassengerHomeBloc>().add(const PassengerHomeLoadRequested()); },
                                 child: Icon(
                                   Icons.refresh,
                                   color: AppColors.white,

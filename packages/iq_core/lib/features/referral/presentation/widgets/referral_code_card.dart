@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -21,7 +22,7 @@ class ReferralCodeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onCopy,
+      onTap: () { HapticFeedback.mediumImpact(); onCopy(); },
       child: Container(
         width: double.infinity,
         height: 50.h,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -21,7 +22,7 @@ class DatePickerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap == null ? null : () { HapticFeedback.lightImpact(); onTap!(); },
       child: Container(
         height: 50.h,
         decoration: BoxDecoration(

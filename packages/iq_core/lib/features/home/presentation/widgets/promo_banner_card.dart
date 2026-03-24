@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/constants/app_strings.dart';
@@ -52,7 +53,7 @@ class PromoBannerCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap == null ? null : () { HapticFeedback.lightImpact(); onTap!(); },
       child: _hasNetworkImage
           ? _buildImageBanner(imageUrl!)
           : _hasAssetImage

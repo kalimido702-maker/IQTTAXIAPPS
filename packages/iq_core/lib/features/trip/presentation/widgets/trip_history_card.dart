@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 
@@ -29,7 +30,7 @@ class TripHistoryCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap == null ? null : () { HapticFeedback.lightImpact(); onTap!(); },
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 15.h),

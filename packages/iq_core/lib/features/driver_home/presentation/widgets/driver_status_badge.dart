@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -34,7 +35,7 @@ class DriverStatusBadge extends StatelessWidget {
     final badgeWidth = 145.w;
 
     return GestureDetector(
-      onTap: isLoading ? null : onToggle,
+      onTap: isLoading ? null : () { HapticFeedback.mediumImpact(); onToggle(); },
       child: AnimatedContainer(
         duration: _duration,
         curve: Curves.easeInOut,

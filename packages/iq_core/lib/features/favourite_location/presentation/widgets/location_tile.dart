@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -103,7 +104,7 @@ class LocationTile extends StatelessWidget {
               // ── Delete button ──
               // if (showDelete)
                 GestureDetector(
-                  onTap: onDelete,
+                  onTap: onDelete == null ? null : () { HapticFeedback.mediumImpact(); onDelete!(); },
                   child: Padding(
                     padding: EdgeInsets.only(top: 4.h),
                     child: Icon(

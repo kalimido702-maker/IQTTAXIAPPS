@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -200,7 +201,7 @@ class _ParcelAddressPageState extends State<ParcelAddressPage> {
             ),
             // Map picker icon for this specific field
             GestureDetector(
-              onTap: onMapTap,
+              onTap: () { HapticFeedback.lightImpact(); onMapTap(); },
               child: Padding(
                 padding: EdgeInsets.only(left: 8.w),
                 child: Icon(

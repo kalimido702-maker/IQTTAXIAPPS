@@ -131,7 +131,7 @@ class _DriverAddBalancePageState extends State<DriverAddBalancePage> {
                 final formatted = 'IQD ${amount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
 
                 return GestureDetector(
-                  onTap: () => _selectChip(index),
+                  onTap: () { HapticFeedback.selectionClick(); _selectChip(index); },
                   child: Container(
                     padding: EdgeInsets.symmetric(
                         horizontal: 15.w, vertical: 10.h),

@@ -156,7 +156,7 @@ class _PosQrScannerPageState extends State<PosQrScannerPage> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: () { HapticFeedback.lightImpact(); Navigator.of(context).pop(); },
                     child: Container(
                       padding: EdgeInsets.all(8.w),
                       decoration: BoxDecoration(
@@ -230,7 +230,7 @@ class _PosQrScannerPageState extends State<PosQrScannerPage> {
             right: 0,
             child: Center(
               child: GestureDetector(
-                onTap: () => _controller.toggleTorch(),
+                onTap: () { HapticFeedback.lightImpact(); _controller.toggleTorch(); },
                 child: Container(
                   padding: EdgeInsets.all(14.w),
                   decoration: BoxDecoration(

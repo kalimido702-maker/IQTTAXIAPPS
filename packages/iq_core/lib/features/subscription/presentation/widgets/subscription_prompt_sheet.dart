@@ -192,6 +192,7 @@ class _SubscriptionPromptSheet extends StatelessWidget {
 
                 GestureDetector(
                   onTap: () {
+                    HapticFeedback.lightImpact();
                     setSubscriptionSkipStatus(true);
                     Navigator.of(context).pop();
                   },

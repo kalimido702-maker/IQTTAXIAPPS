@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_zoom_drawer/flutter_zoom_drawer.dart';
 import '../theme/app_colors.dart';
@@ -60,7 +61,7 @@ class IqSidebar extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsetsDirectional.only(end: 24.w),
                 child: GestureDetector(
-                  onTap: () => ZoomDrawer.of(context)?.toggle(),
+                  onTap: () { HapticFeedback.lightImpact(); ZoomDrawer.of(context)?.toggle(); },
                   child: Icon(Icons.menu, color: AppColors.white, size: 28.w),
                 ),
               ),
@@ -112,6 +113,7 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        HapticFeedback.lightImpact();
         ZoomDrawer.of(context)?.close();
         onTap?.call(context);
       },

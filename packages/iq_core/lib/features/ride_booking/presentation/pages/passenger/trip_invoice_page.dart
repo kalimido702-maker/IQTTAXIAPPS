@@ -303,7 +303,7 @@ class _InvoiceContentState extends State<_InvoiceContent> {
           Row(
             children: [
               GestureDetector(
-                onTap: () => _onActionPressed(),
+                onTap: () { HapticFeedback.lightImpact(); _onActionPressed(); },
                 child: Icon(Icons.arrow_back, size: 24.w, color: onSurface),
               ),
               const Spacer(),

@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iq_core/core/constants/app_strings.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/services/google_maps_service.dart';
@@ -14,16 +13,9 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/iq_map_view.dart';
 import '../../../../../core/widgets/iq_text.dart';
-import '../../../../chat/presentation/bloc/support_chat_bloc.dart';
-import '../../../../chat/presentation/pages/support_chat_page.dart';
-import '../../../../chat/data/datasources/support_chat_data_source.dart';
-import '../../../../chat/domain/repositories/support_chat_repository.dart';
-import '../../../../home/presentation/bloc/passenger_home_bloc.dart';
 import '../../bloc/passenger/passenger_trip_bloc.dart';
 import '../../bloc/passenger/passenger_trip_event.dart';
 import '../../bloc/passenger/passenger_trip_state.dart';
-// Trip address row kept available for future use.
-// import '../../widgets/trip_address_row.dart';
 import '../../widgets/ride_bottom_sheets.dart';
 import '../../widgets/vehicle_type_card.dart';
 import 'passenger_active_trip_page.dart';
@@ -557,42 +549,21 @@ class _BottomPanel extends StatelessWidget {
 
                 SizedBox(height: 30.h),
 
-                // ─── Ride now button + phone/chat icons ───
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Ride now / schedule button
-                    _RideNowButton(
-                      isLoading: state.status ==
-                          PassengerTripStatus.creatingRequest,
-                      isScheduled: state.scheduledTime != null,
-                      onPressed: selected != null
-                          ? () {
-                              HapticFeedback.mediumImpact();
-                              context
-                                  .read<PassengerTripBloc>()
-                                  .add(PassengerTripCreateRequested(
-                                    polyline: directions?.encodedPolyline,
-                                  ));
-                            }
-                          : null,
-                    ),
-                    // Phone + Chat icons
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _ActionCircle(
-                          icon: Icons.phone_rounded,
-                          onTap: () => _callSupport(context),
-                        ),
-                        SizedBox(width: 9.w),
-                        _ActionCircle(
-                          icon: Icons.chat_bubble_rounded,
-                          onTap: () => _openSupportChat(context),
-                        ),
-                      ],
-                    ),
-                  ],
+                // ─── Ride now button ───
+                _RideNowButton(
+                  isLoading: state.status ==
+                      PassengerTripStatus.creatingRequest,
+                  isScheduled: state.scheduledTime != null,
+                  onPressed: selected != null
+                      ? () {
+                          HapticFeedback.mediumImpact();
+                          context
+                              .read<PassengerTripBloc>()
+                              .add(PassengerTripCreateRequested(
+                                polyline: directions?.encodedPolyline,
+                              ));
+                        }
+                      : null,
                 ),
 
                 SizedBox(height: 34.h),
@@ -606,51 +577,6 @@ class _BottomPanel extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Support Helpers — call & chat
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Opens the phone dialer with the admin SOS number from HomeData.
-Future<void> _callSupport(BuildContext context) async {
-  String? phone;
-  try {
-    final homeData = context.read<PassengerHomeBloc>().state.homeData;
-    phone = homeData?.adminSosPhone;
-  } catch (_) {}
-
-  if (phone == null || phone.isEmpty) return;
-  final uri = Uri(scheme: 'tel', path: phone);
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri);
-  }
-}
-
-/// Navigates to the admin support chat page.
-void _openSupportChat(BuildContext context) {
-  String userId = '';
-  String? conversationId;
-
-  try {
-    final homeData = context.read<PassengerHomeBloc>().state.homeData;
-    userId = homeData?.id ?? '';
-    conversationId = homeData?.conversationId;
-  } catch (_) {}
-
-  final cachedConvId = sl<SupportChatDataSource>().getSavedConversationId();
-
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => BlocProvider(
-        create: (_) => SupportChatBloc(
-          repository: sl<SupportChatRepository>(),
-          currentUserId: userId,
-          initialConversationId: conversationId ?? cachedConvId,
-        )..add(const SupportChatLoadRequested()),
-        child: const SupportChatPage(),
-      ),
-    ),
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper Widgets — pixel-matched to Figma export
 // ─────────────────────────────────────────────────────────────────────────────
@@ -667,7 +593,10 @@ class _PromoCodeRow extends StatelessWidget {
     final hasCode = appliedCode != null && appliedCode!.isNotEmpty;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
         width: double.infinity,
         height: 54.h,
@@ -759,7 +688,10 @@ class _PaymentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: () => onChanged(currentPayment),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onChanged(currentPayment);
+      },
       child: Container(
         width: double.infinity,
         height: 70.h,
@@ -835,7 +767,10 @@ class _PillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
         height: 60.h,
         decoration: BoxDecoration(
@@ -872,7 +807,12 @@ class _RideNowButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onPressed,
+      onTap: onPressed == null
+          ? null
+          : () {
+              HapticFeedback.mediumImpact();
+              onPressed!();
+            },
       child: Container(
         width: 189.w,
         padding: EdgeInsets.symmetric(horizontal: 50.w, vertical: 15.5.h),
@@ -906,39 +846,6 @@ class _RideNowButton extends StatelessWidget {
   }
 }
 
-/// Circle action button — white bg, yellow border, 50x50.
-/// Used for phone & chat beside "ركوب الآن".
-class _ActionCircle extends StatelessWidget {
-  const _ActionCircle({
-    required this.icon,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 50.w,
-        height: 50.w,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkCard : AppColors.white,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: AppColors.buttonYellow,
-            width: 1,
-          ),
-        ),
-        child: Icon(icon, size: 22.w, color: isDark ? AppColors.white : AppColors.black),
-      ),
-    );
-  }
-}
-
 /// Back button — white circle with optional outer glow. Used on map overlay.
 class _CircleIconButton extends StatelessWidget {
   const _CircleIconButton({
@@ -953,7 +860,10 @@ class _CircleIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
         width: 35.w,
         height: 35.w,

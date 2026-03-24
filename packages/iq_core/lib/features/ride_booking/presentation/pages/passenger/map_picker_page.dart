@@ -238,6 +238,7 @@ class _MapPickerPageState extends State<MapPickerPage> {
                       if (_searchController.text.isNotEmpty)
                         GestureDetector(
                           onTap: () {
+                            HapticFeedback.lightImpact();
                             _searchController.clear();
                             setState(() {
                               _searchResults = [];

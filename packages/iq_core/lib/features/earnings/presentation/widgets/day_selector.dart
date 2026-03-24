@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -36,7 +37,7 @@ class DaySelector extends StatelessWidget {
       children: [
         // ── Left arrow (previous week) ──
         GestureDetector(
-          onTap: disablePrevious ? null : onPrevious,
+          onTap: disablePrevious ? null : () { HapticFeedback.lightImpact(); onPrevious(); },
           child: Icon(
             Icons.chevron_left,
             size: 24.w,
@@ -50,7 +51,7 @@ class DaySelector extends StatelessWidget {
         ...List.generate(7, (i) {
           final isSelected = i == selectedIndex;
           return GestureDetector(
-            onTap: () => onDaySelected(i),
+            onTap: () { HapticFeedback.selectionClick(); onDaySelected(i); },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 46.w,
@@ -76,7 +77,7 @@ class DaySelector extends StatelessWidget {
 
         // ── Right arrow (next week) ──
         GestureDetector(
-          onTap: disableNext ? null : onNext,
+          onTap: disableNext ? null : () { HapticFeedback.lightImpact(); onNext(); },
           child: Icon(
             Icons.chevron_right,
             size: 24.w,

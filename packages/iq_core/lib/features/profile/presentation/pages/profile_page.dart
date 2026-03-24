@@ -138,7 +138,7 @@ class _ProfileCard extends StatelessWidget {
             children: [
               // Edit button (pen icon)
               GestureDetector(
-                onTap: onEditTap,
+                onTap: () { HapticFeedback.lightImpact(); onEditTap(); },
                 child: Container(
                   width: 31.w,
                   height: 31.w,
