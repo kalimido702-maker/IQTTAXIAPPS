@@ -63,20 +63,13 @@ class SubscriptionDataSourceImpl implements SubscriptionDataSource {
     required List<int> planIds,
   }) async {
     try {
-      // Use FormData so PHP/Laravel always reads fields from $_POST.
-      final formData = FormData();
-      formData.fields.add(MapEntry('payment_opt', paymentOpt.toString()));
-      formData.fields.add(MapEntry('day', day.toString()));
-      formData.fields.add(
-        const MapEntry('callback_url', 'https://iqttaxi.com/payment/callback'),
-      );
-      for (final id in planIds) {
-        formData.fields.add(MapEntry('plan_id[]', id.toString()));
-      }
-
       final response = await dio.post(
         'api/v1/driver/subscribe',
-        data: formData,
+        data: {
+          'payment_opt': paymentOpt,
+          'day': day.toString(),
+          'plan_id': planIds,
+        },
       );
       final body = response.data as Map<String, dynamic>;
 

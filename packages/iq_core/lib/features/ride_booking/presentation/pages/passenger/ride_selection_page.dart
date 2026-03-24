@@ -814,7 +814,7 @@ class _RideNowButton extends StatelessWidget {
               onPressed!();
             },
       child: Container(
-        width: 189.w,
+        width: 350.w,
         padding: EdgeInsets.symmetric(horizontal: 50.w, vertical: 15.5.h),
         decoration: BoxDecoration(
           color: onPressed != null

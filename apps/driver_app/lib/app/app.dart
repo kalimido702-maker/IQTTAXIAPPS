@@ -198,9 +198,7 @@ class _AppHome extends StatelessWidget {
     // Open WhatsApp deeplink
     if (whatsappLink != null && whatsappLink.isNotEmpty) {
       final uri = Uri.parse(whatsappLink);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 

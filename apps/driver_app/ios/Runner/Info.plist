@@ -51,6 +51,12 @@
 	<string>يحتاج التطبيق إلى موقعك في الخلفية لتتبع رحلاتك وتلقي الطلبات</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>يحتاج التطبيق إلى موقعك في الخلفية لتتبع رحلاتك وتلقي الطلبات</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>whatsapp</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

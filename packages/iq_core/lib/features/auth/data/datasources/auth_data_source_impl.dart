@@ -67,9 +67,7 @@ class AuthDataSourceImpl implements AuthDataSource {
         final serverMsg = data['message']?.toString() ?? '';
 
         // New / unapproved driver → redirect to WhatsApp
-        if ((active == 0 || active == '0') &&
-            mode == 'register' &&
-            whatsappLink.isNotEmpty) {
+        if (mode == 'register' && whatsappLink.isNotEmpty) {
           return Left(
             RegistrationRedirectFailure(
               whatsappLink: whatsappLink,
